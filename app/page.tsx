@@ -1,20 +1,12 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen hero-bg">
       <section className="relative min-h-screen flex flex-col items-center justify-center px-12 py-32">
-        {/* Logos - Centered, Elegant */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-24 flex items-center justify-center gap-16"
-        >
+        {/* Logos */}
+        <div className="mb-24 flex items-center justify-center gap-16 animate-fade-in-luxury">
           <div className="relative">
             <Image
               src="/images/logo-company.png"
@@ -38,49 +30,37 @@ export default function HomePage() {
               priority
             />
           </div>
-        </motion.div>
+        </div>
 
-        {/* Title - Large, Serif, Elegant */}
-        <motion.h1 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-12 text-center font-serif"
-        >
+        {/* Title */}
+        <h1 className="mb-12 text-center font-serif animate-fade-in-luxury" style={{ animationDelay: "0.1s" }}>
           <span className="text-luxury-title block">
             קטלוג רשמי
           </span>
           <span className="text-luxury-title block mt-2">
             GUESS ישראל
           </span>
-        </motion.h1>
+        </h1>
 
-        {/* Subtitle - Minimal */}
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-20 max-w-2xl text-center text-luxury-grey text-sm font-light leading-relaxed tracking-wide"
-          style={{ letterSpacing: "0.05em" }}
+        {/* Subtitle */}
+        <p 
+          className="mb-20 max-w-2xl text-center text-luxury-grey text-sm font-light leading-relaxed tracking-wide animate-fade-in-luxury"
+          style={{ letterSpacing: "0.05em", animationDelay: "0.2s" }}
         >
           גישה מקצועית לכל דגמי התיקים והנעליים,
           <br />
           עם עדכון מלאי בזמן אמת
-        </motion.p>
+        </p>
 
-        {/* CTA Button - Minimal Luxury */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6, ease: [0.4, 0, 0.2, 1] }}
-        >
+        {/* CTA Button */}
+        <div className="animate-fade-in-luxury" style={{ animationDelay: "0.3s" }}>
           <Link 
             href="/products" 
             className="btn-luxury"
           >
             למעבר לקטלוג
           </Link>
-        </motion.div>
+        </div>
       </section>
     </main>
   );

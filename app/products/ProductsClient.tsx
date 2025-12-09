@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import type { Product } from "@/lib/fetchSheet";
-import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 type CategoryFilter = "all" | "תיק" | "נעל" | "ביגוד";
 type StockFilter = "all" | "in" | "out";
@@ -14,17 +14,14 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 
   const filtered = useMemo(() => {
     return products.filter((product) => {
-      // Filtre catégorie : correspondance exacte en hébreu
       if (category !== "all" && product.category !== category) return false;
 
-      // Stock filter
       const stockOk =
         stock === "all" ||
         (stock === "in" && product.stockQuantity > 0) ||
         (stock === "out" && product.stockQuantity === 0);
       if (!stockOk) return false;
 
-      // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const matchesId = product.id.toLowerCase().includes(query);
@@ -41,28 +38,18 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   return (
     <main className="min-h-screen bg-luxury-white">
       <section className="mx-auto max-w-[1800px] px-16 py-20">
-        {/* Header - Hero Section */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-20"
-        >
+        {/* Header */}
+        <div className="mb-20 animate-fade-in-luxury">
           <h1 className="mb-4 font-serif text-5xl font-normal tracking-tight text-luxury-noir" style={{ letterSpacing: "0.01em" }}>
             קטלוג מלאי
           </h1>
           <p className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey" style={{ letterSpacing: "0.2em" }}>
             {filtered.length} פריטים
           </p>
-        </motion.div>
+        </div>
 
-        {/* Search Bar - Ultra Minimal */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-16"
-        >
+        {/* Search Bar */}
+        <div className="mb-16">
           <input
             type="text"
             value={searchQuery}
@@ -70,16 +57,10 @@ export default function ProductsClient({ products }: { products: Product[] }) {
             placeholder="חפש לפי קוד פריט, דגם או שם"
             className="search-luxury"
           />
-        </motion.div>
+        </div>
 
-        {/* Filter Controls - Chanel Style */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          className="mb-24 flex flex-wrap items-center gap-12 border-b border-luxury-grey/20 pb-8"
-        >
-          {/* Category Filters */}
+        {/* Filter Controls */}
+        <div className="mb-24 flex flex-wrap items-center gap-12 border-b border-luxury-grey/20 pb-8">
           <div className="flex items-center gap-10">
             <FilterControl
               label="כל הקטגוריות"
@@ -103,10 +84,8 @@ export default function ProductsClient({ products }: { products: Product[] }) {
             />
           </div>
           
-          {/* Divider - Thin */}
           <div className="h-8 w-px bg-luxury-grey/20" />
           
-          {/* Stock Filters */}
           <div className="flex items-center gap-10">
             <FilterControl
               label="הכל"
@@ -124,42 +103,32 @@ export default function ProductsClient({ products }: { products: Product[] }) {
               onClick={() => setStock("out")}
             />
           </div>
-        </motion.div>
+        </div>
 
-        {/* Product Grid - Fashion Catalog */}
-        <motion.div 
-          layout
-          className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          <AnimatePresence mode="popLayout">
-            {filtered.map((product, index) => (
-              <ProductCard 
-                key={`${product.id}-${product.category}-${index}`} 
-                product={product} 
-                index={index}
-              />
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        {/* Product Grid */}
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((product, index) => (
+            <ProductCard 
+              key={`${product.id}-${product.category}-${index}`} 
+              product={product} 
+            />
+          ))}
+        </div>
 
         {/* Empty State */}
         {filtered.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="py-40 text-center"
-          >
+          <div className="py-40 text-center">
             <p className="text-sm font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.05em" }}>
               לא נמצאו מוצרים התואמים לחיפוש
             </p>
-          </motion.div>
+          </div>
         )}
       </section>
     </main>
   );
 }
 
-function FilterControl({
+const FilterControl = memo(function FilterControl({
   label,
   active = false,
   onClick
@@ -177,70 +146,50 @@ function FilterControl({
       {label}
     </button>
   );
-}
+});
 
-function ProductCard({ product, index }: { product: Product; index: number }) {
+const ProductCard = memo(function ProductCard({ product }: { product: Product }) {
   const out = product.stockQuantity === 0;
-  const categoryLabel = product.category;
 
   return (
-    <motion.article
-      layout
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ 
-        duration: 0.6,
-        delay: index * 0.03,
-        ease: [0.4, 0, 0.2, 1],
-        layout: { duration: 0.4 }
-      }}
-      className="product-card-luxury group"
-    >
-      {/* Image Container - Hero */}
+    <article className="product-card-luxury group">
+      {/* Image Container */}
       <div className="relative mb-8 aspect-[3/4] w-full overflow-hidden bg-luxury-white">
-        <motion.img
+        <img
           src={product.imageUrl}
           alt={product.productName}
-          className="h-full w-full object-cover"
-          whileHover={{ scale: 1.05 }}
-          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
         
-        {/* Overlay on Hover - Subtle Darkening */}
-        <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-600" />
+        {/* Overlay on Hover */}
+        <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300" />
         
-        {/* Out of Stock Badge - Minimal */}
+        {/* Out of Stock Badge */}
         {out && (
           <div className="absolute right-6 top-6">
-            <span className="badge-out-luxury">
-              חסר במלאי
-            </span>
+            <span className="badge-out-luxury">חסר במלאי</span>
           </div>
         )}
       </div>
 
-      {/* Content - Minimal Text Hierarchy */}
+      {/* Content */}
       <div className="space-y-4">
-        {/* Brand - Subtle */}
         <p className="text-xs font-light tracking-[0.15em] uppercase text-luxury-grey" style={{ letterSpacing: "0.15em" }}>
           {product.brand}
         </p>
         
-        {/* Product Name */}
         <h3 className="text-sm font-light text-luxury-noir leading-relaxed tracking-wide" style={{ letterSpacing: "0.02em" }}>
           {product.productName}
         </h3>
         
-        {/* Model Ref - Minimal */}
         <p className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
           {product.modelRef}
         </p>
 
-        {/* Divider - Ultra Thin */}
         <div className="divider-luxury my-6" />
 
-        {/* Prices - Clean Luxury Spacing */}
         <div className="flex items-baseline justify-between">
           <div>
             <p className="text-xs font-light text-luxury-grey mb-2 tracking-[0.1em] uppercase" style={{ letterSpacing: "0.1em" }}>
@@ -260,7 +209,6 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           </div>
         </div>
 
-        {/* Stock - Minimal Indicator */}
         <div className="flex items-center justify-between pt-4">
           <span className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
             {out ? "חסר במלאי" : `${product.stockQuantity} יחידות`}
@@ -268,6 +216,6 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           <div className={`h-1 w-1 rounded-full transition-colors duration-300 ${out ? "bg-luxury-grey/50" : "bg-luxury-noir"}`} />
         </div>
       </div>
-    </motion.article>
+    </article>
   );
-}
+});

@@ -1,40 +1,21 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export function Header() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
-    <header 
-      className={`sticky top-0 z-50 header-scroll ${
-        scrolled 
-          ? "bg-luxury-white/98 backdrop-blur-md border-b border-luxury-grey/20 shadow-luxury-sm" 
-          : "bg-luxury-white border-b border-transparent"
-      }`}
-    >
+    <header className="sticky top-0 z-50 bg-luxury-white/98 backdrop-blur-sm border-b border-luxury-grey/10">
       <div className="mx-auto max-w-[1800px] flex items-center justify-between px-12 py-8">
         {/* Navigation Left */}
         <nav className="flex items-center gap-10">
           <Link 
             href="/" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-500"
+            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
           >
             דף הבית
           </Link>
           <Link 
             href="/products" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-500"
+            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
           >
             קטלוג
           </Link>
