@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Police web sans hébreu */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #0f0f0f;
+}
+
+/* Bouton primaire */
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-full px-6 py-3 text-base font-semibold transition-colors duration-200;
+  @apply bg-white text-black hover:bg-neutral-200;
+}
+
+/* Badge rupture */
+.badge-out {
+  @apply inline-flex items-center rounded-full bg-red-600/90 px-3 py-1 text-xs font-semibold text-white;
+}
+
