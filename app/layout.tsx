@@ -14,11 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
-      <body className="bg-brand-black text-white font-sans antialiased">
+      <body className="bg-luxury-white text-luxury-noir font-sans antialiased min-h-screen">
         <Header />
         {children}
       </body>
     </html>
   );
 }
-

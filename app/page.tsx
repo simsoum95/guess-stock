@@ -1,54 +1,87 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
-      <section className="relative isolate overflow-hidden bg-brand-black">
-        <div
-          className="absolute inset-0 bg-center bg-cover opacity-35"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1600&q=80')"
-          }}
-        />
-        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center px-6 text-center pt-16 pb-24">
-          <div className="mb-12 flex flex-wrap items-center justify-center gap-10">
-            <div className="flex items-center justify-center rounded-2xl bg-white px-6 py-4">
-              <Image
-                src="/images/logo-company.png"
-                alt="לוגו חברה"
-                width={320}
-                height={120}
-                className="h-24 w-auto object-contain"
-                priority
-              />
-            </div>
-            <div className="flex items-center justify-center rounded-2xl bg-white px-6 py-4">
-              <Image
-                src="/images/logo-guess.png"
-                alt="Guess Logo"
-                width={280}
-                height={110}
-                className="h-24 w-auto object-contain"
-                priority
-              />
-            </div>
+    <main className="min-h-screen hero-bg">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-12 py-32">
+        {/* Logos - Centered, Elegant */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+          className="mb-24 flex items-center justify-center gap-16"
+        >
+          <div className="relative">
+            <Image
+              src="/images/logo-company.png"
+              alt="לוגו חברה"
+              width={240}
+              height={84}
+              className="h-20 w-auto object-contain opacity-95"
+              priority
+            />
           </div>
+          
+          <div className="h-px w-24 bg-luxury-grey/20" />
+          
+          <div className="relative">
+            <Image
+              src="/images/logo-guess.png"
+              alt="Guess Logo"
+              width={220}
+              height={80}
+              className="h-20 w-auto object-contain opacity-95"
+              priority
+            />
+          </div>
+        </motion.div>
 
-          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
-            קטלוג רשמי – GUESS ישראל
-          </h1>
-          <p className="mb-10 max-w-2xl text-lg text-white/80">
-            גישה מקצועית לכל דגמי התיקים והנעליים, עם עדכון מלאי פשוט ונוח.
-          </p>
+        {/* Title - Large, Serif, Elegant */}
+        <motion.h1 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
+          className="mb-12 text-center font-serif"
+        >
+          <span className="text-luxury-title block">
+            קטלוג רשמי
+          </span>
+          <span className="text-luxury-title block mt-2">
+            GUESS ישראל
+          </span>
+        </motion.h1>
 
-          <Link href="/products" className="btn-primary">
+        {/* Subtitle - Minimal */}
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          className="mb-20 max-w-2xl text-center text-luxury-grey text-sm font-light leading-relaxed tracking-wide"
+          style={{ letterSpacing: "0.05em" }}
+        >
+          גישה מקצועית לכל דגמי התיקים והנעליים,
+          <br />
+          עם עדכון מלאי בזמן אמת
+        </motion.p>
+
+        {/* CTA Button - Minimal Luxury */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <Link 
+            href="/products" 
+            className="btn-luxury"
+          >
             למעבר לקטלוג
           </Link>
-        </div>
+        </motion.div>
       </section>
     </main>
   );
 }
-
