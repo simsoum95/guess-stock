@@ -23,13 +23,20 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef }
     const fileName = `${modelRef || "product"}-${Date.now()}-${file.name}`.replace(/[^a-zA-Z0-9.-]/g, "_");
     const filePath = `products/${fileName}`;
 
+    console.log("[ImageUploader] Uploading:", filePath);
+
     const { error } = await supabase.storage
       .from("guess-images")
       .upload(filePath, file, { upsert: true });
 
-    if (error) return null;
+    if (error) {
+      console.error("[ImageUploader] Upload error:", error.message);
+      alert(`שגיאה בהעלאת תמונה: ${error.message}`);
+      return null;
+    }
 
     const { data } = supabase.storage.from("guess-images").getPublicUrl(filePath);
+    console.log("[ImageUploader] Upload success:", data.publicUrl);
     return data.publicUrl;
   };
 
