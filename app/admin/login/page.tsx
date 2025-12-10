@@ -35,14 +35,16 @@ function LoginForm() {
       }
 
       if (data.session) {
+        // Set cookies
         document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=3600; SameSite=Lax`;
         document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=604800; SameSite=Lax`;
-        router.push("/admin");
-        router.refresh();
+        
+        // Force redirect with window.location for reliable navigation
+        window.location.href = "/admin";
+        return;
       }
     } catch {
       setError("אירעה שגיאה, נסה שוב");
-    } finally {
       setLoading(false);
     }
   };
