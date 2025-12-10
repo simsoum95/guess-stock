@@ -17,6 +17,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "globalonline.co.il",
         pathname: "/**"
+      },
+      {
+        protocol: "https",
+        hostname: "icpedcfdavwyvkuipqiz.supabase.co",
+        pathname: "/**"
       }
     ]
   }
