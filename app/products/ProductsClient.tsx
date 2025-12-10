@@ -119,7 +119,8 @@ export default function ProductsClient({ products }: { products: Product[] }) {
           {filtered.map((product, index) => (
             <ProductCard 
               key={`${product.modelRef}-${product.color}-${index}`} 
-              product={product} 
+              product={product}
+              priority={index < 8}
             />
           ))}
         </div>
@@ -157,65 +158,46 @@ const FilterControl = memo(function FilterControl({
   );
 });
 
-const ProductCard = memo(function ProductCard({ product }: { product: Product }) {
+const ProductCard = memo(function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const out = product.stockQuantity === 0;
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
 
-  // Build images array: main image + gallery (limit to 6 for performance)
-  const allImages = [product.imageUrl, ...(product.gallery || [])].filter(
-    (img, index, arr) => img && !img.includes("default") && arr.indexOf(img) === index
-  ).slice(0, 6);
+  // Build images array: main image + gallery (limit to 4 for speed)
+  const allImages = useMemo(() => {
+    return [product.imageUrl, ...(product.gallery || [])].filter(
+      (img, index, arr) => img && !img.includes("default") && arr.indexOf(img) === index
+    ).slice(0, 4);
+  }, [product.imageUrl, product.gallery]);
+  
   const hasMultipleImages = allImages.length > 1;
   const currentImage = allImages[currentImageIndex] || product.imageUrl || "/images/default.png";
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setImageLoaded(false);
     setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setImageLoaded(false);
     setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
   return (
     <article className="product-card-luxury group">
       {/* Image Container */}
-      <div className="relative mb-8 aspect-[3/4] w-full overflow-hidden bg-slate-100">
-        {/* Loading Skeleton */}
-        {!imageLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 animate-pulse" />
-        )}
-        
+      <div className="relative mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50">
         <img
           src={currentImage}
-          alt={product.productName || "Product image"}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setImageLoaded(true)}
-          className={`h-full w-full object-cover transition-all duration-300 ease-out group-hover:scale-105 ${
-            imageLoaded ? "opacity-100" : "opacity-0"
-          }`}
+          alt={product.productName || ""}
+          loading={priority ? "eager" : "lazy"}
+          decoding={priority ? "sync" : "async"}
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = "/images/default.png";
-            setImageLoaded(true);
+            (e.target as HTMLImageElement).src = "/images/default.png";
           }}
         />
-        
-        {/* Preload next image */}
-        {hasMultipleImages && allImages[(currentImageIndex + 1) % allImages.length] && (
-          <link 
-            rel="prefetch" 
-            href={allImages[(currentImageIndex + 1) % allImages.length]} 
-            as="image"
-          />
-        )}
         
         {/* Overlay on Hover */}
         <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300" />
