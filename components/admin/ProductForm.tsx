@@ -73,7 +73,7 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
       );
 
       if (isEdit && product) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("products")
           .update({
             productName: form.productName,
@@ -90,8 +90,13 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
           })
           .eq("modelRef", product.modelRef)
           .eq("color", product.color);
+
+        if (updateError) {
+          console.error("Update error:", updateError);
+          throw new Error(updateError.message);
+        }
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from("products")
           .insert({
             id: "GUESS",
@@ -110,6 +115,11 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
             imageUrl: form.imageUrl,
             gallery: form.gallery,
           });
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          throw new Error(insertError.message);
+        }
       }
 
       router.push("/admin/products");
