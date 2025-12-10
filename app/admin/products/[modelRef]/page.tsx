@@ -3,6 +3,10 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+// Always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PageProps {
   params: Promise<{ modelRef: string }>;
   searchParams: Promise<{ color?: string }>;

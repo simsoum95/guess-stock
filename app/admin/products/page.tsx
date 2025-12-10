@@ -2,6 +2,10 @@ import { createServerClient } from "@/lib/supabase-server";
 import { ProductsTable } from "@/components/admin/ProductsTable";
 import Link from "next/link";
 
+// Always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function getProducts() {
   const supabase = createServerClient();
   const { data } = await supabase

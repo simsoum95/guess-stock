@@ -1,6 +1,10 @@
 import { createServerClient } from "@/lib/supabase-server";
 import Link from "next/link";
 
+// Always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function getStats() {
   const supabase = createServerClient();
   
