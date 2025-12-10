@@ -48,8 +48,15 @@ export function Header() {
           </div>
         </Link>
 
-        {/* Right Spacer */}
-        <div className="w-[140px]" />
+        {/* Admin Link */}
+        <div className="w-[140px] flex justify-end">
+          <Link 
+            href="/admin/login" 
+            className="text-[10px] font-light tracking-wide text-luxury-grey/50 hover:text-luxury-grey transition-colors duration-300"
+          >
+            כניסת מנהל
+          </Link>
+        </div>
       </div>
     </header>
   );

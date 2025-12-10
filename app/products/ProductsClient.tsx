@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, memo } from "react";
-import type { Product } from "@/lib/fetchSheet";
+import type { Product } from "@/lib/types";
 import Image from "next/image";
 
 type CategoryFilter = "all" | "תיק" | "נעל" | "ביגוד";
@@ -13,7 +13,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filtered = useMemo(() => {
-    return products.filter((product) => {
+    const result = products.filter((product) => {
       if (category !== "all" && product.category !== category) return false;
 
       const stockOk =
@@ -33,13 +33,22 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 
       return true;
     });
+
+    // Trier : produits avec image en premier, puis sans image
+    return result.sort((a, b) => {
+      const aHasImage = a.imageUrl && !a.imageUrl.includes("default");
+      const bHasImage = b.imageUrl && !b.imageUrl.includes("default");
+      if (aHasImage && !bHasImage) return -1;
+      if (!aHasImage && bHasImage) return 1;
+      return 0;
+    });
   }, [products, category, stock, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
       <section className="mx-auto max-w-[1800px] px-16 py-20">
         {/* Header */}
-        <div className="mb-20 animate-fade-in-luxury">
+        <div className="mb-8 animate-fade-in-luxury">
           <h1 className="mb-4 font-serif text-5xl font-normal tracking-tight text-luxury-noir" style={{ letterSpacing: "0.01em" }}>
             קטלוג מלאי
           </h1>
@@ -49,7 +58,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
         </div>
 
         {/* Search Bar */}
-        <div className="mb-16">
+        <div className="mb-6">
           <input
             type="text"
             value={searchQuery}
@@ -109,7 +118,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((product, index) => (
             <ProductCard 
-              key={`${product.id}-${product.category}-${index}`} 
+              key={`${product.modelRef}-${product.color}-${index}`} 
               product={product} 
             />
           ))}
@@ -150,6 +159,8 @@ const FilterControl = memo(function FilterControl({
 
 const ProductCard = memo(function ProductCard({ product }: { product: Product }) {
   const out = product.stockQuantity === 0;
+  const retail = Number(product.priceRetail);
+  const wholesale = Number(product.priceWholesale);
 
   return (
     <article className="product-card-luxury group">
@@ -157,10 +168,14 @@ const ProductCard = memo(function ProductCard({ product }: { product: Product })
       <div className="relative mb-8 aspect-[3/4] w-full overflow-hidden bg-luxury-white">
         <img
           src={product.imageUrl}
-          alt={product.productName}
+          alt={product.productName || "Product image"}
           loading="lazy"
           decoding="async"
           className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = "/images/default.png";
+          }}
         />
         
         {/* Overlay on Hover */}
@@ -196,7 +211,7 @@ const ProductCard = memo(function ProductCard({ product }: { product: Product })
               קמעונאי
             </p>
             <p className="text-base font-light text-luxury-noir tracking-wide" style={{ letterSpacing: "0.02em" }}>
-              ₪{product.priceRetail}
+              ₪{retail.toFixed(2)}
             </p>
           </div>
           <div className="text-left">
@@ -204,7 +219,7 @@ const ProductCard = memo(function ProductCard({ product }: { product: Product })
               סיטונאי
             </p>
             <p className="text-sm font-light text-luxury-noir tracking-wide" style={{ letterSpacing: "0.02em" }}>
-              ₪{product.priceWholesale}
+              ₪{wholesale.toFixed(2)}
             </p>
           </div>
         </div>
