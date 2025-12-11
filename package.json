@@ -12,6 +12,7 @@
     "fix-shoes-clothes": "node -r dotenv/config fix-shoes-clothes.mjs dotenv_config_path=.env.upload",
     "fix-all-images": "node -r dotenv/config fix-all-images.mjs dotenv_config_path=.env.upload",
     "fix-final": "node -r dotenv/config fix-all-final.mjs dotenv_config_path=.env.upload",
+    "fix-images-pz": "node -r dotenv/config fix-images-pz.mjs dotenv_config_path=.env.upload",
     "create-admin": "node -r dotenv/config scripts/create-admin.mjs dotenv_config_path=.env.upload"
   },
   "dependencies": {

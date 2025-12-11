@@ -164,7 +164,7 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
 
-  // Build images array: prioritize image ending with "PZ", then others (limit to 6 for speed)
+  // Build images array: prioritize image ending with "-PZ" before extension, then others
   const allImages = useMemo(() => {
     const all = [product.imageUrl, ...(product.gallery || [])].filter(
       (img) => img && !img.includes("default")
@@ -173,10 +173,21 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
     // Remove duplicates
     const unique = Array.from(new Set(all));
     
-    // Sort: images ending with "PZ" first (case insensitive), then others
+    // Sort: images with filename ending in "PZ" (before extension) come first
     const sorted = unique.sort((a, b) => {
-      const aIsPZ = a.toLowerCase().includes("pz") || a.endsWith("PZ") || a.endsWith("pz");
-      const bIsPZ = b.toLowerCase().includes("pz") || b.endsWith("PZ") || b.endsWith("pz");
+      // Extract filename without extension and path
+      const getFileBase = (url: string) => {
+        const fileName = url.split('/').pop() || '';
+        return fileName.replace(/\.[^.]+$/, '').toUpperCase();
+      };
+      
+      const aBase = getFileBase(a);
+      const bBase = getFileBase(b);
+      
+      // Check if filename ends with PZ, -PZ, or _PZ
+      const aIsPZ = aBase.endsWith('PZ') || aBase.endsWith('-PZ') || aBase.endsWith('_PZ');
+      const bIsPZ = bBase.endsWith('PZ') || bBase.endsWith('-PZ') || bBase.endsWith('_PZ');
+      
       if (aIsPZ && !bIsPZ) return -1;
       if (!aIsPZ && bIsPZ) return 1;
       return 0;
