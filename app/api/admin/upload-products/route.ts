@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
     // Log colonnes détectées
     const columns = Object.keys(rows[0]);
     console.log("[Upload] Colonnes:", columns);
-    console.log("[Upload] Première ligne:", rows[0]);
+    console.log("[Upload] Ligne 1:", JSON.stringify(rows[0]));
+    if (rows.length > 20) console.log("[Upload] Ligne 21:", JSON.stringify(rows[20]));
+    if (rows.length > 31) console.log("[Upload] Ligne 32:", JSON.stringify(rows[31]));
 
     // Charger TOUS les produits de Supabase
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
@@ -130,9 +132,11 @@ export async function POST(request: NextRequest) {
       const rowChanges: Change[] = [];
 
       // stockQuantity
-      if (row.stockQuantity !== undefined && row.stockQuantity !== null && row.stockQuantity !== "") {
-        const newVal = parseInt(String(row.stockQuantity)) || 0;
-        const oldVal = existing.stockQuantity || 0;
+      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
+      if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
+        const newVal = parseInt(String(stockRaw)) || 0;
+        const oldVal = parseInt(String(existing.stockQuantity)) || 0;
+        console.log(`[Row ${rowNum}] Stock: file=${stockRaw} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
         if (newVal !== oldVal) {
           updates.stockQuantity = newVal;
           rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
@@ -190,6 +194,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Échantillon de lignes pour débogage
+    const sampleRows = rows.slice(0, 3).map((r, i) => ({
+      row: i + 2,
+      modelRef: r.modelRef,
+      color: r.color,
+      stockQuantity: r.stockQuantity,
+    }));
+
     return NextResponse.json({
       success: true,
       totalRows: rows.length,
@@ -199,6 +211,11 @@ export async function POST(request: NextRequest) {
       changes,
       errors,
       detectedColumns: columns,
+      sampleRows,
+      debug: {
+        row21: rows[19] ? { modelRef: rows[19].modelRef, color: rows[19].color, stock: rows[19].stockQuantity } : null,
+        row32: rows[30] ? { modelRef: rows[30].modelRef, color: rows[30].color, stock: rows[30].stockQuantity } : null,
+      }
     });
 
   } catch (err: any) {
