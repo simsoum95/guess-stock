@@ -9,22 +9,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Colonnes supportées
-const SUPPORTED_COLUMNS = [
-  "id", "collection", "category", "subcategory", "brand", "modelRef",
-  "gender", "supplier", "color", "priceRetail", "priceWholesale",
-  "stockQuantity", "imageUrl", "gallery", "productName", "size"
-];
-
-// Colonnes requises
-const REQUIRED_COLUMNS = ["modelRef", "color"];
+interface ChangeDetail {
+  modelRef: string;
+  color: string;
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
 
 interface UploadResult {
   success: boolean;
   updated: number;
   inserted: number;
+  unchanged: number;
   errors: Array<{ row: number; message: string; data?: any }>;
-  notFound: string[];
+  notFound: Array<{ modelRef: string; color: string }>;
+  changes: ChangeDetail[];
   totalRows: number;
 }
 
@@ -35,8 +35,8 @@ function normalize(str: string | null | undefined): string {
     .toString()
     .trim()
     .toLowerCase()
-    .replace(/[–—]/g, "-") // Normaliser les tirets
-    .replace(/\s+/g, " "); // Normaliser les espaces
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ");
 }
 
 // Parser un fichier Excel
@@ -61,7 +61,7 @@ function parseCSV(text: string): Promise<any[]> {
 }
 
 // Valider une ligne
-function validateRow(row: any, rowIndex: number): { valid: boolean; error?: string } {
+function validateRow(row: any): { valid: boolean; error?: string } {
   const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row.model_ref;
   const color = row.color || row.Color || row.COLOR;
 
@@ -74,11 +74,10 @@ function validateRow(row: any, rowIndex: number): { valid: boolean; error?: stri
   return { valid: true };
 }
 
-// Extraire les champs d'une ligne (insensible à la casse)
+// Extraire les champs d'une ligne
 function extractFields(row: any): Record<string, any> {
   const fields: Record<string, any> = {};
 
-  // Mapper les colonnes (supporter différentes casses)
   const columnMappings: Record<string, string[]> = {
     id: ["id", "ID", "Id"],
     collection: ["collection", "Collection", "COLLECTION"],
@@ -103,13 +102,11 @@ function extractFields(row: any): Record<string, any> {
       if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
         let value = row[key];
 
-        // Convertir les types
         if (fieldName === "priceRetail" || fieldName === "priceWholesale") {
           value = parseFloat(String(value).replace(",", ".")) || 0;
         } else if (fieldName === "stockQuantity") {
           value = parseInt(String(value)) || 0;
         } else if (fieldName === "gallery") {
-          // Gallery peut être une chaîne JSON ou séparée par des virgules
           if (typeof value === "string") {
             try {
               value = JSON.parse(value);
@@ -128,6 +125,23 @@ function extractFields(row: any): Record<string, any> {
   return fields;
 }
 
+// Noms des champs en hébreu
+const fieldNamesHebrew: Record<string, string> = {
+  stockQuantity: "מלאי",
+  priceRetail: "מחיר קמעונאי",
+  priceWholesale: "מחיר סיטונאי",
+  productName: "שם מוצר",
+  brand: "מותג",
+  category: "קטגוריה",
+  subcategory: "תת-קטגוריה",
+  collection: "קולקציה",
+  supplier: "ספק",
+  gender: "מגדר",
+  imageUrl: "תמונה",
+  gallery: "גלריה",
+  size: "מידה",
+};
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -140,7 +154,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Déterminer le type de fichier
     const fileName = file.name.toLowerCase();
     const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
     const isCSV = fileName.endsWith(".csv");
@@ -152,7 +165,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parser le fichier
     let rows: any[];
     if (isExcel) {
       const buffer = await file.arrayBuffer();
@@ -169,20 +181,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Résultats
     const result: UploadResult = {
       success: true,
       updated: 0,
       inserted: 0,
+      unchanged: 0,
       errors: [],
       notFound: [],
+      changes: [],
       totalRows: rows.length,
     };
 
-    // Charger tous les produits existants pour un matching efficace
+    // Charger TOUS les champs des produits existants
     const { data: existingProducts, error: fetchError } = await supabase
       .from("products")
-      .select("modelRef, color");
+      .select("*");
 
     if (fetchError) {
       return NextResponse.json(
@@ -191,20 +204,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer un index pour le matching rapide
-    const productIndex = new Map<string, boolean>();
+    // Créer un index avec toutes les données des produits
+    const productIndex = new Map<string, any>();
     for (const p of existingProducts || []) {
       const key = `${normalize(p.modelRef)}|${normalize(p.color)}`;
-      productIndex.set(key, true);
+      productIndex.set(key, p);
     }
 
     // Traiter chaque ligne
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowNum = i + 2; // +2 car Excel commence à 1 et header est ligne 1
+      const rowNum = i + 2;
 
-      // Valider la ligne
-      const validation = validateRow(row, rowNum);
+      const validation = validateRow(row);
       if (!validation.valid) {
         result.errors.push({
           row: rowNum,
@@ -214,30 +226,57 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Extraire les champs
       const fields = extractFields(row);
       const modelRef = fields.modelRef;
       const color = fields.color;
       const key = `${normalize(modelRef)}|${normalize(color)}`;
 
-      // Vérifier si le produit existe
-      const exists = productIndex.has(key);
+      const existingProduct = productIndex.get(key);
+      
+      // Debug log
+      console.log(`[Row ${rowNum}] Looking for: modelRef="${modelRef}", color="${color}", key="${key}"`);
+      console.log(`[Row ${rowNum}] Found: ${existingProduct ? "YES" : "NO"}`);
 
-      if (exists) {
-        // UPDATE - Ne mettre à jour que les champs fournis
+      if (existingProduct) {
+        // Comparer les valeurs et ne mettre à jour que si elles ont changé
         const updateFields: Record<string, any> = {};
-        for (const [field, value] of Object.entries(fields)) {
-          if (field !== "modelRef" && field !== "color" && value !== undefined) {
-            updateFields[field] = value;
+        const rowChanges: ChangeDetail[] = [];
+
+        for (const [field, newValue] of Object.entries(fields)) {
+          if (field === "modelRef" || field === "color") continue;
+          if (newValue === undefined) continue;
+
+          const oldValue = existingProduct[field];
+          
+          // Comparer les valeurs (en gérant les types)
+          let hasChanged = false;
+          if (field === "stockQuantity" || field === "priceRetail" || field === "priceWholesale") {
+            hasChanged = Number(oldValue) !== Number(newValue);
+          } else if (field === "gallery") {
+            hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+          } else {
+            hasChanged = String(oldValue || "") !== String(newValue || "");
+          }
+
+          if (hasChanged) {
+            updateFields[field] = newValue;
+            rowChanges.push({
+              modelRef,
+              color,
+              field: fieldNamesHebrew[field] || field,
+              oldValue: oldValue,
+              newValue: newValue,
+            });
           }
         }
 
         if (Object.keys(updateFields).length > 0) {
+          // Il y a des changements réels - faire l'UPDATE
           const { error: updateError } = await supabase
             .from("products")
             .update(updateFields)
-            .ilike("modelRef", modelRef)
-            .ilike("color", color);
+            .eq("modelRef", existingProduct.modelRef)
+            .eq("color", existingProduct.color);
 
           if (updateError) {
             result.errors.push({
@@ -247,44 +286,15 @@ export async function POST(request: NextRequest) {
             });
           } else {
             result.updated++;
+            result.changes.push(...rowChanges);
           }
+        } else {
+          // Pas de changement
+          result.unchanged++;
         }
       } else {
-        // INSERT - Créer un nouveau produit
-        const newProduct = {
-          id: fields.id || `${modelRef}-${color}-${Date.now()}`,
-          modelRef,
-          color,
-          collection: fields.collection || null,
-          category: fields.category || fields.subcategory || null,
-          subcategory: fields.subcategory || null,
-          brand: fields.brand || "GUESS",
-          gender: fields.gender || null,
-          supplier: fields.supplier || null,
-          priceRetail: fields.priceRetail || 0,
-          priceWholesale: fields.priceWholesale || 0,
-          stockQuantity: fields.stockQuantity || 0,
-          imageUrl: fields.imageUrl || "/images/default.png",
-          gallery: fields.gallery || [],
-          productName: fields.productName || modelRef,
-          size: fields.size || null,
-        };
-
-        const { error: insertError } = await supabase
-          .from("products")
-          .insert(newProduct);
-
-        if (insertError) {
-          result.errors.push({
-            row: rowNum,
-            message: `שגיאת הוספה: ${insertError.message}`,
-            data: { modelRef, color },
-          });
-        } else {
-          result.inserted++;
-          // Ajouter au index pour éviter les doublons dans le même fichier
-          productIndex.set(key, true);
-        }
+        // Produit non trouvé - ajouter à la liste
+        result.notFound.push({ modelRef, color });
       }
     }
 
@@ -297,4 +307,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -2,12 +2,22 @@
 
 import { useState, useCallback } from "react";
 
+interface ChangeDetail {
+  modelRef: string;
+  color: string;
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
+
 interface UploadResult {
   success: boolean;
   updated: number;
   inserted: number;
+  unchanged: number;
   errors: Array<{ row: number; message: string; data?: any }>;
-  notFound: string[];
+  notFound: Array<{ modelRef: string; color: string }>;
+  changes: ChangeDetail[];
   totalRows: number;
   error?: string;
 }
@@ -58,8 +68,10 @@ export default function UploadPage() {
         success: false,
         updated: 0,
         inserted: 0,
+        unchanged: 0,
         errors: [{ row: 0, message: error.message }],
         notFound: [],
+        changes: [],
         totalRows: 0,
         error: error.message,
       });
@@ -73,8 +85,15 @@ export default function UploadPage() {
     setResult(null);
   };
 
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return "ריק";
+    if (typeof value === "number") return value.toLocaleString();
+    if (Array.isArray(value)) return `[${value.length} פריטים]`;
+    return String(value);
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
+    <div className="p-6 max-w-5xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">ייבוא קובץ CSV / Excel</h1>
@@ -137,7 +156,6 @@ export default function UploadPage() {
           )}
         </div>
 
-        {/* Upload Button */}
         <div className="mt-6 flex items-center gap-4">
           <button
             onClick={handleUpload}
@@ -163,37 +181,51 @@ export default function UploadPage() {
       {result && (
         <div className="space-y-4">
           {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">מוצרים שעודכנו</p>
-                  <p className="text-2xl font-bold text-slate-900">{result.updated}</p>
+                  <p className="text-sm text-slate-500">עודכנו</p>
+                  <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
                 </div>
               </div>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">מוצרים חדשים שנוספו</p>
-                  <p className="text-2xl font-bold text-slate-900">{result.inserted}</p>
+                  <p className="text-sm text-slate-500">חדשים</p>
+                  <p className="text-2xl font-bold text-green-600">{result.inserted}</p>
                 </div>
               </div>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">ללא שינוי</p>
+                  <p className="text-2xl font-bold text-slate-600">{result.unchanged}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                   result.errors.length > 0 ? "bg-red-100" : "bg-slate-100"
                 }`}>
@@ -202,64 +234,110 @@ export default function UploadPage() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">שורות עם שגיאות</p>
-                  <p className="text-2xl font-bold text-slate-900">{result.errors.length}</p>
+                  <p className="text-sm text-slate-500">שגיאות</p>
+                  <p className="text-2xl font-bold text-red-600">{result.errors.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Total Summary */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <p className="text-slate-600">
-              סה״כ עובדו <span className="font-bold text-slate-900">{result.totalRows}</span> שורות
-              {result.success && result.errors.length === 0 && (
-                <span className="mr-2 text-green-600">✓ הייבוא הושלם בהצלחה!</span>
-              )}
-            </p>
-          </div>
-
-          {/* Error Table */}
-          {result.errors.length > 0 && (
+          {/* Changes Detail Table */}
+          {result.changes && result.changes.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-red-50">
-                <h3 className="font-medium text-red-800">שגיאות ({result.errors.length})</h3>
+              <div className="px-5 py-4 border-b border-slate-200 bg-blue-50">
+                <h3 className="font-medium text-blue-800">✏️ שינויים שבוצעו ({result.changes.length})</h3>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-96">
                 <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50 text-right">
-                      <th className="px-5 py-3 text-xs font-medium text-slate-500 uppercase">שורה</th>
-                      <th className="px-5 py-3 text-xs font-medium text-slate-500 uppercase">שגיאה</th>
-                      <th className="px-5 py-3 text-xs font-medium text-slate-500 uppercase">נתונים</th>
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr className="text-right">
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שדה</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">ערך קודם</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">ערך חדש</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {result.errors.slice(0, 50).map((err, idx) => (
+                    {result.changes.map((change, idx) => (
                       <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-5 py-3 text-sm text-slate-900 font-medium">{err.row}</td>
-                        <td className="px-5 py-3 text-sm text-red-600">{err.message}</td>
-                        <td className="px-5 py-3 text-sm text-slate-500 font-mono text-xs">
-                          {err.data ? JSON.stringify(err.data).slice(0, 100) : "-"}
-                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{change.modelRef}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{change.color}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-700">{change.field}</td>
+                        <td className="px-4 py-3 text-sm text-red-600 line-through">{formatValue(change.oldValue)}</td>
+                        <td className="px-4 py-3 text-sm text-green-600 font-medium">{formatValue(change.newValue)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {result.errors.length > 50 && (
-                  <div className="px-5 py-3 text-sm text-slate-500 bg-slate-50">
-                    מציג 50 מתוך {result.errors.length} שגיאות
+              </div>
+            </div>
+          )}
+
+          {/* Not Found Products */}
+          {result.notFound && result.notFound.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 bg-amber-50">
+                <h3 className="font-medium text-amber-800">⚠️ מוצרים לא נמצאו ({result.notFound.length})</h3>
+                <p className="text-sm text-amber-600 mt-1">מוצרים אלו לא קיימים בבסיס הנתונים</p>
+              </div>
+              <div className="overflow-x-auto max-h-48">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-right">
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.notFound.slice(0, 20).map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{item.color}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {result.notFound.length > 20 && (
+                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
+                    + עוד {result.notFound.length - 20} מוצרים
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* General Error */}
-          {result.error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-5">
-              <p className="text-red-800 font-medium">שגיאה כללית</p>
-              <p className="text-red-600 text-sm mt-1">{result.error}</p>
+          {/* Error Table */}
+          {result.errors.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 bg-red-50">
+                <h3 className="font-medium text-red-800">❌ שגיאות ({result.errors.length})</h3>
+              </div>
+              <div className="overflow-x-auto max-h-48">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-right">
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שורה</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שגיאה</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.errors.slice(0, 20).map((err, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-sm text-slate-900 font-medium">{err.row}</td>
+                        <td className="px-4 py-3 text-sm text-red-600">{err.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {result.success && result.errors.length === 0 && result.updated > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
+              <p className="text-green-800 font-medium">✅ הייבוא הושלם בהצלחה!</p>
             </div>
           )}
         </div>
@@ -270,13 +348,11 @@ export default function UploadPage() {
         <h3 className="font-medium text-slate-900 mb-3">פורמט הקובץ</h3>
         <div className="space-y-2 text-sm text-slate-600">
           <p>• עמודות נדרשות: <code className="bg-slate-200 px-1.5 py-0.5 rounded">modelRef</code>, <code className="bg-slate-200 px-1.5 py-0.5 rounded">color</code></p>
-          <p>• עמודות אופציונליות: collection, category, subcategory, brand, gender, supplier, priceRetail, priceWholesale, stockQuantity, imageUrl, gallery, productName, size</p>
+          <p>• עמודות אופציונליות: stockQuantity, priceRetail, priceWholesale, productName...</p>
           <p>• מוצרים קיימים יעודכנו לפי התאמת modelRef + color</p>
-          <p>• מוצרים חדשים יתווספו אוטומטית</p>
-          <p>• שדות חסרים בקובץ לא ישנו את הערכים הקיימים</p>
+          <p>• רק שדות ששונו בפועל יעודכנו</p>
         </div>
       </div>
     </div>
   );
 }
-
