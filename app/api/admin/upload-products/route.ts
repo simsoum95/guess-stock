@@ -156,14 +156,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index pour recherche rapide
-    const productByRefColor = new Map<string, any>();
+    // Index pour recherche rapide - STOCKER TOUS les produits par clé (pas seulement un)
+    const productsByRefColor = new Map<string, any[]>();
     for (const p of products || []) {
       const key = `${norm(p.modelRef)}|${norm(p.color)}`;
-      productByRefColor.set(key, p);
+      if (!productsByRefColor.has(key)) {
+        productsByRefColor.set(key, []);
+      }
+      productsByRefColor.get(key)!.push(p);
     }
 
-    console.log(`[Upload] ${products?.length} produits en base`);
+    // Compter les doublons
+    let duplicateCount = 0;
+    for (const [key, prods] of productsByRefColor.entries()) {
+      if (prods.length > 1) {
+        duplicateCount++;
+        console.log(`[Upload] Doublon trouvé pour ${key}: ${prods.length} produits`);
+      }
+    }
+
+    console.log(`[Upload] ${products?.length} produits en base (${duplicateCount} doublons modelRef+color)`);
 
     // Résultats
     let updated = 0;
@@ -189,11 +201,11 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Chercher le produit
+      // Chercher TOUS les produits avec ce modelRef+color
       const key = `${norm(modelRef)}|${norm(color)}`;
-      const existing = productByRefColor.get(key);
+      const matchingProducts = productsByRefColor.get(key) || [];
 
-      if (!existing) {
+      if (matchingProducts.length === 0) {
         // NOUVEAU PRODUIT → L'AJOUTER
         const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stock ?? row.Stock;
         const parsedStock = parseInteger(stockRaw);
@@ -229,7 +241,18 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      seenProductIds.add(existing.id);
+      // IMPORTANT: Marquer TOUS les produits matchés comme "vus" pour éviter qu'ils passent à 0
+      for (const p of matchingProducts) {
+        seenProductIds.add(p.id);
+      }
+
+      // Utiliser le premier produit pour la mise à jour (ou celui avec l'ID correspondant si fourni)
+      const rowId = row.id || row.ID;
+      let existing = matchingProducts[0];
+      if (rowId && matchingProducts.length > 1) {
+        const byId = matchingProducts.find(p => norm(p.id) === norm(rowId));
+        if (byId) existing = byId;
+      }
 
       // Préparer les mises à jour
       const updates: Record<string, any> = {};
