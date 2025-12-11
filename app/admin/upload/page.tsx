@@ -17,6 +17,7 @@ interface UploadResult {
   unchanged: number;
   errors: Array<{ row: number; message: string; data?: any }>;
   notFound: Array<{ modelRef: string; color: string }>;
+  insertedProducts?: Array<{ modelRef: string; color: string }>;
   changes: ChangeDetail[];
   totalRows: number;
   detectedColumns?: string[];
@@ -275,12 +276,44 @@ export default function UploadPage() {
             </div>
           )}
 
+          {/* Inserted Products */}
+          {result.insertedProducts && result.insertedProducts.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 bg-green-50">
+                <h3 className="font-medium text-green-800">✅ מוצרים חדשים שנוספו ({result.insertedProducts.length})</h3>
+              </div>
+              <div className="overflow-x-auto max-h-48">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-right">
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.insertedProducts.slice(0, 20).map((item, idx) => (
+                      <tr key={idx} className="hover:bg-green-50">
+                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
+                        <td className="px-4 py-3 text-sm text-green-600">{item.color}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {result.insertedProducts.length > 20 && (
+                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
+                    + עוד {result.insertedProducts.length - 20} מוצרים
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Not Found Products */}
           {result.notFound && result.notFound.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-200 bg-amber-50">
-                <h3 className="font-medium text-amber-800">⚠️ מוצרים לא נמצאו ({result.notFound.length})</h3>
-                <p className="text-sm text-amber-600 mt-1">מוצרים אלו לא קיימים בבסיס הנתונים</p>
+                <h3 className="font-medium text-amber-800">⚠️ שגיאות הוספה ({result.notFound.length})</h3>
+                <p className="text-sm text-amber-600 mt-1">מוצרים אלו לא הצלחנו להוסיף</p>
               </div>
               <div className="overflow-x-auto max-h-48">
                 <table className="w-full">

@@ -127,8 +127,10 @@ export async function POST(request: NextRequest) {
 
     // Résultats
     let updated = 0;
+    let inserted = 0;
     let unchanged = 0;
     const notFound: Array<{ modelRef: string; color: string }> = [];
+    const insertedProducts: Array<{ modelRef: string; color: string }> = [];
     const changes: Change[] = [];
     const errors: Array<{ row: number; message: string }> = [];
 
@@ -174,7 +176,37 @@ export async function POST(request: NextRequest) {
       console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
 
       if (!existing) {
-        notFound.push({ modelRef, color });
+        // NOUVEAU PRODUIT → L'INSÉRER
+        const newProduct: Record<string, any> = {
+          id: id || `${modelRef}-${color}-${Date.now()}`, // Générer un ID unique
+          modelRef: modelRef,
+          color: color,
+          brand: row.brand || row.Brand || "GUESS",
+          subcategory: row.subcategory || row.category || row.Category || "תיק",
+          category: row.subcategory || row.category || row.Category || "תיק",
+          collection: row.collection || row.Collection || "",
+          supplier: row.supplier || row.Supplier || "",
+          gender: row.gender || row.Gender || "Women",
+          priceRetail: parseFloat(String(row.priceRetail || 0).replace(",", ".")) || 0,
+          priceWholesale: parseFloat(String(row.priceWholesale || 0).replace(",", ".")) || 0,
+          stockQuantity: parseInt(String(row.stockQuantity || row.stock || 0)) || 0,
+          imageUrl: row.imageUrl || "/images/default.png",
+          gallery: [],
+          productName: row.productName || modelRef,
+        };
+
+        console.log(`[Row ${rowNum}] INSERTING NEW PRODUCT:`, newProduct);
+
+        const { error: insertErr } = await supabase.from("products").insert(newProduct);
+
+        if (insertErr) {
+          console.error(`[Row ${rowNum}] Insert error:`, insertErr);
+          errors.push({ row: rowNum, message: `שגיאה בהוספה: ${insertErr.message}` });
+          notFound.push({ modelRef, color });
+        } else {
+          inserted++;
+          insertedProducts.push({ modelRef, color });
+        }
         continue;
       }
 
@@ -262,8 +294,10 @@ export async function POST(request: NextRequest) {
       success: true,
       totalRows: rows.length,
       updated,
+      inserted,
       unchanged,
       notFound,
+      insertedProducts,
       changes,
       errors,
       detectedColumns: columns,
