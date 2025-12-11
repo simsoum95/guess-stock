@@ -214,10 +214,7 @@ export async function POST(request: NextRequest) {
       // 1. Essayer par ID exact
       if (rowId) {
         existing = productById.get(norm(rowId));
-        if (existing) {
-          matchedBy = "ID";
-          console.log(`[Row ${rowNum}] Matched by ID: ${rowId}`);
-        }
+        if (existing) matchedBy = "ID";
       }
 
       // 2. Sinon essayer par modelRef + color
@@ -228,7 +225,6 @@ export async function POST(request: NextRequest) {
         if (matchingProducts.length > 0) {
           existing = matchingProducts[0];
           matchedBy = "modelRef+color";
-          console.log(`[Row ${rowNum}] Matched by modelRef+color: ${modelRef}|${color} (${matchingProducts.length} produits)`);
           
           // Marquer TOUS les produits avec ce modelRef+color comme "vus"
           for (const p of matchingProducts) {
@@ -239,7 +235,6 @@ export async function POST(request: NextRequest) {
 
       // Si toujours pas trouvé → nouveau produit
       if (!existing) {
-        console.log(`[Row ${rowNum}] NOT FOUND: id=${rowId}, modelRef=${modelRef}, color=${color}`);
         
         const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stock ?? row.Stock;
         const parsedStock = parseInteger(stockRaw);
