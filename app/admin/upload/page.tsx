@@ -252,14 +252,6 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* History Error Warning */}
-          {result.historyError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <p className="font-medium text-red-800">⚠️ לא ניתן לשמור היסטוריה</p>
-              <p className="text-sm text-red-600 mt-1">{result.historyError}</p>
-            </div>
-          )}
-
           {/* Undo Button */}
           {result.historyId && result.success && !undoMessage?.startsWith("✅") && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">

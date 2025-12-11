@@ -234,14 +234,35 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // priceRetail - NE PAS METTRE À JOUR AUTOMATIQUEMENT (trop risqué)
-      // Les prix ne sont mis à jour que si explicitement demandé
-      
-      // priceWholesale - NE PAS METTRE À JOUR AUTOMATIQUEMENT (trop risqué)
-      // Les prix ne sont mis à jour que si explicitement demandé
+      // priceRetail
+      if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
+        const newVal = parseFloat(String(row.priceRetail).replace(",", ".")) || 0;
+        const oldVal = existing.priceRetail || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceRetail = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
+        }
+      }
 
-      // productName - NE PAS METTRE À JOUR AUTOMATIQUEMENT
-      // Pour éviter les erreurs de comparaison
+      // priceWholesale
+      if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
+        const newVal = parseFloat(String(row.priceWholesale).replace(",", ".")) || 0;
+        const oldVal = existing.priceWholesale || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceWholesale = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
+        }
+      }
+
+      // productName
+      if (row.productName !== undefined && row.productName !== null && row.productName !== "") {
+        const newVal = String(row.productName).trim();
+        const oldVal = existing.productName || "";
+        if (newVal !== oldVal) {
+          updates.productName = newVal;
+          rowChanges.push({ modelRef, color, field: "שם מוצר", oldValue: oldVal, newValue: newVal });
+        }
+      }
 
       if (Object.keys(updates).length > 0) {
         let updateQuery = supabase.from("products").update(updates);
@@ -298,26 +319,18 @@ export async function POST(request: NextRequest) {
     let historyError: string | null = null;
 
     try {
-      // Ne garder que les produits qui ont été modifiés dans le snapshot
-      const modifiedProductIds = new Set(changes.map(c => `${c.modelRef}|${c.color}`));
-      const relevantSnapshot = snapshotBefore.filter(p => 
-        modifiedProductIds.has(`${p.modelRef}|${p.color}`)
-      );
-
-      console.log(`[Upload] Snapshot: ${relevantSnapshot.length} products (from ${snapshotBefore.length} total)`);
-
       const historyEntry = {
         file_name: file.name,
         uploaded_at: new Date().toISOString(),
         stats: { updated, inserted, unchanged, stockZeroed, errors: errors.length },
-        changes: changes.slice(0, 200),
-        inserted_products: insertedProducts.slice(0, 100),
-        zeroed_products: zeroedProducts.slice(0, 100),
-        snapshot_before: relevantSnapshot, // Seulement les produits modifiés
+        changes: changes.slice(0, 100),
+        inserted_products: insertedProducts.slice(0, 50),
+        zeroed_products: zeroedProducts.slice(0, 50),
+        snapshot_before: snapshotBefore,
         sync_stock_enabled: syncStock,
       };
 
-      console.log("[Upload] Saving to history, entry size:", JSON.stringify(historyEntry).length, "bytes");
+      console.log("[Upload] Saving to history...");
       const { data: insertedHistory, error: historyInsertErr } = await supabase
         .from("upload_history")
         .insert(historyEntry)
@@ -328,7 +341,7 @@ export async function POST(request: NextRequest) {
         console.error("[Upload] History insert error:", historyInsertErr);
         historyError = historyInsertErr.message;
         
-        // Log l'erreur pour debug
+        // Log si la table n'existe pas
         if (historyInsertErr.message.includes("does not exist")) {
           console.log("[Upload] Table upload_history does not exist - please create it in Supabase");
         }
