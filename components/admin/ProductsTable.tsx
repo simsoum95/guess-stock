@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 interface Product {
+  id: string;
   modelRef: string;
   productName?: string;
   brand: string;
   color: string;
   subcategory: string;
+  collection?: string;
   priceWholesale: number;
   priceRetail: number;
   stockQuantity: number;
@@ -53,11 +55,23 @@ export function ProductsTable({ products }: { products: Product[] }) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     
-    await supabase
-      .from("products")
-      .delete()
-      .eq("modelRef", deleteModal.modelRef)
-      .eq("color", deleteModal.color);
+    // Utiliser toutes les colonnes pour être sûr de supprimer le bon produit
+    let query = supabase.from("products").delete();
+    
+    if (deleteModal.id && deleteModal.id !== "GUESS") {
+      // Si l'ID est unique, l'utiliser
+      query = query.eq("id", deleteModal.id);
+    } else {
+      // Sinon, utiliser modelRef + color + collection
+      query = query
+        .eq("modelRef", deleteModal.modelRef)
+        .eq("color", deleteModal.color);
+      if (deleteModal.collection) {
+        query = query.eq("collection", deleteModal.collection);
+      }
+    }
+    
+    await query;
 
     setDeleteModal(null);
     setDeleting(false);
@@ -162,7 +176,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <Link
-                        href={`/admin/products/${encodeURIComponent(product.modelRef)}?color=${encodeURIComponent(product.color)}`}
+                        href={`/admin/products/edit?id=${encodeURIComponent(product.id || '')}&modelRef=${encodeURIComponent(product.modelRef)}&color=${encodeURIComponent(product.color)}&collection=${encodeURIComponent(product.collection || '')}`}
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="עריכה"
                       >

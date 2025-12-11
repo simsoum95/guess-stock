@@ -9,29 +9,57 @@ export const revalidate = 0;
 
 interface PageProps {
   params: Promise<{ modelRef: string }>;
-  searchParams: Promise<{ color?: string }>;
+  searchParams: Promise<{ color?: string; id?: string }>;
 }
 
-async function getProduct(modelRef: string, color: string) {
+async function getProduct(modelRef: string, color: string, id?: string) {
   const supabase = createServerClient();
   
-  const { data } = await supabase
+  const decodedRef = decodeURIComponent(modelRef);
+  const decodedColor = decodeURIComponent(color);
+  const decodedId = id ? decodeURIComponent(id) : null;
+  
+  console.log(`[EditProduct] Looking for: id="${decodedId}", modelRef="${decodedRef}", color="${decodedColor}"`);
+  
+  // Si on a l'ID, l'utiliser en priorité (plus précis)
+  if (decodedId) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", decodedId)
+      .single();
+
+    if (!error && data) {
+      console.log(`[EditProduct] Found by ID: ${data.id}`);
+      return data;
+    }
+  }
+  
+  // Sinon, chercher par modelRef + color
+  const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("modelRef", decodeURIComponent(modelRef))
-    .eq("color", decodeURIComponent(color))
+    .ilike("modelRef", decodedRef)
+    .ilike("color", decodedColor)
+    .limit(1)
     .single();
+
+  if (error) {
+    console.log(`[EditProduct] Error: ${error.message}`);
+  } else {
+    console.log(`[EditProduct] Found by modelRef+color: ${data?.modelRef} / ${data?.color}`);
+  }
 
   return data;
 }
 
 export default async function EditProductPage({ params, searchParams }: PageProps) {
   const { modelRef } = await params;
-  const { color } = await searchParams;
+  const { color, id } = await searchParams;
 
   if (!color) notFound();
 
-  const product = await getProduct(modelRef, color);
+  const product = await getProduct(modelRef, color, id);
   if (!product) notFound();
 
   return (

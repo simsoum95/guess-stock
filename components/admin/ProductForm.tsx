@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ImageUploader } from "./ImageUploader";
 
 interface Product {
+  id?: string;
   modelRef: string;
   productName?: string;
   brand: string;
@@ -73,7 +74,8 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
       );
 
       if (isEdit && product) {
-        const { error: updateError } = await supabase
+        // Utiliser l'ID si disponible (plus précis), sinon modelRef + color
+        let query = supabase
           .from("products")
           .update({
             productName: form.productName,
@@ -87,9 +89,15 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
             stockQuantity: form.stockQuantity,
             imageUrl: form.imageUrl,
             gallery: form.gallery,
-          })
-          .eq("modelRef", product.modelRef)
-          .eq("color", product.color);
+          });
+
+        if (product.id && product.id !== "GUESS") {
+          query = query.eq("id", product.id);
+        } else {
+          query = query.eq("modelRef", product.modelRef).eq("color", product.color);
+        }
+
+        const { error: updateError } = await query;
 
         if (updateError) {
           console.error("Update error:", updateError);
