@@ -319,18 +319,26 @@ export async function POST(request: NextRequest) {
     let historyError: string | null = null;
 
     try {
+      // Ne garder que les produits qui ont été modifiés dans le snapshot
+      const modifiedProductIds = new Set(changes.map(c => `${c.modelRef}|${c.color}`));
+      const relevantSnapshot = snapshotBefore.filter(p => 
+        modifiedProductIds.has(`${p.modelRef}|${p.color}`)
+      );
+
+      console.log(`[Upload] Snapshot: ${relevantSnapshot.length} products (from ${snapshotBefore.length} total)`);
+
       const historyEntry = {
         file_name: file.name,
         uploaded_at: new Date().toISOString(),
         stats: { updated, inserted, unchanged, stockZeroed, errors: errors.length },
-        changes: changes.slice(0, 100),
-        inserted_products: insertedProducts.slice(0, 50),
-        zeroed_products: zeroedProducts.slice(0, 50),
-        snapshot_before: snapshotBefore,
+        changes: changes.slice(0, 200),
+        inserted_products: insertedProducts.slice(0, 100),
+        zeroed_products: zeroedProducts.slice(0, 100),
+        snapshot_before: relevantSnapshot, // Seulement les produits modifiés
         sync_stock_enabled: syncStock,
       };
 
-      console.log("[Upload] Saving to history...");
+      console.log("[Upload] Saving to history, entry size:", JSON.stringify(historyEntry).length, "bytes");
       const { data: insertedHistory, error: historyInsertErr } = await supabase
         .from("upload_history")
         .insert(historyEntry)
