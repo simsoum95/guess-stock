@@ -25,7 +25,6 @@ function parseExcel(buffer: ArrayBuffer): { rows: any[]; sheetNames: string[] } 
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
-    console.log(`[Excel] Feuille "${sheetName}": ${rows.length} lignes`);
     sheetNames.push(`${sheetName} (${rows.length})`);
     allRows.push(...rows);
   }
@@ -48,66 +47,7 @@ function parseCSV(text: string): Promise<any[]> {
 // Normaliser pour comparaison
 function norm(s: any): string {
   if (!s) return "";
-  return String(s).trim().toLowerCase().replace(/[-–—]/g, "-");
-}
-
-// Parser un nombre de manière sûre (gère virgules, points, espaces)
-function parseNumber(value: any): number | null {
-  if (value === undefined || value === null || value === "") return null;
-  
-  // Si c'est déjà un nombre
-  if (typeof value === "number") {
-    if (isNaN(value) || !isFinite(value)) return null;
-    return value;
-  }
-  
-  // Convertir en string et nettoyer
-  let str = String(value).trim();
-  
-  // Supprimer les espaces et caractères non numériques (sauf , . -)
-  str = str.replace(/\s/g, "");
-  
-  // Gérer le format français (1.234,56) vs anglais (1,234.56)
-  // Si on a à la fois virgule et point, déterminer lequel est le séparateur décimal
-  const hasComma = str.includes(",");
-  const hasDot = str.includes(".");
-  
-  if (hasComma && hasDot) {
-    // Format avec les deux : 1.234,56 ou 1,234.56
-    const lastComma = str.lastIndexOf(",");
-    const lastDot = str.lastIndexOf(".");
-    
-    if (lastComma > lastDot) {
-      // Format français : 1.234,56 → virgule est décimal
-      str = str.replace(/\./g, "").replace(",", ".");
-    } else {
-      // Format anglais : 1,234.56 → point est décimal
-      str = str.replace(/,/g, "");
-    }
-  } else if (hasComma) {
-    // Seulement virgule : pourrait être décimal (1,5) ou milliers (1,000)
-    const parts = str.split(",");
-    if (parts.length === 2 && parts[1].length <= 2) {
-      // Probablement décimal : 1,5 ou 1,50
-      str = str.replace(",", ".");
-    } else {
-      // Probablement milliers : 1,000
-      str = str.replace(/,/g, "");
-    }
-  }
-  // Si seulement point, c'est déjà bon
-  
-  const num = parseFloat(str);
-  if (isNaN(num) || !isFinite(num)) return null;
-  
-  return num;
-}
-
-// Parser un entier de manière sûre
-function parseInteger(value: any): number | null {
-  const num = parseNumber(value);
-  if (num === null) return null;
-  return Math.round(num);
+  return String(s).trim().toLowerCase();
 }
 
 export async function POST(request: NextRequest) {
@@ -115,15 +55,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const syncStock = formData.get("syncStock") === "true";
-    const updatePrices = formData.get("updatePrices") === "true";
 
     if (!file) {
       return NextResponse.json({ success: false, error: "לא נבחר קובץ" }, { status: 400 });
     }
-
-    console.log("[Upload] Fichier:", file.name);
-    console.log("[Upload] Sync stock:", syncStock);
-    console.log("[Upload] Update prices:", updatePrices);
 
     // Parser le fichier
     const fileName = file.name.toLowerCase();
@@ -146,8 +81,6 @@ export async function POST(request: NextRequest) {
     }
 
     const columns = Object.keys(rows[0]);
-    console.log("[Upload] Colonnes:", columns);
-    console.log("[Upload] Total lignes:", rows.length);
 
     // Charger tous les produits
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
@@ -156,47 +89,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index pour recherche rapide
-    // 1. Par ID exact
-    const productById = new Map<string, any>();
-    // 2. Par modelRef+color (peut avoir plusieurs produits)
-    const productsByRefColor = new Map<string, any[]>();
-    
+    // Index par modelRef + color
+    const productMap = new Map<string, any>();
     for (const p of products || []) {
-      // Index par ID
-      if (p.id) {
-        productById.set(norm(p.id), p);
-      }
-      
-      // Index par modelRef+color
       const key = `${norm(p.modelRef)}|${norm(p.color)}`;
-      if (!productsByRefColor.has(key)) {
-        productsByRefColor.set(key, []);
-      }
-      productsByRefColor.get(key)!.push(p);
+      productMap.set(key, p);
     }
-
-    console.log(`[Upload] ${products?.length} produits en base, ${productById.size} IDs uniques`);
 
     // Résultats
     let updated = 0;
-    let inserted = 0;
     let unchanged = 0;
     let stockZeroed = 0;
+    const notFound: Array<{ modelRef: string; color: string }> = [];
     const changes: Change[] = [];
-    const insertedProducts: Array<{ modelRef: string; color: string }> = [];
     const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
     const errors: Array<{ row: number; message: string }> = [];
-    const seenProductIds = new Set<string>();
+    const seenKeys = new Set<string>();
 
     // Traiter chaque ligne
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire les valeurs de la ligne avec plusieurs noms possibles
-      const rowId = row.id || row.ID || row.Id || row.sku || row.SKU;
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row.model_ref || row.ref || row.Ref;
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
       const color = row.color || row.Color || row.COLOR;
 
       if (!modelRef || !color) {
@@ -204,111 +119,50 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // STRATÉGIE DE MATCHING :
-      // 1. D'abord essayer par ID exact (si fourni)
-      // 2. Sinon par modelRef + color
+      const key = `${norm(modelRef)}|${norm(color)}`;
+      seenKeys.add(key);
       
-      let existing: any = null;
-      let matchedBy = "";
+      const existing = productMap.get(key);
 
-      // 1. Essayer par ID exact
-      if (rowId) {
-        existing = productById.get(norm(rowId));
-        if (existing) matchedBy = "ID";
-      }
-
-      // 2. Sinon essayer par modelRef + color
       if (!existing) {
-        const key = `${norm(modelRef)}|${norm(color)}`;
-        const matchingProducts = productsByRefColor.get(key) || [];
-        
-        if (matchingProducts.length > 0) {
-          existing = matchingProducts[0];
-          matchedBy = "modelRef+color";
-          
-          // Marquer TOUS les produits avec ce modelRef+color comme "vus"
-          for (const p of matchingProducts) {
-            seenProductIds.add(p.id);
-          }
-        }
-      }
-
-      // Si toujours pas trouvé → nouveau produit
-      if (!existing) {
-        
-        const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stock ?? row.Stock;
-        const parsedStock = parseInteger(stockRaw);
-        const parsedRetail = parseNumber(row.priceRetail);
-        const parsedWholesale = parseNumber(row.priceWholesale);
-        
-        const newProduct: Record<string, any> = {
-          id: rowId || `${modelRef}-${color}-${Date.now()}`,
-          modelRef: modelRef,
-          color: color,
-          brand: row.brand || row.Brand || "GUESS",
-          subcategory: row.subcategory || row.category || row.Category || "תיק",
-          category: row.subcategory || row.category || row.Category || "תיק",
-          collection: row.collection || row.Collection || "",
-          supplier: row.supplier || row.Supplier || "",
-          gender: row.gender || row.Gender || "Women",
-          priceRetail: parsedRetail ?? 0,
-          priceWholesale: parsedWholesale ?? 0,
-          stockQuantity: parsedStock ?? 0,
-          imageUrl: "/images/default.png",
-          gallery: [],
-          productName: row.productName || modelRef,
-        };
-
-        const { error: insertErr } = await supabase.from("products").insert(newProduct);
-
-        if (insertErr) {
-          errors.push({ row: rowNum, message: `שגיאה בהוספה: ${insertErr.message}` });
-        } else {
-          inserted++;
-          insertedProducts.push({ modelRef, color });
-        }
+        notFound.push({ modelRef, color });
         continue;
       }
 
-      // Produit trouvé - le marquer comme vu
-      seenProductIds.add(existing.id);
-
-      // Préparer les mises à jour
+      // Comparer et préparer les mises à jour
       const updates: Record<string, any> = {};
       const rowChanges: Change[] = [];
 
-      // STOCK - accepter noms tronqués aussi
-      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stockQuanti ?? row.stock ?? row.Stock ?? row.מלאי;
-      const newStock = parseInteger(stockRaw);
-      
-      if (newStock !== null) {
-        const oldStock = existing.stockQuantity ?? 0;
-        if (newStock !== oldStock) {
-          updates.stockQuantity = newStock;
-          rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldStock, newValue: newStock });
+      // Stock - accepter noms tronqués
+      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stockQuanti ?? row.stock ?? row.Stock;
+      if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
+        const newVal = parseInt(String(stockRaw)) || 0;
+        const oldVal = parseInt(String(existing.stockQuantity)) || 0;
+        if (newVal !== oldVal) {
+          updates.stockQuantity = newVal;
+          rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
         }
       }
 
-      // PRIX (seulement si l'option est activée)
-      if (updatePrices) {
-        // Prix de détail
-        const newRetail = parseNumber(row.priceRetail ?? row.PriceRetail);
-        if (newRetail !== null) {
-          const oldVal = existing.priceRetail ?? 0;
-          if (Math.abs(newRetail - oldVal) > 0.01) {
-            updates.priceRetail = newRetail;
-            rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newRetail });
-          }
+      // Prix retail
+      const retailRaw = row.priceRetail ?? row.PriceRetail;
+      if (retailRaw !== undefined && retailRaw !== null && retailRaw !== "") {
+        const newVal = parseFloat(String(retailRaw).replace(",", ".")) || 0;
+        const oldVal = existing.priceRetail || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceRetail = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
         }
-        
-        // Prix de gros
-        const newWholesale = parseNumber(row.priceWholesale ?? row.PriceWholesale ?? row.priceWholesa);
-        if (newWholesale !== null) {
-          const oldVal = existing.priceWholesale ?? 0;
-          if (Math.abs(newWholesale - oldVal) > 0.01) {
-            updates.priceWholesale = newWholesale;
-            rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newWholesale });
-          }
+      }
+
+      // Prix wholesale - accepter noms tronqués
+      const wholesaleRaw = row.priceWholesale ?? row.PriceWholesale ?? row.priceWholesa;
+      if (wholesaleRaw !== undefined && wholesaleRaw !== null && wholesaleRaw !== "") {
+        const newVal = parseFloat(String(wholesaleRaw).replace(",", ".")) || 0;
+        const oldVal = existing.priceWholesale || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceWholesale = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
         }
       }
 
@@ -317,7 +171,8 @@ export async function POST(request: NextRequest) {
         const { error: updateErr } = await supabase
           .from("products")
           .update(updates)
-          .eq("id", existing.id);
+          .eq("modelRef", existing.modelRef)
+          .eq("color", existing.color);
 
         if (updateErr) {
           errors.push({ row: rowNum, message: updateErr.message });
@@ -330,51 +185,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // SYNCHRONISATION STOCK - Les produits manquants passent à 0
+    // Sync stock - mettre à 0 les produits absents
     if (syncStock) {
-      for (const product of products || []) {
-        if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
-          const { error: zeroErr } = await supabase
+      for (const p of products || []) {
+        const key = `${norm(p.modelRef)}|${norm(p.color)}`;
+        if (!seenKeys.has(key) && p.stockQuantity > 0) {
+          await supabase
             .from("products")
             .update({ stockQuantity: 0 })
-            .eq("id", product.id);
-
-          if (!zeroErr) {
-            stockZeroed++;
-            zeroedProducts.push({
-              modelRef: product.modelRef,
-              color: product.color,
-              oldStock: product.stockQuantity,
-            });
-            changes.push({
-              modelRef: product.modelRef,
-              color: product.color,
-              field: "מלאי (סנכרון)",
-              oldValue: product.stockQuantity,
-              newValue: 0,
-            });
-          }
+            .eq("modelRef", p.modelRef)
+            .eq("color", p.color);
+          
+          stockZeroed++;
+          zeroedProducts.push({ modelRef: p.modelRef, color: p.color, oldStock: p.stockQuantity });
+          changes.push({ modelRef: p.modelRef, color: p.color, field: "מלאי (סנכרון)", oldValue: p.stockQuantity, newValue: 0 });
         }
       }
     }
-
-    console.log(`[Upload] Terminé: ${updated} mis à jour, ${inserted} ajoutés, ${unchanged} inchangés, ${stockZeroed} à 0`);
 
     return NextResponse.json({
       success: true,
       totalRows: rows.length,
       updated,
-      inserted,
       unchanged,
       stockZeroed,
-      insertedProducts,
+      notFound,
       zeroedProducts,
       changes,
       errors,
       detectedColumns: columns,
       sheets: sheetInfo,
       syncStockEnabled: syncStock,
-      updatePricesEnabled: updatePrices,
     });
 
   } catch (err: any) {
