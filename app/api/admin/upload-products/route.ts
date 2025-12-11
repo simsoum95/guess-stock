@@ -103,14 +103,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index par modelRef + color (normalisé)
-    const productMap = new Map<string, any>();
+    // Index par TOUTES les clés possibles (du plus précis au moins précis)
+    const productByFullKey = new Map<string, any>(); // id + modelRef + color
+    const productById = new Map<string, any>();       // id seul
+    const productByRefColor = new Map<string, any>(); // modelRef + color
+    
     for (const p of products || []) {
-      const key = `${norm(p.modelRef)}|${norm(p.color)}`;
-      productMap.set(key, p);
+      // Clé complète : id + modelRef + color (la plus précise)
+      const fullKey = `${norm(p.id)}|${norm(p.modelRef)}|${norm(p.color)}`;
+      productByFullKey.set(fullKey, p);
+      
+      // Index par ID seul
+      if (p.id) {
+        productById.set(norm(p.id), p);
+      }
+      
+      // Index par modelRef + color
+      const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
+      productByRefColor.set(refColorKey, p);
     }
 
-    console.log(`[Upload] ${productMap.size} produits en base`);
+    console.log(`[Upload] ${products?.length} produits en base`);
 
     // Résultats
     let updated = 0;
@@ -124,18 +137,41 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire modelRef et color
+      // Extraire id, modelRef et color
+      const id = row.id || row.ID || row.Id;
       const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
       const color = row.color || row.Color || row.COLOR;
 
       if (!modelRef || !color) {
-        errors.push({ row: rowNum, message: "modelRef ou color manquant" });
+        errors.push({ row: rowNum, message: "modelRef או color חסר" });
         continue;
       }
 
-      // Chercher le produit
-      const key = `${norm(modelRef)}|${norm(color)}`;
-      const existing = productMap.get(key);
+      // Chercher le produit - Du PLUS PRÉCIS au moins précis
+      let existing = null;
+      let matchedBy = "";
+      
+      // 1. D'abord essayer avec la clé complète (id + modelRef + color)
+      if (id) {
+        const fullKey = `${norm(id)}|${norm(modelRef)}|${norm(color)}`;
+        existing = productByFullKey.get(fullKey);
+        if (existing) matchedBy = "id+modelRef+color";
+      }
+      
+      // 2. Sinon essayer avec l'ID seul
+      if (!existing && id) {
+        existing = productById.get(norm(id));
+        if (existing) matchedBy = "id";
+      }
+      
+      // 3. Enfin essayer avec modelRef + color
+      if (!existing) {
+        const key = `${norm(modelRef)}|${norm(color)}`;
+        existing = productByRefColor.get(key);
+        if (existing) matchedBy = "modelRef+color";
+      }
+      
+      console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
 
       if (!existing) {
         notFound.push({ modelRef, color });
@@ -190,13 +226,18 @@ export async function POST(request: NextRequest) {
 
       // Si des changements existent, faire l'UPDATE
       if (Object.keys(updates).length > 0) {
-        console.log(`[Upload] Updating ${modelRef} / ${color}:`, updates);
+        console.log(`[Upload] Updating id="${existing.id}" (${modelRef} / ${color}):`, updates);
         
-        const { error: updateErr } = await supabase
-          .from("products")
-          .update(updates)
-          .eq("modelRef", existing.modelRef)
-          .eq("color", existing.color);
+        // Utiliser l'ID pour l'update si disponible (plus précis)
+        let updateQuery = supabase.from("products").update(updates);
+        
+        if (existing.id && existing.id !== "GUESS") {
+          updateQuery = updateQuery.eq("id", existing.id);
+        } else {
+          updateQuery = updateQuery.eq("modelRef", existing.modelRef).eq("color", existing.color);
+        }
+        
+        const { error: updateErr } = await updateQuery;
 
         if (updateErr) {
           errors.push({ row: rowNum, message: updateErr.message });
