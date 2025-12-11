@@ -164,11 +164,25 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
 
-  // Build images array: main image + gallery (limit to 4 for speed)
+  // Build images array: prioritize image ending with "PZ", then others (limit to 6 for speed)
   const allImages = useMemo(() => {
-    return [product.imageUrl, ...(product.gallery || [])].filter(
-      (img, index, arr) => img && !img.includes("default") && arr.indexOf(img) === index
-    ).slice(0, 4);
+    const all = [product.imageUrl, ...(product.gallery || [])].filter(
+      (img) => img && !img.includes("default")
+    );
+    
+    // Remove duplicates
+    const unique = Array.from(new Set(all));
+    
+    // Sort: images ending with "PZ" first (case insensitive), then others
+    const sorted = unique.sort((a, b) => {
+      const aIsPZ = a.toLowerCase().includes("pz") || a.endsWith("PZ") || a.endsWith("pz");
+      const bIsPZ = b.toLowerCase().includes("pz") || b.endsWith("PZ") || b.endsWith("pz");
+      if (aIsPZ && !bIsPZ) return -1;
+      if (!aIsPZ && bIsPZ) return 1;
+      return 0;
+    });
+    
+    return sorted.slice(0, 6);
   }, [product.imageUrl, product.gallery]);
   
   const hasMultipleImages = allImages.length > 1;
