@@ -277,8 +277,8 @@ export async function POST(request: NextRequest) {
       const updates: Record<string, any> = {};
       const rowChanges: Change[] = [];
 
-      // STOCK
-      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stock ?? row.Stock;
+      // STOCK - accepter noms tronqués aussi
+      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stockQuanti ?? row.stock ?? row.Stock ?? row.מלאי;
       const newStock = parseInteger(stockRaw);
       
       if (newStock !== null) {
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
       // PRIX (seulement si l'option est activée)
       if (updatePrices) {
         // Prix de détail
-        const newRetail = parseNumber(row.priceRetail);
+        const newRetail = parseNumber(row.priceRetail ?? row.PriceRetail);
         if (newRetail !== null) {
           const oldVal = existing.priceRetail ?? 0;
           if (Math.abs(newRetail - oldVal) > 0.01) {
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         }
         
         // Prix de gros
-        const newWholesale = parseNumber(row.priceWholesale);
+        const newWholesale = parseNumber(row.priceWholesale ?? row.PriceWholesale ?? row.priceWholesa);
         if (newWholesale !== null) {
           const oldVal = existing.priceWholesale ?? 0;
           if (Math.abs(newWholesale - oldVal) > 0.01) {
