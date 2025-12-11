@@ -144,27 +144,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Prix retail
-      const retailRaw = row.priceRetail ?? row.PriceRetail;
-      if (retailRaw !== undefined && retailRaw !== null && retailRaw !== "") {
-        const newVal = parseFloat(String(retailRaw).replace(",", ".")) || 0;
-        const oldVal = existing.priceRetail || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceRetail = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // Prix wholesale - accepter noms tronqués
-      const wholesaleRaw = row.priceWholesale ?? row.PriceWholesale ?? row.priceWholesa;
-      if (wholesaleRaw !== undefined && wholesaleRaw !== null && wholesaleRaw !== "") {
-        const newVal = parseFloat(String(wholesaleRaw).replace(",", ".")) || 0;
-        const oldVal = existing.priceWholesale || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceWholesale = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
+      // PRIX DÉSACTIVÉS - seulement stock est mis à jour
 
       // Appliquer les mises à jour
       if (Object.keys(updates).length > 0) {
