@@ -12,21 +12,20 @@ interface ChangeDetail {
 
 interface UploadResult {
   success: boolean;
-  historyId?: string;
-  historyError?: string;
   updated: number;
-  inserted?: number;
+  inserted: number;
   unchanged: number;
   stockZeroed?: number;
-  errors: Array<{ row: number; message: string; data?: any }>;
-  notFound: Array<{ modelRef: string; color: string }>;
+  errors: Array<{ row: number; message: string }>;
   insertedProducts?: Array<{ modelRef: string; color: string }>;
   zeroedProducts?: Array<{ modelRef: string; color: string; oldStock: number }>;
   changes: ChangeDetail[];
   totalRows: number;
   detectedColumns?: string[];
+  sheets?: string[];
   error?: string;
   syncStockEnabled?: boolean;
+  updatePricesEnabled?: boolean;
 }
 
 export default function UploadPage() {
@@ -35,8 +34,7 @@ export default function UploadPage() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [syncStock, setSyncStock] = useState(false);
-  const [undoing, setUndoing] = useState(false);
-  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  const [updatePrices, setUpdatePrices] = useState(false);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -65,7 +63,8 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("syncStock", syncStock.toString()); // Envoyer l'option de synchronisation
+      formData.append("syncStock", syncStock.toString());
+      formData.append("updatePrices", updatePrices.toString());
 
       const response = await fetch("/api/admin/upload-products", {
         method: "POST",
@@ -81,7 +80,6 @@ export default function UploadPage() {
         inserted: 0,
         unchanged: 0,
         errors: [{ row: 0, message: error.message }],
-        notFound: [],
         changes: [],
         totalRows: 0,
         error: error.message,
@@ -94,53 +92,14 @@ export default function UploadPage() {
   const resetForm = () => {
     setFile(null);
     setResult(null);
-    setUndoMessage(null);
-  };
-
-  const handleUndo = async () => {
-    if (!result?.historyId) return;
-    
-    if (!confirm("האם אתה בטוח שברצונך לבטל את העדכון? פעולה זו תחזיר את כל המוצרים למצב שלפני העדכון.")) {
-      return;
-    }
-
-    setUndoing(true);
-    setUndoMessage(null);
-
-    try {
-      const res = await fetch("/api/admin/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ historyId: result.historyId }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setUndoMessage(`✅ ${data.message} - העדכון בוטל בהצלחה!`);
-      } else {
-        setUndoMessage(`❌ שגיאה: ${data.error}`);
-      }
-    } catch (error: any) {
-      setUndoMessage(`❌ שגיאה: ${error.message}`);
-    } finally {
-      setUndoing(false);
-    }
-  };
-
-  const formatValue = (value: any): string => {
-    if (value === null || value === undefined) return "ריק";
-    if (typeof value === "number") return value.toLocaleString();
-    if (Array.isArray(value)) return `[${value.length} פריטים]`;
-    return String(value);
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto" dir="rtl">
+    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">ייבוא קובץ CSV / Excel</h1>
-        <p className="text-slate-500">העלה קובץ מוצרים לעדכון או הוספה לקטלוג</p>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">ייבוא קובץ Excel / CSV</h1>
+        <p className="text-slate-500">עדכון מלאי ומחירים מקובץ</p>
       </div>
 
       {/* Upload Zone */}
@@ -173,9 +132,7 @@ export default function UploadPage() {
                 </svg>
               </div>
               <p className="text-lg font-medium text-slate-900">{file.name}</p>
-              <p className="text-sm text-slate-500">
-                {(file.size / 1024).toFixed(1)} KB
-              </p>
+              <p className="text-sm text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); resetForm(); }}
@@ -194,38 +151,60 @@ export default function UploadPage() {
               <p className="text-lg font-medium text-slate-700">
                 <span className="text-blue-600">לחץ לבחירה</span> או גרור קובץ לכאן
               </p>
-              <p className="text-sm text-slate-400">CSV, XLSX, XLS</p>
+              <p className="text-sm text-slate-400">Excel (XLSX, XLS) או CSV</p>
             </div>
           )}
         </div>
 
-        {/* Option de synchronisation du stock */}
-        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={syncStock}
-              onChange={(e) => setSyncStock(e.target.checked)}
-              className="mt-1 w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
-              disabled={loading}
-            />
-            <div>
-              <p className="font-medium text-amber-800">סנכרון מלאי</p>
-              <p className="text-sm text-amber-700 mt-1">
-                מוצרים שלא מופיעים בקובץ יעברו אוטומטית למלאי 0
-              </p>
-              <p className="text-xs text-amber-600 mt-1">
-                ⚠️ השתמש באפשרות זו רק אם הקובץ מכיל את כל המוצרים שלך
-              </p>
-            </div>
-          </label>
+        {/* Options */}
+        <div className="mt-6 space-y-4">
+          {/* Option prix */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={updatePrices}
+                onChange={(e) => setUpdatePrices(e.target.checked)}
+                className="mt-1 w-5 h-5 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                disabled={loading}
+              />
+              <div>
+                <p className="font-medium text-blue-800">עדכון מחירים</p>
+                <p className="text-sm text-blue-700 mt-1">
+                  עדכן גם מחיר קמעונאי ומחיר סיטונאי (אם קיימים בקובץ)
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Option sync stock */}
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={syncStock}
+                onChange={(e) => setSyncStock(e.target.checked)}
+                className="mt-1 w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                disabled={loading}
+              />
+              <div>
+                <p className="font-medium text-amber-800">סנכרון מלאי</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  מוצרים שלא מופיעים בקובץ יעברו אוטומטית למלאי 0
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ השתמש באפשרות זו רק אם הקובץ מכיל את כל המוצרים שלך
+                </p>
+              </div>
+            </label>
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-4">
+        <div className="mt-4">
           <button
             onClick={handleUpload}
             disabled={!file || loading}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-medium rounded-lg transition-colors"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-medium rounded-lg transition-colors"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -233,10 +212,10 @@ export default function UploadPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                מייבא... אנא המתן
+                מעבד קובץ...
               </span>
             ) : (
-              "העלה והרץ עדכון"
+              "העלה ועדכן"
             )}
           </button>
         </div>
@@ -245,318 +224,165 @@ export default function UploadPage() {
       {/* Results */}
       {result && (
         <div className="space-y-4">
-          {/* Undo Message */}
-          {undoMessage && (
-            <div className={`p-4 rounded-lg ${undoMessage.startsWith("✅") ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
-              {undoMessage}
-            </div>
-          )}
-
-          {/* Undo Button */}
-          {result.historyId && result.success && !undoMessage?.startsWith("✅") && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-amber-800">לא מרוצה מהעדכון?</p>
-                <p className="text-sm text-amber-600">ניתן לבטל את העדכון ולחזור למצב הקודם</p>
-              </div>
-              <button
-                onClick={handleUndo}
-                disabled={undoing}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-              >
-                {undoing ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    מבטל...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    בטל עדכון
-                  </>
-                )}
-              </button>
+          {/* Error Message */}
+          {result.error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="font-medium text-red-800">❌ שגיאה</p>
+              <p className="text-sm text-red-600 mt-1">{result.error}</p>
             </div>
           )}
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </div>
-                <div>
+          {result.success && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">עודכנו</p>
                   <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </div>
-                <div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">חדשים</p>
                   <p className="text-2xl font-bold text-green-600">{result.inserted}</p>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">ללא שינוי</p>
                   <p className="text-2xl font-bold text-slate-600">{result.unchanged}</p>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  result.errors.length > 0 ? "bg-red-100" : "bg-slate-100"
-                }`}>
-                  <svg className={`w-5 h-5 ${result.errors.length > 0 ? "text-red-600" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <p className="text-sm text-slate-500">שגיאות</p>
                   <p className="text-2xl font-bold text-red-600">{result.errors.length}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Stock mis à 0 (uniquement si syncStock activé) */}
-            {result.syncStockEnabled && (
-              <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    (result.stockZeroed || 0) > 0 ? "bg-orange-100" : "bg-slate-100"
-                  }`}>
-                    <svg className={`w-5 h-5 ${(result.stockZeroed || 0) > 0 ? "text-orange-600" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
+              {/* Stock zeroed */}
+              {result.syncStockEnabled && (result.stockZeroed || 0) > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                  <p className="font-medium text-orange-800">📦 מוצרים שעברו למלאי 0: {result.stockZeroed}</p>
+                </div>
+              )}
+
+              {/* Inserted Products */}
+              {result.insertedProducts && result.insertedProducts.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-200 bg-green-50">
+                    <h3 className="font-medium text-green-800">✅ מוצרים חדשים שנוספו ({result.insertedProducts.length})</h3>
                   </div>
-                  <div>
-                    <p className="text-sm text-slate-500">מלאי אופס</p>
-                    <p className="text-2xl font-bold text-orange-600">{result.stockZeroed || 0}</p>
+                  <div className="overflow-x-auto max-h-40">
+                    <table className="w-full">
+                      <thead className="bg-slate-50">
+                        <tr className="text-right">
+                          <th className="px-4 py-2 text-xs font-medium text-slate-500">מק״ט</th>
+                          <th className="px-4 py-2 text-xs font-medium text-slate-500">צבע</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {result.insertedProducts.slice(0, 20).map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 text-sm font-mono">{item.modelRef}</td>
+                            <td className="px-4 py-2 text-sm text-slate-600">{item.color}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Changes Detail Table */}
-          {result.changes && result.changes.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-blue-50">
-                <h3 className="font-medium text-blue-800">✏️ שינויים שבוצעו ({result.changes.length})</h3>
-              </div>
-              <div className="overflow-x-auto max-h-96">
-                <table className="w-full">
-                  <thead className="bg-slate-50 sticky top-0">
-                    <tr className="text-right">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שדה</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">ערך קודם</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">ערך חדש</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.changes.map((change, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{change.modelRef}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{change.color}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-slate-700">{change.field}</td>
-                        <td className="px-4 py-3 text-sm text-red-600 line-through">{formatValue(change.oldValue)}</td>
-                        <td className="px-4 py-3 text-sm text-green-600 font-medium">{formatValue(change.newValue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Inserted Products */}
-          {result.insertedProducts && result.insertedProducts.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-green-50">
-                <h3 className="font-medium text-green-800">✅ מוצרים חדשים שנוספו ({result.insertedProducts.length})</h3>
-              </div>
-              <div className="overflow-x-auto max-h-48">
-                <table className="w-full">
-                  <thead className="bg-slate-50">
-                    <tr className="text-right">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.insertedProducts.slice(0, 20).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-green-50">
-                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
-                        <td className="px-4 py-3 text-sm text-green-600">{item.color}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {result.insertedProducts.length > 20 && (
-                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
-                    + עוד {result.insertedProducts.length - 20} מוצרים
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Stock mis à 0 */}
-          {result.zeroedProducts && result.zeroedProducts.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-orange-50">
-                <h3 className="font-medium text-orange-800">📦 מוצרים שעברו למלאי 0 ({result.zeroedProducts.length})</h3>
-                <p className="text-sm text-orange-600 mt-1">מוצרים אלו לא הופיעו בקובץ ולכן המלאי שלהם אופס</p>
-              </div>
-              <div className="overflow-x-auto max-h-48">
-                <table className="w-full">
-                  <thead className="bg-slate-50">
-                    <tr className="text-right">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מלאי קודם</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.zeroedProducts.slice(0, 30).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-orange-50">
-                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{item.color}</td>
-                        <td className="px-4 py-3 text-sm text-red-600 line-through">{item.oldStock}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {result.zeroedProducts.length > 30 && (
-                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
-                    + עוד {result.zeroedProducts.length - 30} מוצרים
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Not Found Products */}
-          {result.notFound && result.notFound.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-amber-50">
-                <h3 className="font-medium text-amber-800">⚠️ שגיאות הוספה ({result.notFound.length})</h3>
-                <p className="text-sm text-amber-600 mt-1">מוצרים אלו לא הצלחנו להוסיף</p>
-              </div>
-              <div className="overflow-x-auto max-h-48">
-                <table className="w-full">
-                  <thead className="bg-slate-50">
-                    <tr className="text-right">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.notFound.slice(0, 20).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{item.color}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {result.notFound.length > 20 && (
-                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
-                    + עוד {result.notFound.length - 20} מוצרים
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Error Table */}
-          {result.errors.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-red-50">
-                <h3 className="font-medium text-red-800">❌ שגיאות ({result.errors.length})</h3>
-              </div>
-              <div className="overflow-x-auto max-h-48">
-                <table className="w-full">
-                  <thead className="bg-slate-50">
-                    <tr className="text-right">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שורה</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">שגיאה</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {result.errors.slice(0, 20).map((err, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 text-sm text-slate-900 font-medium">{err.row}</td>
-                        <td className="px-4 py-3 text-sm text-red-600">{err.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {result.success && result.errors.length === 0 && result.updated > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-              <p className="text-green-800 font-medium">✅ הייבוא הושלם בהצלחה!</p>
-            </div>
-          )}
-
-          {/* Detected Columns & Sheets */}
-          {result.detectedColumns && result.detectedColumns.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-              {(result as any).sheets && (
-                <p className="text-sm text-slate-600">
-                  <span className="font-medium">גליונות שנקראו:</span>{" "}
-                  {(result as any).sheets.join(" | ")}
-                </p>
               )}
-              <p className="text-sm text-slate-600">
-                <span className="font-medium">עמודות שזוהו:</span>{" "}
-                {result.detectedColumns.join(", ")}
-              </p>
-            </div>
+
+              {/* Changes Table */}
+              {result.changes && result.changes.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-200 bg-blue-50">
+                    <h3 className="font-medium text-blue-800">✏️ שינויים ({result.changes.length})</h3>
+                  </div>
+                  <div className="overflow-x-auto max-h-80">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 sticky top-0">
+                        <tr className="text-right">
+                          <th className="px-4 py-3 text-xs font-medium text-slate-500">מק״ט</th>
+                          <th className="px-4 py-3 text-xs font-medium text-slate-500">צבע</th>
+                          <th className="px-4 py-3 text-xs font-medium text-slate-500">שדה</th>
+                          <th className="px-4 py-3 text-xs font-medium text-slate-500">קודם</th>
+                          <th className="px-4 py-3 text-xs font-medium text-slate-500">חדש</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {result.changes.slice(0, 50).map((change, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="px-4 py-2 text-sm font-mono text-slate-900">{change.modelRef}</td>
+                            <td className="px-4 py-2 text-sm text-slate-600">{change.color}</td>
+                            <td className="px-4 py-2 text-sm text-slate-700">{change.field}</td>
+                            <td className="px-4 py-2 text-sm text-red-600">{change.oldValue}</td>
+                            <td className="px-4 py-2 text-sm text-green-600 font-medium">{change.newValue}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {result.changes.length > 50 && (
+                      <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
+                        + עוד {result.changes.length - 50} שינויים
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Errors */}
+              {result.errors.length > 0 && (
+                <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-red-200 bg-red-50">
+                    <h3 className="font-medium text-red-800">❌ שגיאות ({result.errors.length})</h3>
+                  </div>
+                  <div className="overflow-x-auto max-h-40">
+                    <table className="w-full">
+                      <thead className="bg-slate-50">
+                        <tr className="text-right">
+                          <th className="px-4 py-2 text-xs font-medium text-slate-500">שורה</th>
+                          <th className="px-4 py-2 text-xs font-medium text-slate-500">שגיאה</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {result.errors.slice(0, 20).map((err, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 text-sm">{err.row}</td>
+                            <td className="px-4 py-2 text-sm text-red-600">{err.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Success */}
+              {result.errors.length === 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                  <p className="text-green-800 font-medium">✅ הייבוא הושלם בהצלחה!</p>
+                </div>
+              )}
+
+              {/* Sheets info */}
+              {result.sheets && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <p className="text-sm text-slate-600">
+                    <span className="font-medium">גליונות:</span> {result.sheets.join(" | ")}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
       {/* Info Box */}
       <div className="mt-8 bg-slate-50 rounded-xl border border-slate-200 p-6">
-        <h3 className="font-medium text-slate-900 mb-3">פורמט הקובץ</h3>
+        <h3 className="font-medium text-slate-900 mb-3">📋 איך זה עובד</h3>
         <div className="space-y-2 text-sm text-slate-600">
-          <p>• עמודות נדרשות: <code className="bg-slate-200 px-1.5 py-0.5 rounded">modelRef</code>, <code className="bg-slate-200 px-1.5 py-0.5 rounded">color</code></p>
-          <p>• עמודות אופציונליות: stockQuantity, priceRetail, priceWholesale, productName...</p>
-          <p>• מוצרים קיימים יעודכנו לפי התאמת modelRef + color</p>
-          <p>• רק שדות ששונו בפועל יעודכנו</p>
+          <p>• <strong>עמודות נדרשות:</strong> modelRef, color</p>
+          <p>• <strong>עמודה מלאי:</strong> stockQuantity (או stock)</p>
+          <p>• <strong>עמודות מחיר:</strong> priceRetail, priceWholesale</p>
+          <p>• מוצר חדש (לא קיים בקטלוג) → <strong>יתווסף אוטומטית</strong></p>
+          <p>• מוצר קיים → <strong>יתעדכן רק אם יש שינוי</strong></p>
+          <p>• סנכרון מלאי → מוצרים לא בקובץ <strong>יעברו למלאי 0</strong></p>
         </div>
       </div>
     </div>
