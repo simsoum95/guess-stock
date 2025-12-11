@@ -156,9 +156,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index pour recherche rapide - STOCKER TOUS les produits par clé (pas seulement un)
+    // Index pour recherche rapide
+    // 1. Par ID exact
+    const productById = new Map<string, any>();
+    // 2. Par modelRef+color (peut avoir plusieurs produits)
     const productsByRefColor = new Map<string, any[]>();
+    
     for (const p of products || []) {
+      // Index par ID
+      if (p.id) {
+        productById.set(norm(p.id), p);
+      }
+      
+      // Index par modelRef+color
       const key = `${norm(p.modelRef)}|${norm(p.color)}`;
       if (!productsByRefColor.has(key)) {
         productsByRefColor.set(key, []);
@@ -166,16 +176,7 @@ export async function POST(request: NextRequest) {
       productsByRefColor.get(key)!.push(p);
     }
 
-    // Compter les doublons
-    let duplicateCount = 0;
-    for (const [key, prods] of productsByRefColor.entries()) {
-      if (prods.length > 1) {
-        duplicateCount++;
-        console.log(`[Upload] Doublon trouvé pour ${key}: ${prods.length} produits`);
-      }
-    }
-
-    console.log(`[Upload] ${products?.length} produits en base (${duplicateCount} doublons modelRef+color)`);
+    console.log(`[Upload] ${products?.length} produits en base, ${productById.size} IDs uniques`);
 
     // Résultats
     let updated = 0;
@@ -193,7 +194,9 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
+      // Extraire les valeurs de la ligne avec plusieurs noms possibles
+      const rowId = row.id || row.ID || row.Id || row.sku || row.SKU;
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row.model_ref || row.ref || row.Ref;
       const color = row.color || row.Color || row.COLOR;
 
       if (!modelRef || !color) {
@@ -201,19 +204,50 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Chercher TOUS les produits avec ce modelRef+color
-      const key = `${norm(modelRef)}|${norm(color)}`;
-      const matchingProducts = productsByRefColor.get(key) || [];
+      // STRATÉGIE DE MATCHING :
+      // 1. D'abord essayer par ID exact (si fourni)
+      // 2. Sinon par modelRef + color
+      
+      let existing: any = null;
+      let matchedBy = "";
 
-      if (matchingProducts.length === 0) {
-        // NOUVEAU PRODUIT → L'AJOUTER
+      // 1. Essayer par ID exact
+      if (rowId) {
+        existing = productById.get(norm(rowId));
+        if (existing) {
+          matchedBy = "ID";
+          console.log(`[Row ${rowNum}] Matched by ID: ${rowId}`);
+        }
+      }
+
+      // 2. Sinon essayer par modelRef + color
+      if (!existing) {
+        const key = `${norm(modelRef)}|${norm(color)}`;
+        const matchingProducts = productsByRefColor.get(key) || [];
+        
+        if (matchingProducts.length > 0) {
+          existing = matchingProducts[0];
+          matchedBy = "modelRef+color";
+          console.log(`[Row ${rowNum}] Matched by modelRef+color: ${modelRef}|${color} (${matchingProducts.length} produits)`);
+          
+          // Marquer TOUS les produits avec ce modelRef+color comme "vus"
+          for (const p of matchingProducts) {
+            seenProductIds.add(p.id);
+          }
+        }
+      }
+
+      // Si toujours pas trouvé → nouveau produit
+      if (!existing) {
+        console.log(`[Row ${rowNum}] NOT FOUND: id=${rowId}, modelRef=${modelRef}, color=${color}`);
+        
         const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.stock ?? row.Stock;
         const parsedStock = parseInteger(stockRaw);
         const parsedRetail = parseNumber(row.priceRetail);
         const parsedWholesale = parseNumber(row.priceWholesale);
         
         const newProduct: Record<string, any> = {
-          id: `${modelRef}-${color}-${Date.now()}`,
+          id: rowId || `${modelRef}-${color}-${Date.now()}`,
           modelRef: modelRef,
           color: color,
           brand: row.brand || row.Brand || "GUESS",
@@ -241,18 +275,8 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // IMPORTANT: Marquer TOUS les produits matchés comme "vus" pour éviter qu'ils passent à 0
-      for (const p of matchingProducts) {
-        seenProductIds.add(p.id);
-      }
-
-      // Utiliser le premier produit pour la mise à jour (ou celui avec l'ID correspondant si fourni)
-      const rowId = row.id || row.ID;
-      let existing = matchingProducts[0];
-      if (rowId && matchingProducts.length > 1) {
-        const byId = matchingProducts.find(p => norm(p.id) === norm(rowId));
-        if (byId) existing = byId;
-      }
+      // Produit trouvé - le marquer comme vu
+      seenProductIds.add(existing.id);
 
       // Préparer les mises à jour
       const updates: Record<string, any> = {};
