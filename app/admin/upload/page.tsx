@@ -13,6 +13,7 @@ interface ChangeDetail {
 interface UploadResult {
   success: boolean;
   historyId?: string;
+  historyError?: string;
   updated: number;
   inserted?: number;
   unchanged: number;

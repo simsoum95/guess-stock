@@ -315,42 +315,60 @@ export async function POST(request: NextRequest) {
     }
 
     // SAUVEGARDER DANS L'HISTORIQUE
-    const historyEntry = {
-      file_name: file.name,
-      uploaded_at: new Date().toISOString(),
-      stats: { updated, inserted, unchanged, stockZeroed, errors: errors.length },
-      changes: changes.slice(0, 100), // Limiter à 100 changements pour la taille
-      inserted_products: insertedProducts.slice(0, 50),
-      zeroed_products: zeroedProducts.slice(0, 50),
-      snapshot_before: snapshotBefore, // Pour restauration
-      sync_stock_enabled: syncStock,
-    };
+    let historyId: string | null = null;
+    let historyError: string | null = null;
 
-    // Insérer dans l'historique
-    await supabase.from("upload_history").insert(historyEntry);
+    try {
+      const historyEntry = {
+        file_name: file.name,
+        uploaded_at: new Date().toISOString(),
+        stats: { updated, inserted, unchanged, stockZeroed, errors: errors.length },
+        changes: changes.slice(0, 100),
+        inserted_products: insertedProducts.slice(0, 50),
+        zeroed_products: zeroedProducts.slice(0, 50),
+        snapshot_before: snapshotBefore,
+        sync_stock_enabled: syncStock,
+      };
 
-    // Garder seulement les 5 derniers
-    const { data: allHistory } = await supabase
-      .from("upload_history")
-      .select("id")
-      .order("uploaded_at", { ascending: false });
-    
-    if (allHistory && allHistory.length > 5) {
-      const idsToDelete = allHistory.slice(5).map(h => h.id);
-      await supabase.from("upload_history").delete().in("id", idsToDelete);
+      console.log("[Upload] Saving to history...");
+      const { data: insertedHistory, error: historyInsertErr } = await supabase
+        .from("upload_history")
+        .insert(historyEntry)
+        .select("id")
+        .single();
+
+      if (historyInsertErr) {
+        console.error("[Upload] History insert error:", historyInsertErr);
+        historyError = historyInsertErr.message;
+        
+        // Log l'erreur pour debug
+        if (historyInsertErr.message.includes("does not exist")) {
+          console.log("[Upload] Table upload_history does not exist - please create it in Supabase");
+        }
+      } else {
+        historyId = insertedHistory?.id || null;
+        console.log("[Upload] History saved with ID:", historyId);
+
+        // Garder seulement les 5 derniers
+        const { data: allHistory } = await supabase
+          .from("upload_history")
+          .select("id")
+          .order("uploaded_at", { ascending: false });
+        
+        if (allHistory && allHistory.length > 5) {
+          const idsToDelete = allHistory.slice(5).map(h => h.id);
+          await supabase.from("upload_history").delete().in("id", idsToDelete);
+        }
+      }
+    } catch (err: any) {
+      console.error("[Upload] History error:", err);
+      historyError = err.message;
     }
-
-    // Récupérer l'ID de l'historique créé
-    const { data: latestHistory } = await supabase
-      .from("upload_history")
-      .select("id")
-      .order("uploaded_at", { ascending: false })
-      .limit(1)
-      .single();
 
     return NextResponse.json({
       success: true,
-      historyId: latestHistory?.id,
+      historyId,
+      historyError,
       totalRows: rows.length,
       updated,
       inserted,
