@@ -342,19 +342,19 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* Detected Columns */}
+          {/* Detected Columns & Sheets */}
           {result.detectedColumns && result.detectedColumns.length > 0 && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+              {(result as any).sheets && (
+                <p className="text-sm text-slate-600">
+                  <span className="font-medium">גליונות שנקראו:</span>{" "}
+                  {(result as any).sheets.join(" | ")}
+                </p>
+              )}
               <p className="text-sm text-slate-600">
                 <span className="font-medium">עמודות שזוהו:</span>{" "}
                 {result.detectedColumns.join(", ")}
               </p>
-              {(result as any).debug && (
-                <div className="text-xs text-slate-500 font-mono bg-white p-2 rounded">
-                  <p>שורה 21: {JSON.stringify((result as any).debug.row21)}</p>
-                  <p>שורה 32: {JSON.stringify((result as any).debug.row32)}</p>
-                </div>
-              )}
             </div>
           )}
         </div>

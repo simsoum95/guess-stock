@@ -16,11 +16,23 @@ interface Change {
   newValue: any;
 }
 
-// Parser Excel
-function parseExcel(buffer: ArrayBuffer): any[] {
+// Parser Excel - LIT TOUTES LES FEUILLES
+function parseExcel(buffer: ArrayBuffer): { rows: any[]; sheetNames: string[] } {
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(sheet, { defval: null });
+  const allRows: any[] = [];
+  const sheetNames: string[] = [];
+  
+  // Parcourir TOUTES les feuilles
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
+    console.log(`[Excel] Feuille "${sheetName}": ${rows.length} lignes`);
+    sheetNames.push(`${sheetName} (${rows.length})`);
+    allRows.push(...rows);
+  }
+  
+  console.log(`[Excel] Total: ${allRows.length} lignes de ${workbook.SheetNames.length} feuilles`);
+  return { rows: allRows, sheetNames };
 }
 
 // Parser CSV
@@ -61,11 +73,15 @@ export async function POST(request: NextRequest) {
     // Parser le fichier
     const fileName = file.name.toLowerCase();
     let rows: any[];
+    let sheetInfo: string[] = [];
     
     if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-      rows = parseExcel(await file.arrayBuffer());
+      const result = parseExcel(await file.arrayBuffer());
+      rows = result.rows;
+      sheetInfo = result.sheetNames;
     } else if (fileName.endsWith(".csv")) {
       rows = await parseCSV(await file.text());
+      sheetInfo = ["CSV"];
     } else {
       return NextResponse.json({ success: false, error: "פורמט לא נתמך" }, { status: 400 });
     }
@@ -77,9 +93,8 @@ export async function POST(request: NextRequest) {
     // Log colonnes détectées
     const columns = Object.keys(rows[0]);
     console.log("[Upload] Colonnes:", columns);
-    console.log("[Upload] Ligne 1:", JSON.stringify(rows[0]));
-    if (rows.length > 20) console.log("[Upload] Ligne 21:", JSON.stringify(rows[20]));
-    if (rows.length > 31) console.log("[Upload] Ligne 32:", JSON.stringify(rows[31]));
+    console.log("[Upload] Total lignes:", rows.length);
+    console.log("[Upload] Feuilles:", sheetInfo);
 
     // Charger TOUS les produits de Supabase
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
@@ -211,11 +226,7 @@ export async function POST(request: NextRequest) {
       changes,
       errors,
       detectedColumns: columns,
-      sampleRows,
-      debug: {
-        row21: rows[19] ? { modelRef: rows[19].modelRef, color: rows[19].color, stock: rows[19].stockQuantity } : null,
-        row32: rows[30] ? { modelRef: rows[30].modelRef, color: rows[30].color, stock: rows[30].stockQuantity } : null,
-      }
+      sheets: sheetInfo,
     });
 
   } catch (err: any) {
