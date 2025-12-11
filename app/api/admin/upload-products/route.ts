@@ -65,10 +65,13 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    const syncStock = formData.get("syncStock") === "true"; // Option pour synchroniser le stock
 
     if (!file) {
       return NextResponse.json({ success: false, error: "לא נבחר קובץ" }, { status: 400 });
     }
+
+    console.log("[Upload] Mode synchronisation stock:", syncStock);
 
     // Parser le fichier
     const fileName = file.name.toLowerCase();
@@ -129,10 +132,15 @@ export async function POST(request: NextRequest) {
     let updated = 0;
     let inserted = 0;
     let unchanged = 0;
+    let stockZeroed = 0;
     const notFound: Array<{ modelRef: string; color: string }> = [];
     const insertedProducts: Array<{ modelRef: string; color: string }> = [];
+    const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
     const changes: Change[] = [];
     const errors: Array<{ row: number; message: string }> = [];
+    
+    // Tracker les produits vus dans le fichier (pour syncStock)
+    const seenProductIds = new Set<string>();
 
     // Traiter chaque ligne
     for (let i = 0; i < rows.length; i++) {
@@ -174,6 +182,11 @@ export async function POST(request: NextRequest) {
       }
       
       console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
+
+      // Tracker le produit vu pour syncStock
+      if (existing) {
+        seenProductIds.add(existing.id);
+      }
 
       if (!existing) {
         // NOUVEAU PRODUIT → L'INSÉRER
@@ -282,13 +295,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Échantillon de lignes pour débogage
-    const sampleRows = rows.slice(0, 3).map((r, i) => ({
-      row: i + 2,
-      modelRef: r.modelRef,
-      color: r.color,
-      stockQuantity: r.stockQuantity,
-    }));
+    // SYNCHRONISATION STOCK: Mettre à 0 les produits qui ne sont pas dans le fichier
+    if (syncStock) {
+      console.log(`[SyncStock] ${seenProductIds.size} produits vus dans le fichier, ${products?.length || 0} en base`);
+      
+      for (const product of products || []) {
+        // Si le produit n'a pas été vu dans le fichier ET a du stock > 0
+        if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
+          console.log(`[SyncStock] Mise à 0 stock: ${product.modelRef} / ${product.color} (était: ${product.stockQuantity})`);
+          
+          const { error: zeroErr } = await supabase
+            .from("products")
+            .update({ stockQuantity: 0 })
+            .eq("id", product.id);
+
+          if (zeroErr) {
+            errors.push({ row: -1, message: `Erreur sync ${product.modelRef}: ${zeroErr.message}` });
+          } else {
+            stockZeroed++;
+            zeroedProducts.push({ 
+              modelRef: product.modelRef, 
+              color: product.color, 
+              oldStock: product.stockQuantity 
+            });
+            changes.push({
+              modelRef: product.modelRef,
+              color: product.color,
+              field: "מלאי (סנכרון)",
+              oldValue: product.stockQuantity,
+              newValue: 0,
+            });
+          }
+        }
+      }
+      
+      console.log(`[SyncStock] ${stockZeroed} produits mis à stock 0`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -296,12 +338,15 @@ export async function POST(request: NextRequest) {
       updated,
       inserted,
       unchanged,
+      stockZeroed,
       notFound,
       insertedProducts,
+      zeroedProducts,
       changes,
       errors,
       detectedColumns: columns,
       sheets: sheetInfo,
+      syncStockEnabled: syncStock,
     });
 
   } catch (err: any) {

@@ -15,13 +15,16 @@ interface UploadResult {
   updated: number;
   inserted?: number;
   unchanged: number;
+  stockZeroed?: number;
   errors: Array<{ row: number; message: string; data?: any }>;
   notFound: Array<{ modelRef: string; color: string }>;
   insertedProducts?: Array<{ modelRef: string; color: string }>;
+  zeroedProducts?: Array<{ modelRef: string; color: string; oldStock: number }>;
   changes: ChangeDetail[];
   totalRows: number;
   detectedColumns?: string[];
   error?: string;
+  syncStockEnabled?: boolean;
 }
 
 export default function UploadPage() {
@@ -29,6 +32,7 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [syncStock, setSyncStock] = useState(false); // Option synchronisation stock
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -57,6 +61,7 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("syncStock", syncStock.toString()); // Envoyer l'option de synchronisation
 
       const response = await fetch("/api/admin/upload-products", {
         method: "POST",
@@ -158,7 +163,29 @@ export default function UploadPage() {
           )}
         </div>
 
-        <div className="mt-6 flex items-center gap-4">
+        {/* Option de synchronisation du stock */}
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={syncStock}
+              onChange={(e) => setSyncStock(e.target.checked)}
+              className="mt-1 w-5 h-5 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+              disabled={loading}
+            />
+            <div>
+              <p className="font-medium text-amber-800">סנכרון מלאי</p>
+              <p className="text-sm text-amber-700 mt-1">
+                מוצרים שלא מופיעים בקובץ יעברו אוטומטית למלאי 0
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠️ השתמש באפשרות זו רק אם הקובץ מכיל את כל המוצרים שלך
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-4 flex items-center gap-4">
           <button
             onClick={handleUpload}
             disabled={!file || loading}
@@ -241,6 +268,25 @@ export default function UploadPage() {
                 </div>
               </div>
             </div>
+
+            {/* Stock mis à 0 (uniquement si syncStock activé) */}
+            {result.syncStockEnabled && (
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    (result.stockZeroed || 0) > 0 ? "bg-orange-100" : "bg-slate-100"
+                  }`}>
+                    <svg className={`w-5 h-5 ${(result.stockZeroed || 0) > 0 ? "text-orange-600" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">מלאי אופס</p>
+                    <p className="text-2xl font-bold text-orange-600">{result.stockZeroed || 0}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Changes Detail Table */}
@@ -302,6 +348,41 @@ export default function UploadPage() {
                 {result.insertedProducts.length > 20 && (
                   <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
                     + עוד {result.insertedProducts.length - 20} מוצרים
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Stock mis à 0 */}
+          {result.zeroedProducts && result.zeroedProducts.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 bg-orange-50">
+                <h3 className="font-medium text-orange-800">📦 מוצרים שעברו למלאי 0 ({result.zeroedProducts.length})</h3>
+                <p className="text-sm text-orange-600 mt-1">מוצרים אלו לא הופיעו בקובץ ולכן המלאי שלהם אופס</p>
+              </div>
+              <div className="overflow-x-auto max-h-48">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-right">
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מק״ט</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">צבע</th>
+                      <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase">מלאי קודם</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {result.zeroedProducts.slice(0, 30).map((item, idx) => (
+                      <tr key={idx} className="hover:bg-orange-50">
+                        <td className="px-4 py-3 text-sm font-mono text-slate-900">{item.modelRef}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{item.color}</td>
+                        <td className="px-4 py-3 text-sm text-red-600 line-through">{item.oldStock}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {result.zeroedProducts.length > 30 && (
+                  <div className="px-4 py-2 text-sm text-slate-500 bg-slate-50">
+                    + עוד {result.zeroedProducts.length - 30} מוצרים
                   </div>
                 )}
               </div>
