@@ -234,35 +234,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // priceRetail
-      if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
-        const newVal = parseFloat(String(row.priceRetail).replace(",", ".")) || 0;
-        const oldVal = existing.priceRetail || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceRetail = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
+      // priceRetail - NE PAS METTRE À JOUR AUTOMATIQUEMENT (trop risqué)
+      // Les prix ne sont mis à jour que si explicitement demandé
+      
+      // priceWholesale - NE PAS METTRE À JOUR AUTOMATIQUEMENT (trop risqué)
+      // Les prix ne sont mis à jour que si explicitement demandé
 
-      // priceWholesale
-      if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
-        const newVal = parseFloat(String(row.priceWholesale).replace(",", ".")) || 0;
-        const oldVal = existing.priceWholesale || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceWholesale = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // productName
-      if (row.productName !== undefined && row.productName !== null && row.productName !== "") {
-        const newVal = String(row.productName).trim();
-        const oldVal = existing.productName || "";
-        if (newVal !== oldVal) {
-          updates.productName = newVal;
-          rowChanges.push({ modelRef, color, field: "שם מוצר", oldValue: oldVal, newValue: newVal });
-        }
-      }
+      // productName - NE PAS METTRE À JOUR AUTOMATIQUEMENT
+      // Pour éviter les erreurs de comparaison
 
       if (Object.keys(updates).length > 0) {
         let updateQuery = supabase.from("products").update(updates);
