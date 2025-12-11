@@ -55,7 +55,7 @@ function parseCSV(text: string): Promise<any[]> {
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
       complete: (results) => resolve(results.data),
-      error: (error) => reject(error),
+      error: (error: Error) => reject(error),
     });
   });
 }
