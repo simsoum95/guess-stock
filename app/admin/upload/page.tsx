@@ -13,12 +13,13 @@ interface ChangeDetail {
 interface UploadResult {
   success: boolean;
   updated: number;
-  inserted: number;
+  inserted?: number;
   unchanged: number;
   errors: Array<{ row: number; message: string; data?: any }>;
   notFound: Array<{ modelRef: string; color: string }>;
   changes: ChangeDetail[];
   totalRows: number;
+  detectedColumns?: string[];
   error?: string;
 }
 
@@ -338,6 +339,16 @@ export default function UploadPage() {
           {result.success && result.errors.length === 0 && result.updated > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
               <p className="text-green-800 font-medium">✅ הייבוא הושלם בהצלחה!</p>
+            </div>
+          )}
+
+          {/* Detected Columns */}
+          {result.detectedColumns && result.detectedColumns.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <p className="text-sm text-slate-600">
+                <span className="font-medium">עמודות שזוהו:</span>{" "}
+                {result.detectedColumns.join(", ")}
+              </p>
             </div>
           )}
         </div>
