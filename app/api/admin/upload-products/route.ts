@@ -16,13 +16,22 @@ interface Change {
   newValue: any;
 }
 
+interface ProductSnapshot {
+  id: string;
+  modelRef: string;
+  color: string;
+  stockQuantity: number;
+  priceRetail: number;
+  priceWholesale: number;
+  productName?: string;
+}
+
 // Parser Excel - LIT TOUTES LES FEUILLES
 function parseExcel(buffer: ArrayBuffer): { rows: any[]; sheetNames: string[] } {
   const workbook = XLSX.read(buffer, { type: "array" });
   const allRows: any[] = [];
   const sheetNames: string[] = [];
   
-  // Parcourir TOUTES les feuilles
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
@@ -50,28 +59,21 @@ function parseCSV(text: string): Promise<any[]> {
 // Normaliser pour comparaison
 function norm(s: any): string {
   if (!s) return "";
-  return String(s).trim().toLowerCase();
+  return String(s).trim().toLowerCase().replace(/[-–—]/g, "-");
 }
-
-// Noms hébreux des champs
-const hebrewNames: Record<string, string> = {
-  stockQuantity: "מלאי",
-  priceRetail: "מחיר קמעונאי",
-  priceWholesale: "מחיר סיטונאי",
-  productName: "שם מוצר",
-};
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const syncStock = formData.get("syncStock") === "true"; // Option pour synchroniser le stock
+    const syncStock = formData.get("syncStock") === "true";
 
     if (!file) {
       return NextResponse.json({ success: false, error: "לא נבחר קובץ" }, { status: 400 });
     }
 
     console.log("[Upload] Mode synchronisation stock:", syncStock);
+    console.log("[Upload] Fichier:", file.name);
 
     // Parser le fichier
     const fileName = file.name.toLowerCase();
@@ -93,11 +95,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "קובץ ריק" }, { status: 400 });
     }
 
-    // Log colonnes détectées
     const columns = Object.keys(rows[0]);
     console.log("[Upload] Colonnes:", columns);
     console.log("[Upload] Total lignes:", rows.length);
-    console.log("[Upload] Feuilles:", sheetInfo);
 
     // Charger TOUS les produits de Supabase
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
@@ -106,22 +106,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index par TOUTES les clés possibles (du plus précis au moins précis)
-    const productByFullKey = new Map<string, any>(); // id + modelRef + color
-    const productById = new Map<string, any>();       // id seul
-    const productByRefColor = new Map<string, any>(); // modelRef + color
+    // SAUVEGARDER L'ÉTAT AVANT MODIFICATIONS (pour restauration)
+    const snapshotBefore: ProductSnapshot[] = (products || []).map(p => ({
+      id: p.id,
+      modelRef: p.modelRef,
+      color: p.color,
+      stockQuantity: p.stockQuantity,
+      priceRetail: p.priceRetail,
+      priceWholesale: p.priceWholesale,
+      productName: p.productName,
+    }));
+
+    // Index par TOUTES les clés possibles
+    const productByFullKey = new Map<string, any>();
+    const productById = new Map<string, any>();
+    const productByRefColor = new Map<string, any>();
     
     for (const p of products || []) {
-      // Clé complète : id + modelRef + color (la plus précise)
       const fullKey = `${norm(p.id)}|${norm(p.modelRef)}|${norm(p.color)}`;
       productByFullKey.set(fullKey, p);
       
-      // Index par ID seul
       if (p.id) {
         productById.set(norm(p.id), p);
       }
       
-      // Index par modelRef + color
       const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
       productByRefColor.set(refColorKey, p);
     }
@@ -138,8 +146,6 @@ export async function POST(request: NextRequest) {
     const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
     const changes: Change[] = [];
     const errors: Array<{ row: number; message: string }> = [];
-    
-    // Tracker les produits vus dans le fichier (pour syncStock)
     const seenProductIds = new Set<string>();
 
     // Traiter chaque ligne
@@ -147,7 +153,6 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire id, modelRef et color
       const id = row.id || row.ID || row.Id;
       const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
       const color = row.color || row.Color || row.COLOR;
@@ -157,41 +162,35 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Chercher le produit - Du PLUS PRÉCIS au moins précis
+      // Chercher le produit
       let existing = null;
       let matchedBy = "";
       
-      // 1. D'abord essayer avec la clé complète (id + modelRef + color)
       if (id) {
         const fullKey = `${norm(id)}|${norm(modelRef)}|${norm(color)}`;
         existing = productByFullKey.get(fullKey);
         if (existing) matchedBy = "id+modelRef+color";
       }
       
-      // 2. Sinon essayer avec l'ID seul
       if (!existing && id) {
         existing = productById.get(norm(id));
         if (existing) matchedBy = "id";
       }
       
-      // 3. Enfin essayer avec modelRef + color
       if (!existing) {
         const key = `${norm(modelRef)}|${norm(color)}`;
         existing = productByRefColor.get(key);
         if (existing) matchedBy = "modelRef+color";
       }
-      
-      console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
 
-      // Tracker le produit vu pour syncStock
       if (existing) {
         seenProductIds.add(existing.id);
       }
 
       if (!existing) {
-        // NOUVEAU PRODUIT → L'INSÉRER
+        // NOUVEAU PRODUIT
         const newProduct: Record<string, any> = {
-          id: id || `${modelRef}-${color}-${Date.now()}`, // Générer un ID unique
+          id: id || `${modelRef}-${color}-${Date.now()}`,
           modelRef: modelRef,
           color: color,
           brand: row.brand || row.Brand || "GUESS",
@@ -208,12 +207,9 @@ export async function POST(request: NextRequest) {
           productName: row.productName || modelRef,
         };
 
-        console.log(`[Row ${rowNum}] INSERTING NEW PRODUCT:`, newProduct);
-
         const { error: insertErr } = await supabase.from("products").insert(newProduct);
 
         if (insertErr) {
-          console.error(`[Row ${rowNum}] Insert error:`, insertErr);
           errors.push({ row: rowNum, message: `שגיאה בהוספה: ${insertErr.message}` });
           notFound.push({ modelRef, color });
         } else {
@@ -232,7 +228,6 @@ export async function POST(request: NextRequest) {
       if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
         const newVal = parseInt(String(stockRaw)) || 0;
         const oldVal = parseInt(String(existing.stockQuantity)) || 0;
-        console.log(`[Row ${rowNum}] Stock: file=${stockRaw} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
         if (newVal !== oldVal) {
           updates.stockQuantity = newVal;
           rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
@@ -269,11 +264,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Si des changements existent, faire l'UPDATE
       if (Object.keys(updates).length > 0) {
-        console.log(`[Upload] Updating id="${existing.id}" (${modelRef} / ${color}):`, updates);
-        
-        // Utiliser l'ID pour l'update si disponible (plus précis)
         let updateQuery = supabase.from("products").update(updates);
         
         if (existing.id && existing.id !== "GUESS") {
@@ -295,23 +286,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // SYNCHRONISATION STOCK: Mettre à 0 les produits qui ne sont pas dans le fichier
+    // SYNCHRONISATION STOCK
     if (syncStock) {
-      console.log(`[SyncStock] ${seenProductIds.size} produits vus dans le fichier, ${products?.length || 0} en base`);
-      
       for (const product of products || []) {
-        // Si le produit n'a pas été vu dans le fichier ET a du stock > 0
         if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
-          console.log(`[SyncStock] Mise à 0 stock: ${product.modelRef} / ${product.color} (était: ${product.stockQuantity})`);
-          
           const { error: zeroErr } = await supabase
             .from("products")
             .update({ stockQuantity: 0 })
             .eq("id", product.id);
 
-          if (zeroErr) {
-            errors.push({ row: -1, message: `Erreur sync ${product.modelRef}: ${zeroErr.message}` });
-          } else {
+          if (!zeroErr) {
             stockZeroed++;
             zeroedProducts.push({ 
               modelRef: product.modelRef, 
@@ -328,12 +312,45 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-      
-      console.log(`[SyncStock] ${stockZeroed} produits mis à stock 0`);
     }
+
+    // SAUVEGARDER DANS L'HISTORIQUE
+    const historyEntry = {
+      file_name: file.name,
+      uploaded_at: new Date().toISOString(),
+      stats: { updated, inserted, unchanged, stockZeroed, errors: errors.length },
+      changes: changes.slice(0, 100), // Limiter à 100 changements pour la taille
+      inserted_products: insertedProducts.slice(0, 50),
+      zeroed_products: zeroedProducts.slice(0, 50),
+      snapshot_before: snapshotBefore, // Pour restauration
+      sync_stock_enabled: syncStock,
+    };
+
+    // Insérer dans l'historique
+    await supabase.from("upload_history").insert(historyEntry);
+
+    // Garder seulement les 5 derniers
+    const { data: allHistory } = await supabase
+      .from("upload_history")
+      .select("id")
+      .order("uploaded_at", { ascending: false });
+    
+    if (allHistory && allHistory.length > 5) {
+      const idsToDelete = allHistory.slice(5).map(h => h.id);
+      await supabase.from("upload_history").delete().in("id", idsToDelete);
+    }
+
+    // Récupérer l'ID de l'historique créé
+    const { data: latestHistory } = await supabase
+      .from("upload_history")
+      .select("id")
+      .order("uploaded_at", { ascending: false })
+      .limit(1)
+      .single();
 
     return NextResponse.json({
       success: true,
+      historyId: latestHistory?.id,
       totalRows: rows.length,
       updated,
       inserted,

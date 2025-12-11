@@ -12,6 +12,7 @@ interface ChangeDetail {
 
 interface UploadResult {
   success: boolean;
+  historyId?: string;
   updated: number;
   inserted?: number;
   unchanged: number;
@@ -32,7 +33,9 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [syncStock, setSyncStock] = useState(false); // Option synchronisation stock
+  const [syncStock, setSyncStock] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -90,6 +93,38 @@ export default function UploadPage() {
   const resetForm = () => {
     setFile(null);
     setResult(null);
+    setUndoMessage(null);
+  };
+
+  const handleUndo = async () => {
+    if (!result?.historyId) return;
+    
+    if (!confirm("האם אתה בטוח שברצונך לבטל את העדכון? פעולה זו תחזיר את כל המוצרים למצב שלפני העדכון.")) {
+      return;
+    }
+
+    setUndoing(true);
+    setUndoMessage(null);
+
+    try {
+      const res = await fetch("/api/admin/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ historyId: result.historyId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setUndoMessage(`✅ ${data.message} - העדכון בוטל בהצלחה!`);
+      } else {
+        setUndoMessage(`❌ שגיאה: ${data.error}`);
+      }
+    } catch (error: any) {
+      setUndoMessage(`❌ שגיאה: ${error.message}`);
+    } finally {
+      setUndoing(false);
+    }
   };
 
   const formatValue = (value: any): string => {
@@ -209,6 +244,45 @@ export default function UploadPage() {
       {/* Results */}
       {result && (
         <div className="space-y-4">
+          {/* Undo Message */}
+          {undoMessage && (
+            <div className={`p-4 rounded-lg ${undoMessage.startsWith("✅") ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+              {undoMessage}
+            </div>
+          )}
+
+          {/* Undo Button */}
+          {result.historyId && result.success && !undoMessage?.startsWith("✅") && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-amber-800">לא מרוצה מהעדכון?</p>
+                <p className="text-sm text-amber-600">ניתן לבטל את העדכון ולחזור למצב הקודם</p>
+              </div>
+              <button
+                onClick={handleUndo}
+                disabled={undoing}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {undoing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    מבטל...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    בטל עדכון
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Summary Cards */}
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-5">
