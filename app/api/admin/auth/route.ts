@@ -1,35 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPassword, createSession, destroySession, isAuthenticatedFromRequest } from "@/lib/auth";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+
+const AUTH_COOKIE_NAME = "sb-auth-token";
 
 /**
- * POST /api/admin/auth - Login
+ * POST /api/admin/auth - Login avec email et mot de passe Supabase
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { password } = body;
+    const { email, password } = body;
 
-    if (!password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: "סיסמה נדרשת" },
+        { success: false, error: "אימייל וסיסמה נדרשים" },
         { status: 400 }
       );
     }
 
-    if (!verifyPassword(password)) {
-      // Log tentative de connexion échouée
-      console.log(`[AUTH] Failed login attempt at ${new Date().toISOString()}`);
+    // Créer le client Supabase
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Tentative de connexion
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.log("[AUTH] Login failed:", error.message);
+      
+      // Messages d'erreur en hébreu
+      let errorMessage = "שגיאת התחברות";
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "אימייל או סיסמה שגויים";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "האימייל לא אומת";
+      }
+      
       return NextResponse.json(
-        { success: false, error: "סיסמה שגויה" },
+        { success: false, error: errorMessage },
         { status: 401 }
       );
     }
 
-    // Créer la session
-    await createSession();
-    
-    console.log(`[AUTH] Successful login at ${new Date().toISOString()}`);
-    
+    if (!data.session) {
+      return NextResponse.json(
+        { success: false, error: "לא נוצרה סשן" },
+        { status: 401 }
+      );
+    }
+
+    // Créer le cookie avec le token
+    const cookieStore = await cookies();
+    cookieStore.set(AUTH_COOKIE_NAME, data.session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 jours
+      path: "/",
+    });
+
+    console.log("[AUTH] Login successful for:", email);
+
     return NextResponse.json({
       success: true,
       message: "התחברת בהצלחה"
@@ -49,8 +86,9 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE() {
   try {
-    await destroySession();
-    
+    const cookieStore = await cookies();
+    cookieStore.delete(AUTH_COOKIE_NAME);
+
     return NextResponse.json({
       success: true,
       message: "התנתקת בהצלחה"
@@ -69,10 +107,9 @@ export async function DELETE() {
  * GET /api/admin/auth - Check auth status
  */
 export async function GET(request: NextRequest) {
-  const isAuth = isAuthenticatedFromRequest(request);
+  const token = request.cookies.get(AUTH_COOKIE_NAME);
   
   return NextResponse.json({
-    authenticated: isAuth
+    authenticated: !!token?.value
   });
 }
-

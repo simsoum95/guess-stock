@@ -1,57 +1,59 @@
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-// Configuration
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123"; // À changer en production!
-const SESSION_COOKIE_NAME = "admin_session";
-const SESSION_MAX_AGE = 60 * 60 * 24; // 24 heures
-
-/**
- * Génère un token de session sécurisé
- */
-function generateSessionToken(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 15);
-  const random2 = Math.random().toString(36).substring(2, 15);
-  return `${timestamp}_${random}${random2}`;
+// Supabase client pour le serveur
+function getSupabaseServer() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(supabaseUrl, supabaseAnonKey);
 }
 
+// Cookie name pour stocker le token
+const AUTH_COOKIE_NAME = "sb-auth-token";
+
 /**
- * Hash simple pour vérification (en production, utiliser bcrypt)
+ * Login avec email et mot de passe via Supabase
  */
-function hashPassword(password: string): string {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+export async function loginWithEmail(email: string, password: string): Promise<{
+  success: boolean;
+  error?: string;
+  token?: string;
+}> {
+  try {
+    const supabase = getSupabaseServer();
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.log("[AUTH] Login failed:", error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (!data.session) {
+      return { success: false, error: "No session created" };
+    }
+
+    // Stocker le token dans un cookie
+    const cookieStore = await cookies();
+    cookieStore.set(AUTH_COOKIE_NAME, data.session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 jours
+      path: "/",
+    });
+
+    console.log("[AUTH] Login successful for:", email);
+    return { success: true, token: data.session.access_token };
+
+  } catch (error) {
+    console.error("[AUTH] Login error:", error);
+    return { success: false, error: "שגיאת התחברות" };
   }
-  return hash.toString(36);
-}
-
-/**
- * Vérifie si le mot de passe est correct
- */
-export function verifyPassword(password: string): boolean {
-  return password === ADMIN_PASSWORD;
-}
-
-/**
- * Crée une session admin
- */
-export async function createSession(): Promise<string> {
-  const token = generateSessionToken();
-  const cookieStore = await cookies();
-  
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
-  
-  return token;
 }
 
 /**
@@ -60,8 +62,21 @@ export async function createSession(): Promise<string> {
 export async function isAuthenticated(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE_NAME);
-    return !!session?.value;
+    const token = cookieStore.get(AUTH_COOKIE_NAME);
+    
+    if (!token?.value) {
+      return false;
+    }
+
+    // Vérifier le token avec Supabase
+    const supabase = getSupabaseServer();
+    const { data: { user }, error } = await supabase.auth.getUser(token.value);
+
+    if (error || !user) {
+      return false;
+    }
+
+    return true;
   } catch {
     return false;
   }
@@ -71,28 +86,35 @@ export async function isAuthenticated(): Promise<boolean> {
  * Vérifie l'authentification depuis une requête API
  */
 export function isAuthenticatedFromRequest(request: NextRequest): boolean {
-  const session = request.cookies.get(SESSION_COOKIE_NAME);
-  return !!session?.value;
+  const token = request.cookies.get(AUTH_COOKIE_NAME);
+  return !!token?.value;
 }
 
 /**
- * Supprime la session (déconnexion)
+ * Récupère le token de session
  */
-export async function destroySession(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
-}
-
-/**
- * Récupère le token de session actuel
- */
-export async function getSessionToken(): Promise<string | null> {
+export async function getAuthToken(): Promise<string | null> {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE_NAME);
-    return session?.value || null;
+    const token = cookieStore.get(AUTH_COOKIE_NAME);
+    return token?.value || null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Déconnexion
+ */
+export async function logout(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(AUTH_COOKIE_NAME);
+    
+    // Aussi déconnecter de Supabase
+    const supabase = getSupabaseServer();
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.error("[AUTH] Logout error:", error);
+  }
+}
