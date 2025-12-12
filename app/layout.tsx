@@ -16,7 +16,9 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className="bg-luxury-white text-luxury-noir font-sans antialiased min-h-screen">
         <Header />
-        {children}
+        <div className="pt-16">
+          {children}
+        </div>
       </body>
     </html>
   );

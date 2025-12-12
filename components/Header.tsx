@@ -1,61 +1,73 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 export function Header() {
-  return (
-    <header className="sticky top-0 z-50 bg-luxury-white/98 backdrop-blur-sm border-b border-luxury-grey/10">
-      <div className="mx-auto max-w-[1800px] flex items-center justify-between px-12 py-8">
-        {/* Navigation Left */}
-        <nav className="flex items-center gap-10">
-          <Link 
-            href="/" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
-          >
-            דף הבית
-          </Link>
-          <Link 
-            href="/products" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
-          >
-            קטלוג
-          </Link>
-        </nav>
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin");
 
-        {/* Logos Center */}
-        <Link href="/" className="flex items-center gap-8">
-          <div className="relative">
-            <Image
-              src="/images/logo-company.png"
-              alt="לוגו חברה"
-              width={140}
-              height={48}
-              className="h-12 w-auto object-contain opacity-95"
-              priority
-            />
-          </div>
-          
-          <div className="h-px w-12 bg-luxury-grey/30" />
-          
-          <div className="relative">
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-4">
             <Image
               src="/images/logo-guess.png"
-              alt="Guess Logo"
-              width={120}
-              height={44}
-              className="h-11 w-auto object-contain opacity-95"
-              priority
+              alt="GUESS"
+              width={100}
+              height={36}
+              className="h-8 w-auto object-contain"
             />
-          </div>
-        </Link>
-
-        {/* Admin Link */}
-        <div className="w-[140px] flex justify-end">
-          <Link 
-            href="/admin/login" 
-            className="text-[10px] font-light tracking-wide text-luxury-grey/50 hover:text-luxury-grey transition-colors duration-300"
-          >
-            כניסת מנהל
           </Link>
+
+          {/* Navigation */}
+          <nav className="flex items-center gap-8">
+            <Link
+              href="/products"
+              className={`text-sm font-light tracking-wide transition-colors ${
+                pathname === "/products"
+                  ? "text-gray-900"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              קטלוג
+            </Link>
+            
+            {isAdmin ? (
+              <>
+                <Link
+                  href="/admin/products"
+                  className={`text-sm font-light tracking-wide transition-colors ${
+                    pathname === "/admin/products"
+                      ? "text-gray-900"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  ניהול מוצרים
+                </Link>
+                <Link
+                  href="/admin/upload"
+                  className={`text-sm font-light tracking-wide transition-colors ${
+                    pathname === "/admin/upload"
+                      ? "text-gray-900"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  העלאת קובץ
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/admin/products"
+                className="text-sm font-light tracking-wide text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                ניהול
+              </Link>
+            )}
+          </nav>
         </div>
       </div>
     </header>
