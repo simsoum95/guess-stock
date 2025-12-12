@@ -1,60 +1,65 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+// Cookie de session
+const SESSION_COOKIE_NAME = "admin_session";
+
+// Pages publiques dans /admin (qui n'ont pas besoin d'auth)
+const PUBLIC_ADMIN_PATHS = [
+  "/admin/login",
+];
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  // Si ce n'est pas une route admin, laisser passer
+  if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
+    return NextResponse.next();
+  }
 
-  // Only protect /admin routes (except login)
-  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    const accessToken = request.cookies.get("sb-access-token")?.value;
-    const refreshToken = request.cookies.get("sb-refresh-token")?.value;
+  // Vérifier si c'est une page publique admin
+  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some(path => pathname === path || pathname.startsWith(path + "/"));
+  
+  // Vérifier si c'est l'API d'auth (toujours accessible)
+  const isAuthAPI = pathname === "/api/admin/auth";
+  
+  if (isPublicAdminPath || isAuthAPI) {
+    return NextResponse.next();
+  }
 
-    if (!accessToken || !refreshToken) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
+  // Vérifier la session
+  const session = request.cookies.get(SESSION_COOKIE_NAME);
+  const isAuthenticated = !!session?.value;
+
+  // Si pas authentifié
+  if (!isAuthenticated) {
+    // Pour les API, retourner 401
+    if (pathname.startsWith("/api/admin")) {
+      return NextResponse.json(
+        { success: false, error: "לא מורשה - נדרשת התחברות" },
+        { status: 401 }
+      );
     }
+    
+    // Pour les pages admin, rediriger vers login
+    const loginUrl = new URL("/admin/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
-    // Verify the session
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
-      const response = NextResponse.redirect(new URL("/admin/login", request.url));
-      response.cookies.delete("sb-access-token");
-      response.cookies.delete("sb-refresh-token");
-      return response;
-    }
-
-    // Check if user is admin
-    const { data: adminData } = await supabase
-      .from("admins")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!adminData) {
-      const response = NextResponse.redirect(new URL("/admin/login?error=unauthorized", request.url));
-      return response;
-    }
+  // Si authentifié et essaie d'accéder au login, rediriger vers upload
+  if (isAuthenticated && pathname === "/admin/login") {
+    return NextResponse.redirect(new URL("/admin/upload", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    // Toutes les routes admin
+    "/admin/:path*",
+    // Toutes les API admin
+    "/api/admin/:path*",
+  ],
 };
-
-
-
-
