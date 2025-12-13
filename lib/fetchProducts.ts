@@ -63,6 +63,20 @@ export async function fetchProducts(): Promise<Product[]> {
     // Images are optional - if Supabase is empty, products will show default images
     console.log("[fetchProducts] Fetching images from Supabase (optional)...");
     
+    // TEMPORARY: Skip Supabase image fetching if it causes issues
+    // Set SKIP_SUPABASE_IMAGES=true in .env.local to disable
+    const skipSupabaseImages = process.env.SKIP_SUPABASE_IMAGES === 'true';
+    
+    if (skipSupabaseImages) {
+      console.log("[fetchProducts] Skipping Supabase images (SKIP_SUPABASE_IMAGES=true)");
+      return productsWithData.map((productData) => ({
+        ...productData,
+        category: normalizeCategory(productData.subcategory || productData.category),
+        imageUrl: "/images/default.png",
+        gallery: [],
+      }));
+    }
+    
     // Fetch images in batches to avoid too many requests
     const products: Product[] = [];
     const batchSize = 20; // Increased batch size for better performance
@@ -72,10 +86,13 @@ export async function fetchProducts(): Promise<Product[]> {
       
       // Fetch images in parallel, but handle errors gracefully
       const imagePromises = batch.map((p) => 
-        fetchProductImages(p.modelRef, p.color).catch(() => ({
-          imageUrl: "/images/default.png",
-          gallery: [],
-        }))
+        fetchProductImages(p.modelRef, p.color).catch((err) => {
+          console.warn(`[fetchProducts] Failed to fetch images for ${p.modelRef} ${p.color}:`, err);
+          return {
+            imageUrl: "/images/default.png",
+            gallery: [],
+          };
+        })
       );
       
       const images = await Promise.all(imagePromises);
