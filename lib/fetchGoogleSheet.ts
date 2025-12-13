@@ -312,14 +312,27 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
             return hasData && hasModelRef; // Must have modelRef to be valid
           });
           
-          console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
+        console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
+        
+        if (validRows.length === 0 && rows.length > 1) {
+          console.error(`[fetchGoogleSheet] ❌ CRITICAL: No valid rows found in "${sheetName}" despite ${rows.length} parsed rows!`);
+          console.error(`[fetchGoogleSheet] First row keys:`, Object.keys(rows[0] || {}));
+          console.error(`[fetchGoogleSheet] First row sample:`, Object.entries(rows[0] || {}).slice(0, 5));
           
-          if (validRows.length === 0 && rows.length > 1) {
-            console.warn(`[fetchGoogleSheet] WARNING: No valid rows found in "${sheetName}" despite ${rows.length} parsed rows!`);
-            console.warn(`[fetchGoogleSheet] Sample of first row keys:`, Object.keys(rows[0] || {}));
-          }
-          
+          // Log a few sample rows to help debug
+          const sampleRows = rows.slice(0, 3);
+          sampleRows.forEach((row, idx) => {
+            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+            console.error(`[fetchGoogleSheet] Sample row ${idx}: modelRef="${modelRef}", keys=`, Object.keys(row));
+          });
+        }
+        
+        if (validRows.length > 0) {
+          console.log(`[fetchGoogleSheet] ✅ Adding ${validRows.length} valid rows from "${sheetName}"`);
           allRows.push(...validRows);
+        } else {
+          console.error(`[fetchGoogleSheet] ❌ Skipping "${sheetName}" - no valid rows`);
+        }
         }
       } catch (error) {
         console.warn(`[fetchGoogleSheet] Error reading sheet "${sheetName}":`, error instanceof Error ? error.message : error);

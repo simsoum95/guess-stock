@@ -316,24 +316,58 @@ export async function fetchProducts(): Promise<Product[]> {
     }
 
     // Step 1: Fetch products from Google Sheets
-    console.log("[fetchProducts] Fetching products from Google Sheets...");
-    if (process.env.GOOGLE_SHEET_ID) {
-      console.log(`[fetchProducts] GOOGLE_SHEET_ID: ${process.env.GOOGLE_SHEET_ID.substring(0, 10)}...`);
+    console.log("[fetchProducts] ===== STARTING PRODUCT FETCH =====");
+    console.log("[fetchProducts] GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID ? `${process.env.GOOGLE_SHEET_ID.substring(0, 10)}...` : "NOT SET");
+    console.log("[fetchProducts] GOOGLE_API_KEY:", process.env.GOOGLE_API_KEY ? "SET" : "NOT SET");
+    console.log("[fetchProducts] GOOGLE_SHEET_NAME:", process.env.GOOGLE_SHEET_NAME || "Sheet1");
+    
+    let sheetRows: any[] = [];
+    try {
+      sheetRows = await fetchProductsFromGoogleSheet();
+      console.log(`[fetchProducts] ✅ fetchProductsFromGoogleSheet returned ${sheetRows.length} rows`);
+    } catch (error) {
+      console.error("[fetchProducts] ❌ ERROR in fetchProductsFromGoogleSheet:", error);
+      throw error;
     }
-    const sheetRows = await fetchProductsFromGoogleSheet();
     
     if (sheetRows.length === 0) {
-      console.warn("[fetchProducts] Google Sheet returned no products - this might be due to:");
-      console.warn("  1. Sheet is empty or has no data rows");
-      console.warn("  2. Sheet is not public (needs 'Anyone with the link' → 'Viewer' permission)");
-      console.warn("  3. Sheet name doesn't match any of the expected names");
+      console.error("[fetchProducts] ❌ CRITICAL: Google Sheet returned 0 products!");
+      console.error("[fetchProducts] Possible causes:");
+      console.error("  1. Sheet is empty or has no data rows");
+      console.error("  2. Sheet is not public (needs 'Anyone with the link' → 'Viewer' permission)");
+      console.error("  3. Sheet name doesn't match (check GOOGLE_SHEET_NAME env var)");
+      console.error("  4. API key has wrong permissions");
+      console.error("  5. All rows were filtered out (check logs for 'After filtering')");
       return [];
     }
 
-    console.log(`[fetchProducts] Fetched ${sheetRows.length} products from Google Sheets`);
+    console.log(`[fetchProducts] ✅ Fetched ${sheetRows.length} products from Google Sheets`);
 
     // Step 2: Map sheet rows to product structure
-    const productsWithData = sheetRows.map((row, index) => mapSheetRowToProduct(row, index));
+    console.log("[fetchProducts] Mapping sheet rows to products...");
+    const productsWithData = sheetRows.map((row, index) => {
+      try {
+        return mapSheetRowToProduct(row, index);
+      } catch (error) {
+        console.error(`[fetchProducts] Error mapping row ${index}:`, error);
+        // Return a minimal product to avoid breaking everything
+        return {
+          id: `error-${index}`,
+          collection: "",
+          category: "ביגוד" as Category,
+          subcategory: "",
+          brand: "",
+          modelRef: row["קוד גם"] || row["modelRef"] || "",
+          gender: "",
+          supplier: "",
+          color: "",
+          priceRetail: 0,
+          priceWholesale: 0,
+          stockQuantity: 0,
+        };
+      }
+    });
+    console.log(`[fetchProducts] ✅ Mapped ${productsWithData.length} products`);
 
     // Step 3: Fetch images from Supabase Storage (no products table needed)
     // Images are stored directly in Storage: products/{modelRef}-{color}-*.jpg
