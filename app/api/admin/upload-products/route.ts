@@ -147,10 +147,10 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire id, modelRef et color
-      const id = row.id || row.ID || row.Id;
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
-      const color = row.color || row.Color || row.COLOR;
+      // Extraire id, modelRef et color (anglais + hébreu)
+      const id = row.id || row.ID || row.Id || row["מזהה"];
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row["קוד גם"] || row["קוד"] || row["מק\"ט"] || row["מקט"];
+      const color = row.color || row.Color || row.COLOR || row["צבע"];
 
       if (!modelRef || !color) {
         errors.push({ row: rowNum, message: "modelRef או color חסר" });
@@ -190,22 +190,32 @@ export async function POST(request: NextRequest) {
 
       if (!existing) {
         // NOUVEAU PRODUIT → L'INSÉRER
+        // Extraire les valeurs (anglais + hébreu)
+        const brand = row.brand || row.Brand || row["מותג"] || "GUESS";
+        const subcategory = row.subcategory || row.category || row.Category || row["תת משפחה"] || row["קטגוריה"] || "תיק";
+        const collection = row.collection || row.Collection || row["קולקציה"] || "";
+        const supplier = row.supplier || row.Supplier || row["ספק"] || "";
+        const gender = row.gender || row.Gender || row["מגדר"] || "Women";
+        const priceRetailRaw = row.priceRetail || row["מחיר כולל מע\"מ בסיס"] || row["מחיר כולל מע\"מ"] || row["מחיר קמעונאי"] || row["מחיר"] || 0;
+        const priceWholesaleRaw = row.priceWholesale || row["סיטונאי"] || row["מחיר סיטונאי"] || 0;
+        const stockRaw = row.stockQuantity || row.stock || row["כמות מלאי נוכחי"] || row["מלאי"] || row["כמות"] || 0;
+        
         const newProduct: Record<string, any> = {
           id: id || `${modelRef}-${color}-${Date.now()}`, // Générer un ID unique
           modelRef: modelRef,
           color: color,
-          brand: row.brand || row.Brand || "GUESS",
-          subcategory: row.subcategory || row.category || row.Category || "תיק",
-          category: row.subcategory || row.category || row.Category || "תיק",
-          collection: row.collection || row.Collection || "",
-          supplier: row.supplier || row.Supplier || "",
-          gender: row.gender || row.Gender || "Women",
-          priceRetail: parseFloat(String(row.priceRetail || 0).replace(",", ".")) || 0,
-          priceWholesale: parseFloat(String(row.priceWholesale || 0).replace(",", ".")) || 0,
-          stockQuantity: parseInt(String(row.stockQuantity || row.stock || 0)) || 0,
+          brand: brand,
+          subcategory: subcategory,
+          category: subcategory,
+          collection: collection,
+          supplier: supplier,
+          gender: gender,
+          priceRetail: parseFloat(String(priceRetailRaw).replace(",", ".")) || 0,
+          priceWholesale: parseFloat(String(priceWholesaleRaw).replace(",", ".")) || 0,
+          stockQuantity: parseInt(String(stockRaw)) || 0,
           imageUrl: row.imageUrl || "/images/default.png",
           gallery: [],
-          productName: row.productName || modelRef,
+          productName: row.productName || row["שם מוצר"] || modelRef,
         };
 
         console.log(`[Row ${rowNum}] INSERTING NEW PRODUCT:`, newProduct);
@@ -227,21 +237,22 @@ export async function POST(request: NextRequest) {
       const updates: Record<string, any> = {};
       const rowChanges: Change[] = [];
 
-      // stockQuantity
-      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
-      if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
-        const newVal = parseInt(String(stockRaw)) || 0;
+      // stockQuantity (anglais + hébreu)
+      const stockRawUpdate = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock ?? row["כמות מלאי נוכחי"] ?? row["מלאי"] ?? row["כמות"];
+      if (stockRawUpdate !== undefined && stockRawUpdate !== null && stockRawUpdate !== "") {
+        const newVal = parseInt(String(stockRawUpdate)) || 0;
         const oldVal = parseInt(String(existing.stockQuantity)) || 0;
-        console.log(`[Row ${rowNum}] Stock: file=${stockRaw} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
+        console.log(`[Row ${rowNum}] Stock: file=${stockRawUpdate} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
         if (newVal !== oldVal) {
           updates.stockQuantity = newVal;
           rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
         }
       }
 
-      // priceRetail
-      if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
-        const newVal = parseFloat(String(row.priceRetail).replace(",", ".")) || 0;
+      // priceRetail (anglais + hébreu)
+      const priceRetailVal = row.priceRetail ?? row["מחיר כולל מע\"מ בסיס"] ?? row["מחיר כולל מע\"מ"] ?? row["מחיר קמעונאי"] ?? row["מחיר"];
+      if (priceRetailVal !== undefined && priceRetailVal !== null && priceRetailVal !== "") {
+        const newVal = parseFloat(String(priceRetailVal).replace(",", ".")) || 0;
         const oldVal = existing.priceRetail || 0;
         if (Math.abs(newVal - oldVal) > 0.01) {
           updates.priceRetail = newVal;
@@ -249,9 +260,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // priceWholesale
-      if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
-        const newVal = parseFloat(String(row.priceWholesale).replace(",", ".")) || 0;
+      // priceWholesale (anglais + hébreu)
+      const priceWholesaleVal = row.priceWholesale ?? row["סיטונאי"] ?? row["מחיר סיטונאי"];
+      if (priceWholesaleVal !== undefined && priceWholesaleVal !== null && priceWholesaleVal !== "") {
+        const newVal = parseFloat(String(priceWholesaleVal).replace(",", ".")) || 0;
         const oldVal = existing.priceWholesale || 0;
         if (Math.abs(newVal - oldVal) > 0.01) {
           updates.priceWholesale = newVal;
@@ -259,9 +271,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // productName
-      if (row.productName !== undefined && row.productName !== null && row.productName !== "") {
-        const newVal = String(row.productName).trim();
+      // productName (anglais + hébreu)
+      const productNameVal = row.productName ?? row["שם מוצר"];
+      if (productNameVal !== undefined && productNameVal !== null && productNameVal !== "") {
+        const newVal = String(productNameVal).trim();
         const oldVal = existing.productName || "";
         if (newVal !== oldVal) {
           updates.productName = newVal;
