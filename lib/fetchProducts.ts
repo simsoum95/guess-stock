@@ -36,10 +36,10 @@ const subcategoryToCategory: Record<string, Category> = {
   "חצאיות": "ביגוד",
   "שמלות ואוברו": "ביגוד",
   "צעיפים": "ביגוד",
-  "כובעים": "ביגוד",
-  "סט new born": "ביגוד",
-  "סט new born": "ביגוד", // Variante avec majuscules
-};
+    "כובעים": "ביגוד",
+    "סט new born": "ביגוד",
+    "סט NEW BORN": "ביגוד", // Variante avec majuscules
+  };
 
 function normalizeCategory(cat: string): Category {
   if (!cat) return "תיק";
