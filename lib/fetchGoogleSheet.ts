@@ -201,16 +201,29 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
 
         const rows = parseCSV(csvText);
         if (rows.length > 0) {
-          console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows from sheet "${sheetName}"`);
-          // Filter out completely empty rows (all values are empty strings)
-          const validRows = rows.filter(row => {
+          console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows (including header) from sheet "${sheetName}"`);
+          // Filter out header row and completely empty rows
+          // Header row usually has column names like "קולקציה", "תת משפחה", etc.
+          const validRows = rows.filter((row, idx) => {
+            // Skip if it looks like a header row (has common Hebrew column names)
+            const firstValue = Object.values(row)[0]?.toString().toLowerCase() || "";
+            if (firstValue.includes("קולקציה") || firstValue.includes("תת משפחה") || firstValue.includes("מותג")) {
+              console.log(`[fetchGoogleSheet] Skipping header row at index ${idx}`);
+              return false;
+            }
+            
+            // Check if row has actual data (at least modelRef or any non-empty value)
             const hasData = Object.values(row).some(val => {
               const str = String(val || "").trim();
               return str.length > 0;
             });
-            return hasData;
+            
+            // Also check specifically for modelRef
+            const hasModelRef = !!(row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+            
+            return hasData && hasModelRef; // Must have modelRef to be valid
           });
-          console.log(`[fetchGoogleSheet] After filtering empty rows: ${validRows.length} valid rows from "${sheetName}"`);
+          console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}"`);
           allRows.push(...validRows);
         }
       } catch (error) {
