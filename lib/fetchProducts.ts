@@ -13,51 +13,85 @@ function normalizeCategory(cat: string): Category {
 }
 
 /**
- * Fetch ALL images from Supabase in one query (much faster than per-product queries)
+ * Fetch ALL images from Supabase Storage directly (no products table needed)
+ * Images are stored as: products/{modelRef}-{color}-*.jpg
  * Returns a Map with key "modelRef|color" -> { imageUrl, gallery }
  */
-async function fetchAllImagesFromSupabase(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
+async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
-    // Fetch ALL products with images in one query (paginated if needed)
-    let allImages: any[] = [];
-    let page = 0;
-    const pageSize = 1000;
-    let hasMore = true;
+    // List all files in the products folder in Supabase Storage
+    const { data: files, error } = await supabase.storage
+      .from("guess-images")
+      .list("products", {
+        limit: 10000, // Get up to 10000 images
+        sortBy: { column: "name", order: "asc" }
+      });
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("products")
-        .select("modelRef, color, imageUrl, gallery")
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) {
+      // If bucket doesn't exist or no files, return empty map
+      console.warn("[fetchProducts] Error listing images from Supabase Storage:", error.message);
+      return imageMap;
+    }
 
-      if (error) {
-        console.warn("[fetchProducts] Error fetching images from Supabase:", error.message);
-        break;
+    if (!files || files.length === 0) {
+      console.log("[fetchProducts] No images found in Supabase Storage");
+      return imageMap;
+    }
+
+    // Group images by product (modelRef + color)
+    // Format: MODELREF-COLOR-*.jpg or MODELREF_COLOR_*.jpg
+    const productImages = new Map<string, string[]>();
+
+    for (const file of files) {
+      if (!file.name || file.name.includes(".") === false) continue;
+
+      // Extract modelRef and color from filename
+      // Try both - and _ as separators
+      const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+      const parts = baseName.split(/[-_]/);
+      
+      if (parts.length < 2) continue;
+
+      const modelRef = parts[0].toUpperCase();
+      const color = parts[1].toUpperCase();
+      const key = `${modelRef}|${color}`;
+
+      if (!productImages.has(key)) {
+        productImages.set(key, []);
       }
 
-      if (data && data.length > 0) {
-        allImages.push(...data);
-        hasMore = data.length === pageSize;
-        page++;
-      } else {
-        hasMore = false;
+      // Get public URL for this file
+      const { data: urlData } = supabase.storage
+        .from("guess-images")
+        .getPublicUrl(`products/${file.name}`);
+
+      if (urlData?.publicUrl) {
+        productImages.get(key)!.push(urlData.publicUrl);
       }
     }
 
-    // Build map for fast lookup
-    allImages.forEach((p: any) => {
-      const key = `${p.modelRef}|${p.color}`.toUpperCase();
+    // Build final map with first image as imageUrl and all as gallery
+    productImages.forEach((urls, key) => {
+      // Sort URLs: prioritize files ending with "PZ"
+      const sorted = urls.sort((a, b) => {
+        const aIsPZ = a.toLowerCase().includes("-pz") || a.toLowerCase().includes("_pz");
+        const bIsPZ = b.toLowerCase().includes("-pz") || b.toLowerCase().includes("_pz");
+        if (aIsPZ && !bIsPZ) return -1;
+        if (!aIsPZ && bIsPZ) return 1;
+        return 0;
+      });
+
       imageMap.set(key, {
-        imageUrl: String(p.imageUrl || "/images/default.png"),
-        gallery: Array.isArray(p.gallery) ? (p.gallery as string[]) : [],
+        imageUrl: sorted[0] || "/images/default.png",
+        gallery: sorted,
       });
     });
 
-    console.log(`[fetchProducts] Loaded ${imageMap.size} image mappings from Supabase`);
+    console.log(`[fetchProducts] Loaded ${imageMap.size} product image mappings from Supabase Storage`);
   } catch (error) {
-    console.warn("[fetchProducts] Failed to fetch images from Supabase:", error);
+    console.warn("[fetchProducts] Failed to fetch images from Supabase Storage:", error);
     // Return empty map - all products will use default images
   }
 
@@ -80,8 +114,8 @@ export async function fetchProducts(): Promise<Product[]> {
     // Step 2: Map sheet rows to product structure
     const productsWithData = sheetRows.map((row, index) => mapSheetRowToProduct(row, index));
 
-    // Step 3: Fetch images from Supabase and combine with product data
-    // Images are optional - if Supabase is empty, products will show default images
+    // Step 3: Fetch images from Supabase Storage (no products table needed)
+    // Images are stored directly in Storage: products/{modelRef}-{color}-*.jpg
     const skipSupabaseImages = process.env.SKIP_SUPABASE_IMAGES === 'true';
     
     let imageMap: Map<string, { imageUrl: string; gallery: string[] }>;
@@ -90,8 +124,8 @@ export async function fetchProducts(): Promise<Product[]> {
       console.log("[fetchProducts] Skipping Supabase images (SKIP_SUPABASE_IMAGES=true)");
       imageMap = new Map(); // Empty map = all products get default images
     } else {
-      console.log("[fetchProducts] Fetching all images from Supabase in one query...");
-      imageMap = await fetchAllImagesFromSupabase();
+      console.log("[fetchProducts] Fetching images from Supabase Storage...");
+      imageMap = await fetchAllImagesFromSupabaseStorage();
     }
     
     // Combine products with images (fast lookup from map)

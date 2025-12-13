@@ -14,6 +14,7 @@
     "fix-final": "node -r dotenv/config fix-all-final.mjs dotenv_config_path=.env.upload",
     "fix-pz": "node -r dotenv/config fix-pz-priority.mjs dotenv_config_path=.env.upload",
     "sync-images": "node -r dotenv/config sync-images-google-sheets.mjs dotenv_config_path=.env.local",
+    "upload-local-images": "node -r dotenv/config scripts/upload-local-images-to-storage.mjs dotenv_config_path=.env.upload",
     "create-admin": "node -r dotenv/config scripts/create-admin.mjs dotenv_config_path=.env.upload"
   },
   "dependencies": {
