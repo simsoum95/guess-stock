@@ -16,8 +16,8 @@ function normalizeCategory(cat: string): Category {
   
   // תיקים (Bags) subcategories
   const bagSubcategories = [
-    "ארנקים", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות"
+    "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
+    "תיק ערב", "מחזיק מפתחות", "קלאץ"
   ];
   
   // נעליים (Shoes) subcategories

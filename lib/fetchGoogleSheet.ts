@@ -232,25 +232,41 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     const uniqueRows = new Map<string, GoogleSheetRow>();
     const duplicateCount = new Map<string, number>();
     
+    const skippedRows: Array<{index: number; reason: string; row: any}> = [];
+    
     allRows.forEach((row, index) => {
       const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
       const color = (row["צבע"] || row["color"] || "").toString().trim();
       const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       
-      // Create key: use itemCode first (most unique), then size, then row index
-      // This ensures products are differentiated properly - if no itemCode, use row index to keep all rows
+      // Skip rows that are completely empty (no modelRef, no itemCode)
+      if (!modelRef && !itemCode) {
+        skippedRows.push({ index: index + 1, reason: "No modelRef or itemCode", row: { modelRef, color, itemCode } });
+        return;
+      }
+      
+      // Create key: use itemCode first (most unique), then row index as fallback
+      // Since קוד פריט should be unique per product, use it directly as the key
       let key: string;
       if (itemCode) {
-        // Use itemCode as primary differentiator (קוד פריט)
-        key = `${modelRef}|${color}|${itemCode}`.toUpperCase();
-      } else if (size) {
-        // Fallback to size if available
-        key = `${modelRef}|${color}|${size}`.toUpperCase();
+        // Use itemCode directly as key - it should be unique per product variant
+        // Example: "BG1001-BL" should be unique
+        key = itemCode.toUpperCase().trim();
+      } else if (modelRef && color) {
+        // Fallback: use modelRef + color + row index to ensure uniqueness
+        // This prevents removing products that legitimately have same modelRef+color
+        if (size) {
+          key = `${modelRef}|${color}|${size}|ROW${index}`.toUpperCase();
+        } else {
+          key = `${modelRef}|${color}|ROW${index}`.toUpperCase();
+        }
+      } else if (modelRef) {
+        // Only modelRef, use row index
+        key = `${modelRef}|ROW${index}`.toUpperCase();
       } else {
-        // If no itemCode and no size, use row index to ensure ALL products are kept
-        // This prevents aggressive deduplication when products legitimately have same modelRef+color
-        key = `${modelRef}|${color}|ROW${index}`.toUpperCase();
+        // Last resort: just row index to ensure all rows are kept
+        key = `ROW${index}`.toUpperCase();
       }
       
       if (!uniqueRows.has(key)) {
@@ -259,6 +275,11 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         // Count duplicates for debugging
         const count = duplicateCount.get(key) || 0;
         duplicateCount.set(key, count + 1);
+        skippedRows.push({ 
+          index: index + 1, 
+          reason: `Duplicate key: ${key}`, 
+          row: { modelRef, color, itemCode, key } 
+        });
         console.warn(`[fetchGoogleSheet] Duplicate found (row ${index + 1}): ${key} - keeping first occurrence`);
       }
     });
@@ -267,6 +288,12 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     if (duplicateCount.size > 0) {
       const totalDuplicates = Array.from(duplicateCount.values()).reduce((a, b) => a + b, 0);
       console.log(`[fetchGoogleSheet] Removed ${totalDuplicates} duplicate rows`);
+    }
+    if (skippedRows.length > 0) {
+      console.log(`[fetchGoogleSheet] Skipped ${skippedRows.length} rows:`, skippedRows.slice(0, 10));
+      if (skippedRows.length > 10) {
+        console.log(`[fetchGoogleSheet] ... and ${skippedRows.length - 10} more skipped rows`);
+      }
     }
     
     return Array.from(uniqueRows.values());
@@ -331,8 +358,8 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   // Map subcategory to main category based on product type
   // תיקים (Bags) category:
   const bagSubcategories = [
-    "ארנקים", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות"
+    "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
+    "תיק ערב", "מחזיק מפתחות", "קלאץ"
   ];
   
   // נעליים (Shoes) category:
