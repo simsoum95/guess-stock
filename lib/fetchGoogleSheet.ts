@@ -54,19 +54,39 @@ async function getAllSheetNames(): Promise<string[]> {
 
 /**
  * Fetch data from Google Sheets as CSV for a specific sheet
+ * Uses the public export URL which should return all rows (up to Google's limits)
  */
 async function fetchSheetAsCSV(sheetName: string): Promise<string | null> {
   if (!GOOGLE_SHEET_ID) {
     throw new Error("GOOGLE_SHEET_ID environment variable is not set. Please add it to .env.local");
   }
 
-  // Method 1: CSV export (works if sheet is public)
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  // Method 1: CSV export with full range (tries to get all rows)
+  // Using format=csv instead of gviz for potentially better results
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&tq=SELECT *&sheet=${encodeURIComponent(sheetName)}`;
+  
+  // Alternative: direct CSV export URL
+  const csvUrlAlt = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv&gid=0&sheet=${encodeURIComponent(sheetName)}`;
   
   try {
-          const response = await fetch(csvUrl, {
-            cache: 'no-store', // Don't cache on server
-          });
+    // Try the first URL
+    let response = await fetch(csvUrl, {
+      cache: 'no-store',
+      headers: {
+        'Accept': 'text/csv',
+      }
+    });
+
+    // If that doesn't work, try alternative URL
+    if (!response.ok || response.status === 404) {
+      console.log(`[fetchGoogleSheet] Trying alternative CSV URL for sheet "${sheetName}"...`);
+      response = await fetch(csvUrlAlt, {
+        cache: 'no-store',
+        headers: {
+          'Accept': 'text/csv',
+        }
+      });
+    }
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -79,18 +99,25 @@ async function fetchSheetAsCSV(sheetName: string): Promise<string | null> {
           `Please make sure the Sheet is public: Share → "Anyone with the link" → "Viewer"`
         );
       }
+      console.warn(`[fetchGoogleSheet] Error fetching sheet "${sheetName}": ${response.status} ${response.statusText}`);
       return null; // Skip this sheet if error
     }
 
     const text = await response.text();
     
     // Check if response is HTML error page instead of CSV
-    if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
+    if (text.includes('<!DOCTYPE html>') || text.includes('<html>') || text.includes('<body>')) {
+      console.warn(`[fetchGoogleSheet] Received HTML instead of CSV for sheet "${sheetName}" - sheet may not be public`);
       return null; // Skip this sheet
     }
 
+    // Log how many lines we got
+    const lineCount = text.split('\n').length;
+    console.log(`[fetchGoogleSheet] Fetched CSV for "${sheetName}": ${lineCount} lines, ${(text.length / 1024).toFixed(1)} KB`);
+
     return text;
   } catch (error) {
+    console.warn(`[fetchGoogleSheet] Exception fetching sheet "${sheetName}":`, error instanceof Error ? error.message : error);
     // Return null if this sheet doesn't exist or fails
     return null;
   }
