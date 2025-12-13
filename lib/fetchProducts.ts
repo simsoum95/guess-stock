@@ -13,34 +13,55 @@ function normalizeCategory(cat: string): Category {
 }
 
 /**
- * Fetch images from Supabase Storage for a product
- * Returns default image if product not found in Supabase (which is OK - images are optional)
+ * Fetch ALL images from Supabase in one query (much faster than per-product queries)
+ * Returns a Map with key "modelRef|color" -> { imageUrl, gallery }
  */
-async function fetchProductImages(modelRef: string, color: string): Promise<{ imageUrl: string; gallery: string[] }> {
+async function fetchAllImagesFromSupabase(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
+  const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
+  
   try {
-    // Use maybeSingle() instead of single() to handle no results gracefully
-    const { data, error } = await supabase
-      .from("products")
-      .select("imageUrl, gallery")
-      .eq("modelRef", modelRef)
-      .eq("color", color)
-      .maybeSingle(); // Returns null instead of error if no row found
+    // Fetch ALL products with images in one query (paginated if needed)
+    let allImages: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    // If no product found in Supabase or error, return default image
-    if (error || !data) {
-      return { imageUrl: "/images/default.png", gallery: [] };
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("products")
+        .select("modelRef, color, imageUrl, gallery")
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) {
+        console.warn("[fetchProducts] Error fetching images from Supabase:", error.message);
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allImages.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
     }
 
-    // Return images from Supabase if they exist
-    return {
-      imageUrl: String(data.imageUrl || "/images/default.png"),
-      gallery: Array.isArray(data.gallery) ? (data.gallery as string[]) : [],
-    };
+    // Build map for fast lookup
+    allImages.forEach((p: any) => {
+      const key = `${p.modelRef}|${p.color}`.toUpperCase();
+      imageMap.set(key, {
+        imageUrl: String(p.imageUrl || "/images/default.png"),
+        gallery: Array.isArray(p.gallery) ? (p.gallery as string[]) : [],
+      });
+    });
+
+    console.log(`[fetchProducts] Loaded ${imageMap.size} image mappings from Supabase`);
   } catch (error) {
-    // Silently return default image if any error occurs
-    // This is expected if Supabase products table is empty
-    return { imageUrl: "/images/default.png", gallery: [] };
+    console.warn("[fetchProducts] Failed to fetch images from Supabase:", error);
+    // Return empty map - all products will use default images
   }
+
+  return imageMap;
 }
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -61,59 +82,35 @@ export async function fetchProducts(): Promise<Product[]> {
 
     // Step 3: Fetch images from Supabase and combine with product data
     // Images are optional - if Supabase is empty, products will show default images
-    console.log("[fetchProducts] Fetching images from Supabase (optional)...");
-    
-    // TEMPORARY: Skip Supabase image fetching if it causes issues
-    // Set SKIP_SUPABASE_IMAGES=true in .env.local to disable
     const skipSupabaseImages = process.env.SKIP_SUPABASE_IMAGES === 'true';
+    
+    let imageMap: Map<string, { imageUrl: string; gallery: string[] }>;
     
     if (skipSupabaseImages) {
       console.log("[fetchProducts] Skipping Supabase images (SKIP_SUPABASE_IMAGES=true)");
-      return productsWithData.map((productData) => ({
-        ...productData,
-        category: normalizeCategory(productData.subcategory || productData.category),
+      imageMap = new Map(); // Empty map = all products get default images
+    } else {
+      console.log("[fetchProducts] Fetching all images from Supabase in one query...");
+      imageMap = await fetchAllImagesFromSupabase();
+    }
+    
+    // Combine products with images (fast lookup from map)
+    const products: Product[] = productsWithData.map((productData) => {
+      const key = `${productData.modelRef}|${productData.color}`.toUpperCase();
+      const images = imageMap.get(key) || {
         imageUrl: "/images/default.png",
         gallery: [],
-      }));
-    }
-    
-    // Fetch images in batches to avoid too many requests
-    const products: Product[] = [];
-    const batchSize = 20; // Increased batch size for better performance
-    
-    for (let i = 0; i < productsWithData.length; i += batchSize) {
-      const batch = productsWithData.slice(i, i + batchSize);
+      };
       
-      // Fetch images in parallel, but handle errors gracefully
-      const imagePromises = batch.map((p) => 
-        fetchProductImages(p.modelRef, p.color).catch((err) => {
-          console.warn(`[fetchProducts] Failed to fetch images for ${p.modelRef} ${p.color}:`, err);
-          return {
-            imageUrl: "/images/default.png",
-            gallery: [],
-          };
-        })
-      );
-      
-      const images = await Promise.all(imagePromises);
+      return {
+        ...productData,
+        category: normalizeCategory(productData.subcategory || productData.category),
+        imageUrl: images.imageUrl,
+        gallery: images.gallery,
+      };
+    });
 
-      batch.forEach((productData, idx) => {
-        const productImages = images[idx];
-        products.push({
-          ...productData,
-          category: normalizeCategory(productData.subcategory || productData.category),
-          imageUrl: productImages.imageUrl || "/images/default.png",
-          gallery: productImages.gallery || [],
-        });
-      });
-      
-      // Log progress for large datasets
-      if ((i + batchSize) % 100 === 0 || i + batchSize >= productsWithData.length) {
-        console.log(`[fetchProducts] Processed ${Math.min(i + batchSize, productsWithData.length)}/${productsWithData.length} products...`);
-      }
-    }
-
-    console.log(`[fetchProducts] Successfully combined ${products.length} products (images from Supabase if available)`);
+    console.log(`[fetchProducts] Successfully combined ${products.length} products`);
     
     return products;
   } catch (error) {
