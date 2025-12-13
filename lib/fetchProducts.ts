@@ -9,7 +9,34 @@ const categoryMap: Record<string, Category> = {
 };
 
 function normalizeCategory(cat: string): Category {
-  return categoryMap[cat] || "תיק";
+  // Direct match first
+  if (categoryMap[cat as keyof typeof categoryMap]) {
+    return categoryMap[cat as keyof typeof categoryMap];
+  }
+  
+  // תיקים (Bags) subcategories
+  const bagSubcategories = [
+    "ארנקים", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
+    "תיק ערב", "מחזיק מפתחות"
+  ];
+  
+  // נעליים (Shoes) subcategories
+  const shoesSubcategories = [
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים"
+  ];
+  
+  // Check if it's a bag subcategory
+  if (bagSubcategories.some(sub => cat.includes(sub))) {
+    return "תיק";
+  }
+  
+  // Check if it's a shoes subcategory
+  if (shoesSubcategories.some(sub => cat.includes(sub))) {
+    return "נעל";
+  }
+  
+  // Default: ביגוד (Clothes)
+  return "ביגוד";
 }
 
 /**

@@ -281,15 +281,27 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   // Column B: תת משפחה = subcategory
   const subcategory = getValue(["תת משפחה", "תת קטגוריה", "subcategory", "Subcategory", "SUBCATEGORY"]);
   
-  // Determine category from subcategory (תיק, נעל, ביגוד)
-  // Logic: כפכפים = נעל, rest = ביגוד (based on your sheet structure)
-  let category = "ביגוד";
-  const subLower = subcategory.toLowerCase();
-  if (subLower.includes("כפכפים") || subLower.includes("נעל")) {
-    category = "נעל";
-  } else if (subLower.includes("תיק")) {
+  // Map subcategory to main category based on product type
+  // תיקים (Bags) category:
+  const bagSubcategories = [
+    "ארנקים", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
+    "תיק ערב", "מחזיק מפתחות"
+  ];
+  
+  // נעליים (Shoes) category:
+  const shoesSubcategories = [
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים"
+  ];
+  
+  // ביגוד (Clothes) category: everything else
+  let category = "ביגוד"; // Default
+  
+  if (bagSubcategories.some(sub => subcategory.includes(sub))) {
     category = "תיק";
-  } else {
+  } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
+    category = "נעל";
+  }
+  // else: stays as "ביגוד" else {
     category = "ביגוד";
   }
   
