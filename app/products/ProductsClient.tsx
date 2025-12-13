@@ -1,186 +1,331 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState, memo } from "react";
+import type { Product } from "@/lib/types";
 import Image from "next/image";
 
-interface Product {
-  id: string;
-  collection: string;
-  category: string;
-  subcategory: string;
-  brand: string;
-  modelRef: string;
-  gender: string;
-  supplier: string;
-  color: string;
-  priceRetail: number;
-  priceWholesale: number;
-  stockQuantity: number;
-  imageUrl: string;
-  gallery: string[];
-  productName: string;
-  size: string;
-}
+type CategoryFilter = "all" | "תיק" | "נעל" | "ביגוד";
+type StockFilter = "all" | "in" | "out";
 
-interface ProductsClientProps {
-  products: Product[];
-}
+export default function ProductsClient({ products }: { products: Product[] }) {
+  const [category, setCategory] = useState<CategoryFilter>("all");
+  const [stock, setStock] = useState<StockFilter>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-export function ProductsClient({ products }: ProductsClientProps) {
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [stockFilter, setStockFilter] = useState<string>("all");
+  const filtered = useMemo(() => {
+    const result = products.filter((product) => {
+      if (category !== "all" && product.category !== category) return false;
 
-  // Extraire les catégories uniques
-  const categories = useMemo(() => {
-    const cats = new Set(products.map((p) => p.category).filter(Boolean));
-    return Array.from(cats).sort();
-  }, [products]);
+      const stockOk =
+        stock === "all" ||
+        (stock === "in" && product.stockQuantity > 0) ||
+        (stock === "out" && product.stockQuantity === 0);
+      if (!stockOk) return false;
 
-  // Filtrer les produits
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      // Recherche
-      const searchLower = search.toLowerCase();
-      const matchesSearch =
-        !search ||
-        product.modelRef?.toLowerCase().includes(searchLower) ||
-        product.productName?.toLowerCase().includes(searchLower) ||
-        product.color?.toLowerCase().includes(searchLower) ||
-        product.id?.toLowerCase().includes(searchLower);
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        const matchesId = product.id.toLowerCase().includes(query);
+        const matchesModelRef = product.modelRef.toLowerCase().includes(query);
+        const matchesName = product.productName?.toLowerCase().includes(query) ?? false;
 
-      // Catégorie
-      const matchesCategory =
-        categoryFilter === "all" || product.category === categoryFilter;
+        if (!matchesId && !matchesModelRef && !matchesName) return false;
+      }
 
-      // Stock
-      const matchesStock =
-        stockFilter === "all" ||
-        (stockFilter === "inStock" && product.stockQuantity > 0) ||
-        (stockFilter === "outOfStock" && product.stockQuantity === 0);
-
-      return matchesSearch && matchesCategory && matchesStock;
+      return true;
     });
-  }, [products, search, categoryFilter, stockFilter]);
+
+    // Trier : produits avec image en premier, puis sans image
+    return result.sort((a, b) => {
+      const aHasImage = a.imageUrl && !a.imageUrl.includes("default");
+      const bHasImage = b.imageUrl && !b.imageUrl.includes("default");
+      if (aHasImage && !bHasImage) return -1;
+      if (!aHasImage && bHasImage) return 1;
+      return 0;
+    });
+  }, [products, category, stock, searchQuery]);
 
   return (
-    <main className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <h1 className="text-3xl font-serif text-gray-900 mb-2">קטלוג מוצרים</h1>
-          <p className="text-gray-500 text-sm">
-            {filteredProducts.length} מוצרים מתוך {products.length}
+    <main className="min-h-screen bg-luxury-white">
+      <section className="mx-auto max-w-[1800px] px-16 py-20">
+        {/* Header */}
+        <div className="mb-8 animate-fade-in-luxury">
+          <h1 className="mb-4 font-serif text-5xl font-normal tracking-tight text-luxury-noir" style={{ letterSpacing: "0.01em" }}>
+            קטלוג מלאי
+          </h1>
+          <p className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey" style={{ letterSpacing: "0.2em" }}>
+            {filtered.length} פריטים
           </p>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="border-b border-gray-100 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            {/* Search */}
-            <div className="flex-1 min-w-[250px]">
-              <input
-                type="text"
-                placeholder="חיפוש לפי מק״ט, שם, צבע..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-              />
-            </div>
+        {/* Search Bar */}
+        <div className="mb-6">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="חפש לפי קוד פריט, דגם או שם"
+            className="search-luxury"
+          />
+        </div>
 
-            {/* Category Filter */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-            >
-              <option value="all">כל הקטגוריות</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
-            {/* Stock Filter */}
-            <select
-              value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-            >
-              <option value="all">כל המלאי</option>
-              <option value="inStock">במלאי</option>
-              <option value="outOfStock">אזל</option>
-            </select>
+        {/* Filter Controls */}
+        <div className="mb-24 flex flex-wrap items-center gap-12 border-b border-luxury-grey/20 pb-8">
+          <div className="flex items-center gap-10">
+            <FilterControl
+              label="כל הקטגוריות"
+              active={category === "all"}
+              onClick={() => setCategory("all")}
+            />
+            <FilterControl
+              label="תיקים"
+              active={category === "תיק"}
+              onClick={() => setCategory("תיק")}
+            />
+            <FilterControl
+              label="נעליים"
+              active={category === "נעל"}
+              onClick={() => setCategory("נעל")}
+            />
+            <FilterControl
+              label="בגדים"
+              active={category === "ביגוד"}
+              onClick={() => setCategory("ביגוד")}
+            />
+          </div>
+          
+          <div className="h-8 w-px bg-luxury-grey/20" />
+          
+          <div className="flex items-center gap-10">
+            <FilterControl
+              label="הכל"
+              active={stock === "all"}
+              onClick={() => setStock("all")}
+            />
+            <FilterControl
+              label="במלאי"
+              active={stock === "in"}
+              onClick={() => setStock("in")}
+            />
+            <FilterControl
+              label="חסר במלאי"
+              active={stock === "out"}
+              onClick={() => setStock("out")}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500">לא נמצאו מוצרים</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+        {/* Product Grid */}
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((product, index) => (
+            <ProductCard 
+              key={`${product.modelRef}-${product.color}-${index}`} 
+              product={product}
+              priority={index < 8}
+            />
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filtered.length === 0 && (
+          <div className="py-40 text-center">
+            <p className="text-sm font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.05em" }}>
+              לא נמצאו מוצרים התואמים לחיפוש
+            </p>
           </div>
         )}
-      </div>
+      </section>
     </main>
   );
 }
 
-function ProductCard({ product }: { product: Product }) {
-  const [imgError, setImgError] = useState(false);
+const FilterControl = memo(function FilterControl({
+  label,
+  active = false,
+  onClick
+}: {
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`filter-control ${active ? "active" : ""}`}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+});
 
-  const imageUrl =
-    imgError || !product.imageUrl
-      ? "/images/default.png"
-      : product.imageUrl;
+const ProductCard = memo(function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const out = product.stockQuantity === 0;
+  const retail = Number(product.priceRetail);
+  const wholesale = Number(product.priceWholesale);
+
+  // Build images array: prioritize image ending with "-PZ" before extension, then others
+  const allImages = useMemo(() => {
+    const all = [product.imageUrl, ...(product.gallery || [])].filter(
+      (img) => img && !img.includes("default")
+    );
+    
+    // Remove duplicates
+    const unique = Array.from(new Set(all));
+    
+    // Sort: images with filename ending in "PZ" (before extension) come first
+    const sorted = unique.sort((a, b) => {
+      // Extract filename without extension and path
+      const getFileBase = (url: string) => {
+        const fileName = url.split('/').pop() || '';
+        return fileName.replace(/\.[^.]+$/, '').toUpperCase();
+      };
+      
+      const aBase = getFileBase(a);
+      const bBase = getFileBase(b);
+      
+      // Check if filename ends with PZ, -PZ, or _PZ
+      const aIsPZ = aBase.endsWith('PZ') || aBase.endsWith('-PZ') || aBase.endsWith('_PZ');
+      const bIsPZ = bBase.endsWith('PZ') || bBase.endsWith('-PZ') || bBase.endsWith('_PZ');
+      
+      if (aIsPZ && !bIsPZ) return -1;
+      if (!aIsPZ && bIsPZ) return 1;
+      return 0;
+    });
+    
+    return sorted.slice(0, 6);
+  }, [product.imageUrl, product.gallery]);
+  
+  const hasMultipleImages = allImages.length > 1;
+  const currentImage = allImages[currentImageIndex] || product.imageUrl || "/images/default.png";
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  };
 
   return (
-    <div className="group">
-      {/* Image */}
-      <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden mb-3 relative">
-        <Image
-          src={imageUrl}
-          alt={product.productName || product.modelRef}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={() => setImgError(true)}
-          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+    <article className="product-card-luxury group">
+      {/* Image Container */}
+      <div className="relative mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50">
+        <img
+          src={currentImage}
+          alt={product.productName || ""}
+          loading={priority ? "eager" : "lazy"}
+          decoding={priority ? "sync" : "async"}
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/images/default.png";
+          }}
         />
         
-        {/* Stock Badge */}
-        {product.stockQuantity === 0 && (
-          <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs text-gray-600">
-            אזל מהמלאי
+        {/* Overlay on Hover */}
+        <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300" />
+
+        {/* Navigation Arrows - Only show if multiple images */}
+        {hasMultipleImages && (
+          <>
+            <button
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm"
+              aria-label="Previous image"
+            >
+              <svg className="w-4 h-4 text-luxury-noir" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-sm"
+              aria-label="Next image"
+            >
+              <svg className="w-4 h-4 text-luxury-noir" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </>
+        )}
+
+        {/* Image Indicators - Only show if multiple images */}
+        {hasMultipleImages && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            {allImages.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(index); }}
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                  index === currentImageIndex 
+                    ? "bg-luxury-noir w-3" 
+                    : "bg-luxury-noir/30 hover:bg-luxury-noir/50"
+                }`}
+                aria-label={`Image ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Out of Stock Badge */}
+        {out && (
+          <div className="absolute right-6 top-6">
+            <span className="badge-out-luxury">חסר במלאי</span>
+          </div>
+        )}
+
+        {/* Image Count Badge */}
+        {hasMultipleImages && (
+          <div className="absolute left-3 top-3 px-2 py-1 bg-white/80 rounded text-[10px] font-medium text-luxury-noir opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {currentImageIndex + 1} / {allImages.length}
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="space-y-1">
-        <p className="text-xs text-gray-400 font-mono">{product.modelRef}</p>
-        <p className="text-sm text-gray-900 font-medium truncate">
-          {product.productName || product.modelRef}
+      {/* Content */}
+      <div className="space-y-4">
+        <p className="text-xs font-light tracking-[0.15em] uppercase text-luxury-grey" style={{ letterSpacing: "0.15em" }}>
+          {product.brand}
         </p>
-        <p className="text-xs text-gray-500">{product.color}</p>
-        <div className="flex items-center justify-between pt-1">
-          <p className="text-sm font-semibold text-gray-900">
-            ₪{product.priceRetail?.toFixed(2)}
-          </p>
-          <p className={`text-xs ${product.stockQuantity > 0 ? "text-emerald-600" : "text-gray-400"}`}>
-            {product.stockQuantity > 0 ? `${product.stockQuantity} במלאי` : "אזל"}
-          </p>
+        
+        <h3 className="text-sm font-light text-luxury-noir leading-relaxed tracking-wide" style={{ letterSpacing: "0.02em" }}>
+          {product.productName}
+        </h3>
+        
+        <p className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
+          {product.modelRef}
+        </p>
+
+        <div className="divider-luxury my-6" />
+
+        <div className="flex items-baseline justify-between">
+          <div>
+            <p className="text-xs font-light text-luxury-grey mb-2 tracking-[0.1em] uppercase" style={{ letterSpacing: "0.1em" }}>
+              קמעונאי
+            </p>
+            <p className="text-base font-light text-luxury-noir tracking-wide" style={{ letterSpacing: "0.02em" }}>
+              ₪{retail.toFixed(2)}
+            </p>
+          </div>
+          <div className="text-left">
+            <p className="text-xs font-light text-luxury-grey mb-2 tracking-[0.1em] uppercase" style={{ letterSpacing: "0.1em" }}>
+              סיטונאי
+            </p>
+            <p className="text-sm font-light text-luxury-noir tracking-wide" style={{ letterSpacing: "0.02em" }}>
+              ₪{wholesale.toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-4">
+          <span className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
+            {out ? "חסר במלאי" : `${product.stockQuantity} יחידות`}
+          </span>
+          <div className={`h-1 w-1 rounded-full transition-colors duration-300 ${out ? "bg-luxury-grey/50" : "bg-luxury-noir"}`} />
         </div>
       </div>
-    </div>
+    </article>
   );
-}
+});

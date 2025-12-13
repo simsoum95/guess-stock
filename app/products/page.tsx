@@ -1,39 +1,12 @@
-import { ProductsClient } from "./ProductsClient";
-import * as fs from "fs";
-import * as path from "path";
+import { fetchProducts } from "@/lib/fetchProducts";
+import ProductsClient from "./ProductsClient";
 
-interface Product {
-  id: string;
-  collection: string;
-  category: string;
-  subcategory: string;
-  brand: string;
-  modelRef: string;
-  gender: string;
-  supplier: string;
-  color: string;
-  priceRetail: number;
-  priceWholesale: number;
-  stockQuantity: number;
-  imageUrl: string;
-  gallery: string[];
-  productName: string;
-  size: string;
-}
-
-async function getProducts(): Promise<Product[]> {
-  try {
-    const filePath = path.join(process.cwd(), "data", "products.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error loading products:", error);
-    return [];
-  }
-}
+// Disable cache - always fetch fresh data from Supabase
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function ProductsPage() {
-  const products = await getProducts();
-  
+  const products = await fetchProducts();
   return <ProductsClient products={products} />;
 }
+

@@ -1,16 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['xlsx']
-  },
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'www.globalonline.co.il',
+        protocol: "https",
+        hostname: "img.guess.com",
+        pathname: "/**"
       },
-    ],
-  },
+      {
+        protocol: "https",
+        hostname: "www.globalonline.co.il",
+        pathname: "/**"
+      },
+      {
+        protocol: "https",
+        hostname: "globalonline.co.il",
+        pathname: "/**"
+      },
+      {
+        protocol: "https",
+        hostname: "icpedcfdavwyvkuipqiz.supabase.co",
+        pathname: "/**"
+      }
+    ]
+  }
 };
 
 export default nextConfig;

@@ -1,77 +1,43 @@
-import * as fs from "fs";
-import * as path from "path";
-import { ProductsTable } from "./ProductsTable";
+import { createServerClient } from "@/lib/supabase-server";
+import { ProductsTable } from "@/components/admin/ProductsTable";
+import Link from "next/link";
 
-interface Product {
-  id: string;
-  collection: string;
-  category: string;
-  subcategory: string;
-  brand: string;
-  modelRef: string;
-  gender: string;
-  supplier: string;
-  color: string;
-  priceRetail: number;
-  priceWholesale: number;
-  stockQuantity: number;
-  imageUrl: string;
-  gallery: string[];
-  productName: string;
-  size: string;
-}
+// Always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-async function getProducts(): Promise<Product[]> {
-  try {
-    const filePath = path.join(process.cwd(), "data", "products.json");
-    const data = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error loading products:", error);
-    return [];
-  }
+async function getProducts() {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from("products")
+    .select("id, modelRef, productName, brand, color, subcategory, collection, priceWholesale, priceRetail, stockQuantity, imageUrl")
+    .order("modelRef");
+  return data || [];
 }
 
 export default async function AdminProductsPage() {
   const products = await getProducts();
 
-  // Stats
-  const totalProducts = products.length;
-  const inStock = products.filter((p) => p.stockQuantity > 0).length;
-  const outOfStock = products.filter((p) => p.stockQuantity === 0).length;
-  const totalStock = products.reduce((sum, p) => sum + p.stockQuantity, 0);
-
   return (
-    <div className="p-8">
+    <div className="p-6 lg:p-8 lg:pt-8 pt-20">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">ניהול מוצרים</h1>
-        <p className="text-gray-500 mt-1">צפייה ועריכת כל המוצרים במערכת</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">רשימת מוצרים</h1>
+          <p className="text-slate-500 mt-1">{products.length} מוצרים בקטלוג</p>
+        </div>
+        <Link
+          href="/admin/products/new"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          הוסף מוצר
+        </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
-          <p className="text-3xl font-bold text-gray-900">{totalProducts}</p>
-          <p className="text-sm text-gray-500">סה״כ מוצרים</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
-          <p className="text-3xl font-bold text-emerald-600">{inStock}</p>
-          <p className="text-sm text-gray-500">במלאי</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
-          <p className="text-3xl font-bold text-red-600">{outOfStock}</p>
-          <p className="text-sm text-gray-500">אזל מהמלאי</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
-          <p className="text-3xl font-bold text-blue-600">{totalStock}</p>
-          <p className="text-sm text-gray-500">יחידות במלאי</p>
-        </div>
-      </div>
-
-      {/* Products Table */}
       <ProductsTable products={products} />
     </div>
   );
 }
-

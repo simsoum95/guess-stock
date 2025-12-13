@@ -1,935 +1,356 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import * as fs from "fs";
-import * as path from "path";
 
-// ============================================================================
-// TYPES - Définitions strictes
-// ============================================================================
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-interface Product {
-  id: string;
-  collection: string;
-  category: string;
-  subcategory: string;
-  brand: string;
-  modelRef: string;
-  gender: string;
-  supplier: string;
-  color: string;
-  priceRetail: number;
-  priceWholesale: number;
-  stockQuantity: number;
-  imageUrl: string;
-  gallery: string[];
-  productName: string;
-  size: string;
-}
-
-interface UploadRow {
-  [key: string]: unknown;
-}
-
-interface NormalizedRow {
-  id: string;
+interface Change {
   modelRef: string;
   color: string;
-  size: string;
-  stockQuantity: number;
-  collection: string;
-  category: string;
-  subcategory: string;
-  brand: string;
-  gender: string;
-  supplier: string;
-  priceRetail: number;
-  priceWholesale: number;
-  imageUrl: string;
-  productName: string;
-  rowNumber: number;
-  originalData: UploadRow;
+  field: string;
+  oldValue: any;
+  newValue: any;
 }
 
-interface MatchResult {
-  product: Product;
-  productIndex: number;
-  matchType: "id" | "modelRef+color+size" | "modelRef+color" | "modelRef";
-  confidence: number;
-}
-
-interface UpdateOperation {
-  rowNumber: number;
-  productId: string;
-  productIndex: number;
-  modelRef: string;
-  color: string;
-  size: string;
-  oldStock: number;
-  newStock: number;
-  matchType: string;
-  confidence: number;
-}
-
-interface CreateOperation {
-  rowNumber: number;
-  newProduct: Product;
-}
-
-interface NotFoundItem {
-  rowNumber: number;
-  modelRef: string;
-  color: string;
-  size: string;
-  requestedStock: number;
-  reason: string;
-  suggestions: string[];
-}
-
-interface ErrorItem {
-  rowNumber: number;
-  message: string;
-  data: unknown;
-}
-
-interface ProcessingResult {
-  success: boolean;
-  dryRun: boolean;
-  backupPath: string | null;
-  summary: {
-    totalRows: number;
-    validRows: number;
-    toUpdate: number;
-    toCreate: number;
-    notFound: number;
-    errors: number;
-    duplicatesInFile: number;
-  };
-  operations: UpdateOperation[];
-  creations: CreateOperation[];
-  notFound: NotFoundItem[];
-  errors: ErrorItem[];
-  duplicatesInFile: Array<{
-    rowNumbers: number[];
-    modelRef: string;
-    color: string;
-    size: string;
-  }>;
-}
-
-// ============================================================================
-// UTILITAIRES - Fonctions de normalisation et validation
-// ============================================================================
-
-function normalizeString(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  const str = String(value);
-  return str
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ");
-}
-
-function extractStock(value: unknown): { valid: boolean; value: number; error?: string } {
-  if (value === null || value === undefined || value === "") {
-    return { valid: false, value: 0, error: "ערך מלאי חסר" };
-  }
-
-  const strValue = String(value).trim();
+// Parser Excel - LIT TOUTES LES FEUILLES
+function parseExcel(buffer: ArrayBuffer): { rows: any[]; sheetNames: string[] } {
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const allRows: any[] = [];
+  const sheetNames: string[] = [];
   
-  if (!/^-?\d+(\.\d+)?$/.test(strValue)) {
-    return { valid: false, value: 0, error: `ערך מלאי לא תקין: "${value}"` };
-  }
-
-  const numValue = parseFloat(strValue);
-  
-  if (isNaN(numValue)) {
-    return { valid: false, value: 0, error: `ערך מלאי לא תקין: "${value}"` };
-  }
-
-  if (numValue < 0) {
-    return { valid: false, value: 0, error: `מלאי לא יכול להיות שלילי: ${numValue}` };
-  }
-
-  const roundedValue = Math.round(numValue);
-  
-  if (roundedValue > 999999) {
-    return { valid: false, value: 0, error: `מלאי גדול מדי: ${roundedValue}` };
-  }
-
-  return { valid: true, value: roundedValue };
-}
-
-function extractPrice(value: unknown): number {
-  if (value === null || value === undefined || value === "") return 0;
-  const strValue = String(value).trim().replace(/[^\d.-]/g, "");
-  const numValue = parseFloat(strValue);
-  return isNaN(numValue) ? 0 : Math.max(0, numValue);
-}
-
-function findColumnValue(row: UploadRow, possibleNames: string[]): unknown {
-  for (const name of possibleNames) {
-    if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
-      return row[name];
-    }
+  // Parcourir TOUTES les feuilles
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
+    console.log(`[Excel] Feuille "${sheetName}": ${rows.length} lignes`);
+    sheetNames.push(`${sheetName} (${rows.length})`);
+    allRows.push(...rows);
   }
   
-  const rowKeys = Object.keys(row);
-  for (const name of possibleNames) {
-    const normalizedName = name.toLowerCase();
-    const foundKey = rowKeys.find(k => k.toLowerCase() === normalizedName);
-    if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== "") {
-      return row[foundKey];
-    }
-  }
-  
-  return undefined;
+  console.log(`[Excel] Total: ${allRows.length} lignes de ${workbook.SheetNames.length} feuilles`);
+  return { rows: allRows, sheetNames };
 }
 
-function normalizeRow(row: UploadRow, rowNumber: number): { valid: boolean; data?: NormalizedRow; error?: string } {
-  const idValue = findColumnValue(row, ["id", "ID", "Id", "מזהה"]);
-  const modelRefValue = findColumnValue(row, ["modelRef", "ModelRef", "model_ref", "reference", "Reference", "ref", "Ref", "מקט", "מק״ט", "SKU", "sku"]);
-  const colorValue = findColumnValue(row, ["color", "Color", "colour", "Colour", "צבע"]);
-  const sizeValue = findColumnValue(row, ["size", "Size", "מידה", "taille", "Taille"]);
-  const stockValue = findColumnValue(row, ["stockQuantity", "StockQuantity", "stock_quantity", "stock", "Stock", "quantity", "Quantity", "מלאי", "כמות", "qty", "Qty", "QTY"]);
-  
-  // Champs additionnels pour création
-  const collectionValue = findColumnValue(row, ["collection", "Collection", "קולקציה"]);
-  const categoryValue = findColumnValue(row, ["category", "Category", "קטגוריה"]);
-  const subcategoryValue = findColumnValue(row, ["subcategory", "Subcategory", "תת-קטגוריה"]);
-  const brandValue = findColumnValue(row, ["brand", "Brand", "מותג"]);
-  const genderValue = findColumnValue(row, ["gender", "Gender", "מגדר"]);
-  const supplierValue = findColumnValue(row, ["supplier", "Supplier", "ספק"]);
-  const priceRetailValue = findColumnValue(row, ["priceRetail", "PriceRetail", "price_retail", "price", "Price", "מחיר", "מחיר קמעונאי"]);
-  const priceWholesaleValue = findColumnValue(row, ["priceWholesale", "PriceWholesale", "price_wholesale", "wholesale", "מחיר סיטונאי"]);
-  const imageUrlValue = findColumnValue(row, ["imageUrl", "ImageUrl", "image_url", "image", "Image", "תמונה"]);
-  const productNameValue = findColumnValue(row, ["productName", "ProductName", "product_name", "name", "Name", "שם", "שם מוצר"]);
-
-  const id = normalizeString(idValue);
-  const modelRef = normalizeString(modelRefValue);
-  const color = String(colorValue || "").trim();
-  const size = String(sizeValue || "").trim();
-
-  if (!modelRef && !id) {
-    return { 
-      valid: false, 
-      error: `שורה ${rowNumber}: חייב להיות מק״ט או מזהה` 
-    };
-  }
-
-  const stockResult = extractStock(stockValue);
-  if (!stockResult.valid) {
-    return { 
-      valid: false, 
-      error: `שורה ${rowNumber}: ${stockResult.error}` 
-    };
-  }
-
-  return {
-    valid: true,
-    data: {
-      id,
-      modelRef: modelRef || id,
-      color,
-      size,
-      stockQuantity: stockResult.value,
-      collection: String(collectionValue || "").trim(),
-      category: String(categoryValue || "").trim(),
-      subcategory: String(subcategoryValue || "").trim(),
-      brand: String(brandValue || "GUESS").trim(),
-      gender: String(genderValue || "").trim(),
-      supplier: String(supplierValue || "").trim(),
-      priceRetail: extractPrice(priceRetailValue),
-      priceWholesale: extractPrice(priceWholesaleValue),
-      imageUrl: String(imageUrlValue || "/images/default.png").trim(),
-      productName: String(productNameValue || modelRefValue || "").trim(),
-      rowNumber,
-      originalData: row
-    }
-  };
-}
-
-// ============================================================================
-// MATCHING - Algorithme de correspondance multi-niveau
-// ============================================================================
-
-function createProductKey(modelRef: string, color: string, size: string): string {
-  return `${normalizeString(modelRef)}|${normalizeString(color)}|${normalizeString(size)}`;
-}
-
-function findBestMatch(
-  row: NormalizedRow,
-  products: Product[],
-  productIndexMap: Map<string, number>
-): MatchResult | null {
-  
-  // NIVEAU 1: Match par ID exact (confiance 100%)
-  if (row.id) {
-    for (let i = 0; i < products.length; i++) {
-      if (normalizeString(products[i].id) === row.id) {
-        return {
-          product: products[i],
-          productIndex: i,
-          matchType: "id",
-          confidence: 100
-        };
-      }
-    }
-  }
-
-  const rowModelRef = normalizeString(row.modelRef);
-  const rowColor = normalizeString(row.color);
-  const rowSize = normalizeString(row.size);
-
-  // NIVEAU 2: Match par modelRef + color + size (confiance 95%)
-  if (rowModelRef && rowColor && rowSize) {
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
-      if (
-        normalizeString(p.modelRef) === rowModelRef &&
-        normalizeString(p.color) === rowColor &&
-        normalizeString(p.size) === rowSize
-      ) {
-        return {
-          product: p,
-          productIndex: i,
-          matchType: "modelRef+color+size",
-          confidence: 95
-        };
-      }
-    }
-  }
-
-  // NIVEAU 3: Match par modelRef + color (confiance 85%)
-  if (rowModelRef && rowColor) {
-    const matches: Array<{ product: Product; index: number }> = [];
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
-      if (
-        normalizeString(p.modelRef) === rowModelRef &&
-        normalizeString(p.color) === rowColor
-      ) {
-        matches.push({ product: p, index: i });
-      }
-    }
-    
-    if (matches.length === 1) {
-      return {
-        product: matches[0].product,
-        productIndex: matches[0].index,
-        matchType: "modelRef+color",
-        confidence: 85
-      };
-    }
-    
-    if (matches.length > 1 && !rowSize) {
-      const noSizeMatches = matches.filter(m => !m.product.size || m.product.size === "");
-      if (noSizeMatches.length === 1) {
-        return {
-          product: noSizeMatches[0].product,
-          productIndex: noSizeMatches[0].index,
-          matchType: "modelRef+color",
-          confidence: 80
-        };
-      }
-    }
-  }
-
-  // NIVEAU 4: Match par modelRef seul (confiance 70%)
-  if (rowModelRef) {
-    const matches: Array<{ product: Product; index: number }> = [];
-    for (let i = 0; i < products.length; i++) {
-      if (normalizeString(products[i].modelRef) === rowModelRef) {
-        matches.push({ product: products[i], index: i });
-      }
-    }
-    
-    if (matches.length === 1) {
-      return {
-        product: matches[0].product,
-        productIndex: matches[0].index,
-        matchType: "modelRef",
-        confidence: 70
-      };
-    }
-  }
-
-  return null;
-}
-
-function generateSuggestions(row: NormalizedRow, products: Product[]): string[] {
-  const suggestions: string[] = [];
-  const rowModelRef = normalizeString(row.modelRef);
-  
-  if (!rowModelRef) return suggestions;
-
-  const sameRefProducts = products.filter(
-    p => normalizeString(p.modelRef) === rowModelRef
-  );
-
-  if (sameRefProducts.length > 1) {
-    suggestions.push(`נמצאו ${sameRefProducts.length} מוצרים עם מק״ט "${row.modelRef}":`);
-    sameRefProducts.slice(0, 5).forEach(p => {
-      const details = [p.color, p.size].filter(Boolean).join(" / ");
-      suggestions.push(`  • ${p.id}: ${details || "ללא צבע/מידה"}`);
+// Parser CSV
+function parseCSV(text: string): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (r) => resolve(r.data),
+      error: (e: Error) => reject(e),
     });
-    if (sameRefProducts.length > 5) {
-      suggestions.push(`  ... ועוד ${sameRefProducts.length - 5} מוצרים`);
-    }
-  }
-
-  return suggestions;
-}
-
-// ============================================================================
-// GÉNÉRATION D'ID UNIQUE
-// ============================================================================
-
-function generateUniqueId(products: Product[], modelRef: string, color: string, existingNewIds: Set<string>): string {
-  const baseId = modelRef.toUpperCase();
-  const colorSuffix = color ? `_${color.replace(/\s+/g, "_").substring(0, 10).toUpperCase()}` : "";
-  
-  let candidateId = baseId + colorSuffix;
-  let counter = 0;
-  
-  const allExistingIds = new Set([
-    ...products.map(p => p.id.toUpperCase()),
-    ...Array.from(existingNewIds).map(id => id.toUpperCase())
-  ]);
-  
-  while (allExistingIds.has(candidateId.toUpperCase())) {
-    counter++;
-    candidateId = `${baseId}${colorSuffix}_${counter}`;
-  }
-  
-  return candidateId;
-}
-
-// ============================================================================
-// BACKUP - Système de sauvegarde
-// ============================================================================
-
-function createBackup(productsPath: string): string | null {
-  try {
-    const backupDir = path.join(process.cwd(), "data", "backups");
-    
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupPath = path.join(backupDir, `products-backup-${timestamp}.json`);
-
-    fs.copyFileSync(productsPath, backupPath);
-    
-    const backups = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith("products-backup-"))
-      .sort()
-      .reverse();
-    
-    if (backups.length > 50) {
-      backups.slice(50).forEach(oldBackup => {
-        fs.unlinkSync(path.join(backupDir, oldBackup));
-      });
-    }
-
-    return backupPath;
-  } catch (error) {
-    console.error("Erreur création backup:", error);
-    return null;
-  }
-}
-
-// ============================================================================
-// PARSING - Lecture des fichiers Excel/CSV
-// ============================================================================
-
-function parseExcel(buffer: ArrayBuffer): UploadRow[] {
-  const workbook = XLSX.read(buffer, { 
-    type: "array",
-    cellDates: true,
-    cellNF: false,
-    cellText: false
   });
-  
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
-    throw new Error("הקובץ לא מכיל גיליונות");
-  }
-  
-  const worksheet = workbook.Sheets[firstSheetName];
-  
-  const data = XLSX.utils.sheet_to_json<UploadRow>(worksheet, {
-    defval: "",
-    raw: true,
-    blankrows: false
-  });
-  
-  return data;
 }
 
-function parseCSV(text: string): UploadRow[] {
-  const lines = text.split(/\r?\n/).filter(line => line.trim());
-  
-  if (lines.length < 2) {
-    throw new Error("הקובץ חייב להכיל לפחות שורת כותרות ושורת נתונים אחת");
-  }
-
-  const headers = parseCSVLine(lines[0]);
-  
-  if (headers.length === 0) {
-    throw new Error("לא נמצאו עמודות בקובץ");
-  }
-
-  const data: UploadRow[] = [];
-  
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    
-    if (values.every(v => !v.trim())) continue;
-    
-    const row: UploadRow = {};
-    headers.forEach((header, index) => {
-      row[header.trim()] = values[index]?.trim() || "";
-    });
-    
-    data.push(row);
-  }
-  
-  return data;
+// Normaliser pour comparaison
+function norm(s: any): string {
+  if (!s) return "";
+  return String(s).trim().toLowerCase();
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-    
-    if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  
-  result.push(current);
-  return result;
-}
-
-// ============================================================================
-// TRAITEMENT PRINCIPAL
-// ============================================================================
-
-async function processUpload(
-  fileBuffer: ArrayBuffer | string,
-  isExcel: boolean,
-  dryRun: boolean
-): Promise<ProcessingResult> {
-  
-  const productsPath = path.join(process.cwd(), "data", "products.json");
-  
-  if (!fs.existsSync(productsPath)) {
-    throw new Error("קובץ המוצרים לא נמצא");
-  }
-
-  let products: Product[];
-  try {
-    const productsData = fs.readFileSync(productsPath, "utf-8");
-    products = JSON.parse(productsData);
-  } catch (error) {
-    throw new Error("שגיאה בקריאת קובץ המוצרים");
-  }
-
-  if (!Array.isArray(products)) {
-    throw new Error("פורמט קובץ המוצרים לא תקין");
-  }
-
-  const productIndexMap = new Map<string, number>();
-  products.forEach((p, index) => {
-    productIndexMap.set(p.id, index);
-  });
-
-  let uploadedRows: UploadRow[];
-  try {
-    if (isExcel) {
-      uploadedRows = parseExcel(fileBuffer as ArrayBuffer);
-    } else {
-      uploadedRows = parseCSV(fileBuffer as string);
-    }
-  } catch (error) {
-    throw new Error(`שגיאה בקריאת הקובץ: ${error instanceof Error ? error.message : "שגיאה לא ידועה"}`);
-  }
-
-  if (uploadedRows.length === 0) {
-    throw new Error("הקובץ ריק או לא מכיל נתונים תקינים");
-  }
-
-  const normalizedRows: NormalizedRow[] = [];
-  const errors: ErrorItem[] = [];
-
-  for (let i = 0; i < uploadedRows.length; i++) {
-    const rowNumber = i + 2;
-    const result = normalizeRow(uploadedRows[i], rowNumber);
-    
-    if (result.valid && result.data) {
-      normalizedRows.push(result.data);
-    } else {
-      errors.push({
-        rowNumber,
-        message: result.error || "שגיאה לא ידועה",
-        data: uploadedRows[i]
-      });
-    }
-  }
-
-  // Détection des doublons
-  const seenKeys = new Map<string, number[]>();
-  const duplicatesInFile: Array<{
-    rowNumbers: number[];
-    modelRef: string;
-    color: string;
-    size: string;
-  }> = [];
-
-  normalizedRows.forEach(row => {
-    const key = createProductKey(row.modelRef, row.color, row.size);
-    const existing = seenKeys.get(key);
-    if (existing) {
-      existing.push(row.rowNumber);
-    } else {
-      seenKeys.set(key, [row.rowNumber]);
-    }
-  });
-
-  seenKeys.forEach((rowNumbers, key) => {
-    if (rowNumbers.length > 1) {
-      const [modelRef, color, size] = key.split("|");
-      duplicatesInFile.push({
-        rowNumbers,
-        modelRef,
-        color,
-        size
-      });
-      
-      rowNumbers.slice(1).forEach(rowNum => {
-        errors.push({
-          rowNumber: rowNum,
-          message: `שורה כפולה - אותו מוצר מופיע גם בשורה ${rowNumbers[0]}`,
-          data: null
-        });
-      });
-    }
-  });
-
-  const uniqueRows = normalizedRows.filter(row => {
-    const key = createProductKey(row.modelRef, row.color, row.size);
-    const rowNumbers = seenKeys.get(key);
-    return rowNumbers && rowNumbers[0] === row.rowNumber;
-  });
-
-  // Matching et création
-  const operations: UpdateOperation[] = [];
-  const creations: CreateOperation[] = [];
-  const notFound: NotFoundItem[] = [];
-  const usedProductIndices = new Set<number>();
-  const newProductIds = new Set<string>();
-
-  for (const row of uniqueRows) {
-    const match = findBestMatch(row, products, productIndexMap);
-    
-    if (match) {
-      if (usedProductIndices.has(match.productIndex)) {
-        errors.push({
-          rowNumber: row.rowNumber,
-          message: `המוצר ${match.product.id} כבר עודכן בקובץ זה`,
-          data: row.originalData
-        });
-        continue;
-      }
-      
-      usedProductIndices.add(match.productIndex);
-      
-      operations.push({
-        rowNumber: row.rowNumber,
-        productId: match.product.id,
-        productIndex: match.productIndex,
-        modelRef: match.product.modelRef,
-        color: match.product.color,
-        size: match.product.size,
-        oldStock: match.product.stockQuantity,
-        newStock: row.stockQuantity,
-        matchType: match.matchType,
-        confidence: match.confidence
-      });
-    } else {
-      // Vérifier s'il y a plusieurs produits avec le même modelRef
-      const rowModelRef = normalizeString(row.modelRef);
-      const sameRefProducts = products.filter(
-        p => normalizeString(p.modelRef) === rowModelRef
-      );
-      
-      if (sameRefProducts.length > 1) {
-        // Plusieurs produits avec même ref = ambiguïté, ne pas créer
-        const suggestions = generateSuggestions(row, products);
-        notFound.push({
-          rowNumber: row.rowNumber,
-          modelRef: row.modelRef,
-          color: row.color,
-          size: row.size,
-          requestedStock: row.stockQuantity,
-          reason: "נמצאו מספר מוצרים עם אותו מק״ט - יש לציין צבע/מידה מדויקים",
-          suggestions
-        });
-      } else {
-        // Aucun produit trouvé OU un seul produit mais pas de match exact = CRÉER nouveau produit
-        const newId = generateUniqueId(products, row.modelRef, row.color, newProductIds);
-        newProductIds.add(newId);
-        
-        const newProduct: Product = {
-          id: newId,
-          collection: row.collection || "",
-          category: row.category || "",
-          subcategory: row.subcategory || "",
-          brand: row.brand || "GUESS",
-          modelRef: row.modelRef.toUpperCase(),
-          gender: row.gender || "",
-          supplier: row.supplier || "",
-          color: row.color,
-          priceRetail: row.priceRetail,
-          priceWholesale: row.priceWholesale,
-          stockQuantity: row.stockQuantity,
-          imageUrl: row.imageUrl || "/images/default.png",
-          gallery: [],
-          productName: row.productName || row.modelRef,
-          size: row.size
-        };
-        
-        creations.push({
-          rowNumber: row.rowNumber,
-          newProduct
-        });
-      }
-    }
-  }
-
-  // Appliquer les modifications
-  let backupPath: string | null = null;
-  
-  if (!dryRun && (operations.length > 0 || creations.length > 0)) {
-    backupPath = createBackup(productsPath);
-    
-    if (!backupPath) {
-      throw new Error("שגיאה ביצירת גיבוי - העדכון בוטל למניעת אובדן נתונים");
-    }
-
-    // Appliquer les mises à jour
-    for (const op of operations) {
-      products[op.productIndex].stockQuantity = op.newStock;
-    }
-    
-    // Ajouter les nouveaux produits
-    for (const creation of creations) {
-      products.push(creation.newProduct);
-    }
-
-    try {
-      fs.writeFileSync(productsPath, JSON.stringify(products, null, 4), "utf-8");
-    } catch (error) {
-      if (backupPath && fs.existsSync(backupPath)) {
-        try {
-          fs.copyFileSync(backupPath, productsPath);
-        } catch {
-          // Critical error
-        }
-      }
-      throw new Error("שגיאה בשמירת הנתונים - הגיבוי נשמר");
-    }
-  }
-
-  return {
-    success: true,
-    dryRun,
-    backupPath,
-    summary: {
-      totalRows: uploadedRows.length,
-      validRows: normalizedRows.length,
-      toUpdate: operations.length,
-      toCreate: creations.length,
-      notFound: notFound.length,
-      errors: errors.length,
-      duplicatesInFile: duplicatesInFile.length
-    },
-    operations,
-    creations,
-    notFound,
-    errors,
-    duplicatesInFile
-  };
-}
-
-// ============================================================================
-// API ENDPOINTS
-// ============================================================================
+// Noms hébreux des champs
+const hebrewNames: Record<string, string> = {
+  stockQuantity: "מלאי",
+  priceRetail: "מחיר קמעונאי",
+  priceWholesale: "מחיר סיטונאי",
+  productName: "שם מוצר",
+};
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const dryRunParam = formData.get("dryRun") as string;
-    const dryRun = dryRunParam === "true";
+    const file = formData.get("file") as File;
+    const syncStock = formData.get("syncStock") === "true"; // Option pour synchroniser le stock
 
     if (!file) {
-      return NextResponse.json(
-        { success: false, error: "לא נבחר קובץ" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "לא נבחר קובץ" }, { status: 400 });
     }
 
-    if (file.size === 0) {
-      return NextResponse.json(
-        { success: false, error: "הקובץ ריק" },
-        { status: 400 }
-      );
-    }
+    console.log("[Upload] Mode synchronisation stock:", syncStock);
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: "הקובץ גדול מדי (מקסימום 10MB)" },
-        { status: 400 }
-      );
-    }
-
+    // Parser le fichier
     const fileName = file.name.toLowerCase();
-    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
-    const isCSV = fileName.endsWith(".csv");
-
-    if (!isExcel && !isCSV) {
-      return NextResponse.json(
-        { success: false, error: "פורמט קובץ לא נתמך. השתמש ב-.xlsx, .xls או .csv" },
-        { status: 400 }
-      );
-    }
-
-    let fileContent: ArrayBuffer | string;
-    if (isExcel) {
-      fileContent = await file.arrayBuffer();
+    let rows: any[];
+    let sheetInfo: string[] = [];
+    
+    if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      const result = parseExcel(await file.arrayBuffer());
+      rows = result.rows;
+      sheetInfo = result.sheetNames;
+    } else if (fileName.endsWith(".csv")) {
+      rows = await parseCSV(await file.text());
+      sheetInfo = ["CSV"];
     } else {
-      fileContent = await file.text();
+      return NextResponse.json({ success: false, error: "פורמט לא נתמך" }, { status: 400 });
     }
 
-    const result = await processUpload(fileContent, isExcel, dryRun);
+    if (!rows?.length) {
+      return NextResponse.json({ success: false, error: "קובץ ריק" }, { status: 400 });
+    }
 
-    const response = {
-      success: true,
-      dryRun: result.dryRun,
-      message: result.dryRun 
-        ? `מצב תצוגה מקדימה: ${result.summary.toUpdate} יעודכנו, ${result.summary.toCreate} ייווצרו`
-        : `${result.summary.toUpdate} מוצרים עודכנו, ${result.summary.toCreate} מוצרים נוצרו`,
-      backupPath: result.backupPath,
-      summary: result.summary,
-      report: {
-        updated: result.operations.map(op => ({
-          id: op.productId,
-          modelRef: op.modelRef,
-          color: op.color,
-          size: op.size,
-          oldStock: op.oldStock,
-          newStock: op.newStock,
-          matchType: op.matchType,
-          confidence: op.confidence,
-          rowNumber: op.rowNumber
-        })),
-        created: result.creations.map(c => ({
-          id: c.newProduct.id,
-          modelRef: c.newProduct.modelRef,
-          color: c.newProduct.color,
-          size: c.newProduct.size,
-          stock: c.newProduct.stockQuantity,
-          rowNumber: c.rowNumber
-        })),
-        notFound: result.notFound.map(nf => ({
-          row: nf.rowNumber,
-          data: {
-            reference: nf.modelRef,
-            color: nf.color,
-            size: nf.size,
-            stock: nf.requestedStock
-          },
-          reason: nf.reason,
-          suggestions: nf.suggestions
-        })),
-        errors: result.errors.map(e => ({
-          row: e.rowNumber,
-          message: e.message
-        })),
-        duplicates: result.duplicatesInFile
+    // Log colonnes détectées
+    const columns = Object.keys(rows[0]);
+    console.log("[Upload] Colonnes:", columns);
+    console.log("[Upload] Total lignes:", rows.length);
+    console.log("[Upload] Feuilles:", sheetInfo);
+
+    // Charger TOUS les produits de Supabase
+    const { data: products, error: fetchErr } = await supabase.from("products").select("*");
+    
+    if (fetchErr) {
+      return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
+    }
+
+    // Index par TOUTES les clés possibles (du plus précis au moins précis)
+    const productByFullKey = new Map<string, any>(); // id + modelRef + color
+    const productById = new Map<string, any>();       // id seul
+    const productByRefColor = new Map<string, any>(); // modelRef + color
+    
+    for (const p of products || []) {
+      // Clé complète : id + modelRef + color (la plus précise)
+      const fullKey = `${norm(p.id)}|${norm(p.modelRef)}|${norm(p.color)}`;
+      productByFullKey.set(fullKey, p);
+      
+      // Index par ID seul
+      if (p.id) {
+        productById.set(norm(p.id), p);
       }
-    };
+      
+      // Index par modelRef + color
+      const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
+      productByRefColor.set(refColorKey, p);
+    }
 
-    return NextResponse.json(response);
+    console.log(`[Upload] ${products?.length} produits en base`);
 
-  } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "שגיאה לא צפויה",
-      },
-      { status: 500 }
-    );
-  }
-}
+    // Résultats
+    let updated = 0;
+    let inserted = 0;
+    let unchanged = 0;
+    let stockZeroed = 0;
+    const notFound: Array<{ modelRef: string; color: string }> = [];
+    const insertedProducts: Array<{ modelRef: string; color: string }> = [];
+    const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
+    const changes: Change[] = [];
+    const errors: Array<{ row: number; message: string }> = [];
+    
+    // Tracker les produits vus dans le fichier (pour syncStock)
+    const seenProductIds = new Set<string>();
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const format = searchParams.get("format") || "csv";
+    // Traiter chaque ligne
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
 
-  const headers = ["id", "modelRef", "color", "size", "stockQuantity", "collection", "category", "brand", "priceRetail", "priceWholesale"];
-  const exampleRows = [
-    ["AA947142", "AA947142", "BLACK MULTI", "", "10", "FALL 2024", "bag", "GUESS", "199.9", "99.95"],
-    ["", "NEW_PRODUCT", "BLUE", "M", "5", "SPRING 2025", "shoes", "GUESS", "299.9", "149.95"],
-  ];
+      // Extraire id, modelRef et color
+      const id = row.id || row.ID || row.Id;
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
+      const color = row.color || row.Color || row.COLOR;
 
-  if (format === "csv") {
-    const csvContent = [
-      headers.join(","),
-      ...exampleRows.map(row => row.join(","))
-    ].join("\n");
+      if (!modelRef || !color) {
+        errors.push({ row: rowNum, message: "modelRef או color חסר" });
+        continue;
+      }
 
-    return new NextResponse(csvContent, {
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="template-stock.csv"',
-      },
+      // Chercher le produit - Du PLUS PRÉCIS au moins précis
+      let existing = null;
+      let matchedBy = "";
+      
+      // 1. D'abord essayer avec la clé complète (id + modelRef + color)
+      if (id) {
+        const fullKey = `${norm(id)}|${norm(modelRef)}|${norm(color)}`;
+        existing = productByFullKey.get(fullKey);
+        if (existing) matchedBy = "id+modelRef+color";
+      }
+      
+      // 2. Sinon essayer avec l'ID seul
+      if (!existing && id) {
+        existing = productById.get(norm(id));
+        if (existing) matchedBy = "id";
+      }
+      
+      // 3. Enfin essayer avec modelRef + color
+      if (!existing) {
+        const key = `${norm(modelRef)}|${norm(color)}`;
+        existing = productByRefColor.get(key);
+        if (existing) matchedBy = "modelRef+color";
+      }
+      
+      console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
+
+      // Tracker le produit vu pour syncStock
+      if (existing) {
+        seenProductIds.add(existing.id);
+      }
+
+      if (!existing) {
+        // NOUVEAU PRODUIT → L'INSÉRER
+        const newProduct: Record<string, any> = {
+          id: id || `${modelRef}-${color}-${Date.now()}`, // Générer un ID unique
+          modelRef: modelRef,
+          color: color,
+          brand: row.brand || row.Brand || "GUESS",
+          subcategory: row.subcategory || row.category || row.Category || "תיק",
+          category: row.subcategory || row.category || row.Category || "תיק",
+          collection: row.collection || row.Collection || "",
+          supplier: row.supplier || row.Supplier || "",
+          gender: row.gender || row.Gender || "Women",
+          priceRetail: parseFloat(String(row.priceRetail || 0).replace(",", ".")) || 0,
+          priceWholesale: parseFloat(String(row.priceWholesale || 0).replace(",", ".")) || 0,
+          stockQuantity: parseInt(String(row.stockQuantity || row.stock || 0)) || 0,
+          imageUrl: row.imageUrl || "/images/default.png",
+          gallery: [],
+          productName: row.productName || modelRef,
+        };
+
+        console.log(`[Row ${rowNum}] INSERTING NEW PRODUCT:`, newProduct);
+
+        const { error: insertErr } = await supabase.from("products").insert(newProduct);
+
+        if (insertErr) {
+          console.error(`[Row ${rowNum}] Insert error:`, insertErr);
+          errors.push({ row: rowNum, message: `שגיאה בהוספה: ${insertErr.message}` });
+          notFound.push({ modelRef, color });
+        } else {
+          inserted++;
+          insertedProducts.push({ modelRef, color });
+        }
+        continue;
+      }
+
+      // Comparer et préparer les mises à jour
+      const updates: Record<string, any> = {};
+      const rowChanges: Change[] = [];
+
+      // stockQuantity
+      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
+      if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
+        const newVal = parseInt(String(stockRaw)) || 0;
+        const oldVal = parseInt(String(existing.stockQuantity)) || 0;
+        console.log(`[Row ${rowNum}] Stock: file=${stockRaw} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
+        if (newVal !== oldVal) {
+          updates.stockQuantity = newVal;
+          rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
+        }
+      }
+
+      // priceRetail
+      if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
+        const newVal = parseFloat(String(row.priceRetail).replace(",", ".")) || 0;
+        const oldVal = existing.priceRetail || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceRetail = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
+        }
+      }
+
+      // priceWholesale
+      if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
+        const newVal = parseFloat(String(row.priceWholesale).replace(",", ".")) || 0;
+        const oldVal = existing.priceWholesale || 0;
+        if (Math.abs(newVal - oldVal) > 0.01) {
+          updates.priceWholesale = newVal;
+          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
+        }
+      }
+
+      // productName
+      if (row.productName !== undefined && row.productName !== null && row.productName !== "") {
+        const newVal = String(row.productName).trim();
+        const oldVal = existing.productName || "";
+        if (newVal !== oldVal) {
+          updates.productName = newVal;
+          rowChanges.push({ modelRef, color, field: "שם מוצר", oldValue: oldVal, newValue: newVal });
+        }
+      }
+
+      // Si des changements existent, faire l'UPDATE
+      if (Object.keys(updates).length > 0) {
+        console.log(`[Upload] Updating id="${existing.id}" (${modelRef} / ${color}):`, updates);
+        
+        // Utiliser l'ID pour l'update si disponible (plus précis)
+        let updateQuery = supabase.from("products").update(updates);
+        
+        if (existing.id && existing.id !== "GUESS") {
+          updateQuery = updateQuery.eq("id", existing.id);
+        } else {
+          updateQuery = updateQuery.eq("modelRef", existing.modelRef).eq("color", existing.color);
+        }
+        
+        const { error: updateErr } = await updateQuery;
+
+        if (updateErr) {
+          errors.push({ row: rowNum, message: updateErr.message });
+        } else {
+          updated++;
+          changes.push(...rowChanges);
+        }
+      } else {
+        unchanged++;
+      }
+    }
+
+    // SYNCHRONISATION STOCK: Mettre à 0 les produits qui ne sont pas dans le fichier
+    if (syncStock) {
+      console.log(`[SyncStock] ${seenProductIds.size} produits vus dans le fichier, ${products?.length || 0} en base`);
+      
+      for (const product of products || []) {
+        // Si le produit n'a pas été vu dans le fichier ET a du stock > 0
+        if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
+          console.log(`[SyncStock] Mise à 0 stock: ${product.modelRef} / ${product.color} (était: ${product.stockQuantity})`);
+          
+          const { error: zeroErr } = await supabase
+            .from("products")
+            .update({ stockQuantity: 0 })
+            .eq("id", product.id);
+
+          if (zeroErr) {
+            errors.push({ row: -1, message: `Erreur sync ${product.modelRef}: ${zeroErr.message}` });
+          } else {
+            stockZeroed++;
+            zeroedProducts.push({ 
+              modelRef: product.modelRef, 
+              color: product.color, 
+              oldStock: product.stockQuantity 
+            });
+            changes.push({
+              modelRef: product.modelRef,
+              color: product.color,
+              field: "מלאי (סנכרון)",
+              oldValue: product.stockQuantity,
+              newValue: 0,
+            });
+          }
+        }
+      }
+      
+      console.log(`[SyncStock] ${stockZeroed} produits mis à stock 0`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      totalRows: rows.length,
+      updated,
+      inserted,
+      unchanged,
+      stockZeroed,
+      notFound,
+      insertedProducts,
+      zeroedProducts,
+      changes,
+      errors,
+      detectedColumns: columns,
+      sheets: sheetInfo,
+      syncStockEnabled: syncStock,
     });
-  } else {
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
-    worksheet["!cols"] = headers.map(() => ({ wch: 18 }));
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Stock");
 
-    const excelBuffer = XLSX.write(workbook, {
-      type: "buffer",
-      bookType: "xlsx",
-    });
-
-    return new NextResponse(excelBuffer, {
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="template-stock.xlsx"',
-      },
-    });
+  } catch (err: any) {
+    console.error("[Upload] Error:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -1,49 +1,60 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Cookie de session Supabase
-const AUTH_COOKIE_NAME = "sb-auth-token";
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Ignorer les routes non-admin
-  if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
-    return NextResponse.next();
-  }
 
-  // Routes publiques (login)
-  if (pathname === "/admin/login" || pathname === "/api/admin/auth") {
-    // Si déjà connecté et essaie d'accéder au login, rediriger vers upload
-    const token = request.cookies.get(AUTH_COOKIE_NAME);
-    if (token?.value && pathname === "/admin/login") {
-      return NextResponse.redirect(new URL("/admin/upload", request.url));
-    }
-    return NextResponse.next();
-  }
+  // Only protect /admin routes (except login)
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+    const accessToken = request.cookies.get("sb-access-token")?.value;
+    const refreshToken = request.cookies.get("sb-refresh-token")?.value;
 
-  // Vérifier l'authentification pour les routes protégées
-  const token = request.cookies.get(AUTH_COOKIE_NAME);
-  
-  if (!token?.value) {
-    // API: retourner 401
-    if (pathname.startsWith("/api/admin")) {
-      return NextResponse.json(
-        { success: false, error: "לא מורשה - נדרשת התחברות" },
-        { status: 401 }
-      );
+    if (!accessToken || !refreshToken) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
     }
-    
-    // Pages: rediriger vers login
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+
+    // Verify the session
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+    if (error || !user) {
+      const response = NextResponse.redirect(new URL("/admin/login", request.url));
+      response.cookies.delete("sb-access-token");
+      response.cookies.delete("sb-refresh-token");
+      return response;
+    }
+
+    // Check if user is admin
+    const { data: adminData } = await supabase
+      .from("admins")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!adminData) {
+      const response = NextResponse.redirect(new URL("/admin/login?error=unauthorized", request.url));
+      return response;
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/api/admin/:path*",
-  ],
+  matcher: ["/admin/:path*"],
 };
+
+
+
+
