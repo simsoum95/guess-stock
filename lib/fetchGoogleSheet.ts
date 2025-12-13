@@ -301,9 +301,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
     category = "נעל";
   }
-  // else: stays as "ביגוד" else {
-    category = "ביגוד";
-  }
+  // else: stays as "ביגוד" (already set as default)
   
   return {
     id: `${modelRef}-${color}-${index}`,
