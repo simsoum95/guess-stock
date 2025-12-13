@@ -198,7 +198,16 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         const rows = parseCSV(csvText);
         if (rows.length > 0) {
           console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows from sheet "${sheetName}"`);
-          allRows.push(...rows);
+          // Filter out completely empty rows (all values are empty strings)
+          const validRows = rows.filter(row => {
+            const hasData = Object.values(row).some(val => {
+              const str = String(val || "").trim();
+              return str.length > 0;
+            });
+            return hasData;
+          });
+          console.log(`[fetchGoogleSheet] After filtering empty rows: ${validRows.length} valid rows from "${sheetName}"`);
+          allRows.push(...validRows);
         }
       } catch (error) {
         console.warn(`[fetchGoogleSheet] Error reading sheet "${sheetName}":`, error instanceof Error ? error.message : error);
@@ -208,18 +217,44 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     
     console.log(`[fetchGoogleSheet] Total: ${allRows.length} rows from ${sheetNames.length} sheet(s)`);
     
-    // Remove duplicates based on modelRef + color combination
+    // Debug: Show sample of rows before deduplication
+    if (allRows.length > 0 && allRows.length <= 50) {
+      console.log(`[fetchGoogleSheet] Sample rows (first 3):`, allRows.slice(0, 3).map((row, idx) => ({
+        index: idx,
+        modelRef: row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
+        color: row["צבע"] || row["color"] || "",
+        size: row["מידה"] || row["size"] || "",
+      })));
+    }
+    
+    // Remove duplicates based on modelRef + color + size combination
+    // This ensures products with same modelRef+color but different sizes are kept separate
     const uniqueRows = new Map<string, GoogleSheetRow>();
-    allRows.forEach(row => {
-      const modelRef = row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "";
-      const color = row["צבע"] || row["color"] || "";
-      const key = `${modelRef}|${color}`.toUpperCase();
-      if (!uniqueRows.has(key) || !key.includes("|")) {
+    const duplicateCount = new Map<string, number>();
+    
+    allRows.forEach((row, index) => {
+      const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+      const color = (row["צבע"] || row["color"] || "").toString().trim();
+      const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
+      
+      // Create key with modelRef, color, and size to avoid removing products with same modelRef+color but different sizes
+      const key = `${modelRef}|${color}|${size}`.toUpperCase();
+      
+      if (!uniqueRows.has(key)) {
         uniqueRows.set(key, row);
+      } else {
+        // Count duplicates for debugging
+        const count = duplicateCount.get(key) || 0;
+        duplicateCount.set(key, count + 1);
+        console.warn(`[fetchGoogleSheet] Duplicate found (row ${index + 1}): ${key} - keeping first occurrence`);
       }
     });
 
-    console.log(`[fetchGoogleSheet] After deduplication: ${uniqueRows.size} unique products`);
+    console.log(`[fetchGoogleSheet] After deduplication: ${uniqueRows.size} unique products (from ${allRows.length} total rows)`);
+    if (duplicateCount.size > 0) {
+      const totalDuplicates = Array.from(duplicateCount.values()).reduce((a, b) => a + b, 0);
+      console.log(`[fetchGoogleSheet] Removed ${totalDuplicates} duplicate rows`);
+    }
     
     return Array.from(uniqueRows.values());
   } catch (error) {
