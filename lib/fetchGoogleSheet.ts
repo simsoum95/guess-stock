@@ -53,72 +53,111 @@ async function getAllSheetNames(): Promise<string[]> {
 }
 
 /**
- * Fetch data from Google Sheets as CSV for a specific sheet
- * Uses the public export URL which should return all rows (up to Google's limits)
+ * Get sheet GID (Grid ID) for a sheet name using the API
  */
-async function fetchSheetAsCSV(sheetName: string): Promise<string | null> {
+async function getSheetGID(sheetName: string): Promise<string | null> {
+  if (!GOOGLE_SHEET_ID) return null;
+  
+  try {
+    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}${GOOGLE_API_KEY ? `?key=${GOOGLE_API_KEY}` : ''}`;
+    const response = await fetch(apiUrl, { cache: 'no-store' });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const sheet = data.sheets?.find((s: any) => s.properties.title === sheetName);
+    return sheet?.properties.sheetId?.toString() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch ALL data from Google Sheets using the v4 API (no row limits)
+ * Falls back to CSV if API key is not available
+ */
+async function fetchSheetData(sheetName: string): Promise<GoogleSheetRow[] | null> {
   if (!GOOGLE_SHEET_ID) {
     throw new Error("GOOGLE_SHEET_ID environment variable is not set. Please add it to .env.local");
   }
 
-  // Method 1: CSV export with full range (tries to get all rows)
-  // Using format=csv instead of gviz for potentially better results
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&tq=SELECT *&sheet=${encodeURIComponent(sheetName)}`;
-  
-  // Alternative: direct CSV export URL
-  const csvUrlAlt = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv&gid=0&sheet=${encodeURIComponent(sheetName)}`;
-  
-  try {
-    // Try the first URL
-    let response = await fetch(csvUrl, {
-      cache: 'no-store',
-      headers: {
-        'Accept': 'text/csv',
-      }
-    });
-
-    // If that doesn't work, try alternative URL
-    if (!response.ok || response.status === 404) {
-      console.log(`[fetchGoogleSheet] Trying alternative CSV URL for sheet "${sheetName}"...`);
-      response = await fetch(csvUrlAlt, {
-        cache: 'no-store',
-        headers: {
-          'Accept': 'text/csv',
+  // Try API v4 first (gets ALL rows, no limits)
+  if (GOOGLE_API_KEY) {
+    try {
+      console.log(`[fetchGoogleSheet] Using Google Sheets API v4 for "${sheetName}"...`);
+      
+      // Get the sheet GID
+      const gid = await getSheetGID(sheetName);
+      const range = encodeURIComponent(sheetName);
+      
+      // Fetch all data using the API (no row limits)
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${GOOGLE_API_KEY}`;
+      const response = await fetch(apiUrl, { cache: 'no-store' });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const rows = data.values || [];
+        
+        if (rows.length === 0) {
+          console.log(`[fetchGoogleSheet] Sheet "${sheetName}" is empty via API`);
+          return null;
         }
-      });
+        
+        // First row is headers
+        const headers = rows[0].map((h: string) => String(h).trim());
+        console.log(`[fetchGoogleSheet] API returned ${rows.length} rows (including header) for "${sheetName}"`);
+        
+        // Convert to GoogleSheetRow format
+        const result: GoogleSheetRow[] = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row: GoogleSheetRow = {};
+          headers.forEach((header: string, index: number) => {
+            row[header] = rows[i][index] || "";
+          });
+          result.push(row);
+        }
+        
+        console.log(`[fetchGoogleSheet] Converted ${result.length} product rows from API for "${sheetName}"`);
+        return result;
+      } else if (response.status === 404) {
+        console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found via API`);
+        return null;
+      } else {
+        console.warn(`[fetchGoogleSheet] API returned ${response.status}, falling back to CSV...`);
+      }
+    } catch (error) {
+      console.warn(`[fetchGoogleSheet] API error for "${sheetName}", falling back to CSV:`, error instanceof Error ? error.message : error);
     }
+  } else {
+    console.log(`[fetchGoogleSheet] No GOOGLE_API_KEY, using CSV export (limited to ~150 rows)...`);
+  }
+
+  // Fallback to CSV (limited to ~150 rows)
+  try {
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/export?format=csv&gid=0`;
+    const response = await fetch(csvUrl, { cache: 'no-store' });
 
     if (!response.ok) {
-      if (response.status === 404) {
-        // Sheet doesn't exist, return null
-        return null;
-      }
+      if (response.status === 404) return null;
       if (response.status === 403) {
-        throw new Error(
-          `Google Sheet is not accessible (${response.status}). ` +
-          `Please make sure the Sheet is public: Share → "Anyone with the link" → "Viewer"`
-        );
+        throw new Error(`Google Sheet is not accessible. Make it public: Share → "Anyone with the link" → "Viewer"`);
       }
-      console.warn(`[fetchGoogleSheet] Error fetching sheet "${sheetName}": ${response.status} ${response.statusText}`);
-      return null; // Skip this sheet if error
+      return null;
     }
 
     const text = await response.text();
-    
-    // Check if response is HTML error page instead of CSV
-    if (text.includes('<!DOCTYPE html>') || text.includes('<html>') || text.includes('<body>')) {
-      console.warn(`[fetchGoogleSheet] Received HTML instead of CSV for sheet "${sheetName}" - sheet may not be public`);
-      return null; // Skip this sheet
+    if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
+      return null;
     }
 
-    // Log how many lines we got
     const lineCount = text.split('\n').length;
-    console.log(`[fetchGoogleSheet] Fetched CSV for "${sheetName}": ${lineCount} lines, ${(text.length / 1024).toFixed(1)} KB`);
-
-    return text;
+    console.log(`[fetchGoogleSheet] CSV export for "${sheetName}": ${lineCount} lines (LIMITED - get GOOGLE_API_KEY for all rows)`);
+    
+    // Parse CSV
+    const rows = parseCSV(text);
+    return rows;
   } catch (error) {
-    console.warn(`[fetchGoogleSheet] Exception fetching sheet "${sheetName}":`, error instanceof Error ? error.message : error);
-    // Return null if this sheet doesn't exist or fails
+    console.warn(`[fetchGoogleSheet] CSV error for "${sheetName}":`, error instanceof Error ? error.message : error);
     return null;
   }
 }
