@@ -278,8 +278,15 @@ export async function POST(request: NextRequest) {
           modelRef: modelRef,
           color: color,
           brand: row.brand || row.Brand || row["מותג"] || "GUESS",
-          subcategory: row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק",
-          category: row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק",
+          subcategory: (() => {
+            const subcat = row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק";
+            return String(subcat).trim();
+          })(),
+          category: (() => {
+            // Normaliser la catégorie à partir de la sous-catégorie
+            const subcat = row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק";
+            return normalizeCategoryFromSubcategory(String(subcat).trim());
+          })(),
           collection: row.collection || row.Collection || row["קולקציה"] || "",
           supplier: row.supplier || row.Supplier || row["ספק"] || "",
           gender: row.gender || row.Gender || row["מגדר"] || "Women",

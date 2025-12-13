@@ -1,14 +1,72 @@
 import { supabase } from "./supabase";
 import type { Product, Category } from "./types";
 
-const categoryMap: Record<string, Category> = {
+// Mapping des sous-catégories vers les catégories principales
+const subcategoryToCategory: Record<string, Category> = {
+  // Catégorie תיק (sacs)
   "תיק": "תיק",
+  "תיק צד": "תיק",
+  "תיק נשיאה": "תיק",
+  "תיק גב": "תיק",
+  "תיק נסיעות": "תיק",
+  "תיק ערב": "תיק",
+  "ארנקים": "תיק",
+  "מזוודות": "תיק",
+  "מחזיק מפתחות": "תיק",
+  
+  // Catégorie נעל (chaussures)
   "נעל": "נעל",
-  "ביגוד": "ביגוד"
+  "נעליים שטוחו": "נעל",
+  "נעלי עקב": "נעל",
+  "סניקרס": "נעל",
+  "כפכפים": "נעל",
+  "סנדלים": "נעל",
+  "מגפיים": "נעל",
+  
+  // Catégorie ביגוד (vêtements)
+  "ביגוד": "ביגוד",
+  "טישירט": "ביגוד",
+  "סווטשירט": "ביגוד",
+  "חולצות": "ביגוד",
+  "טופים": "ביגוד",
+  "ג'קטים ומעיל": "ביגוד",
+  "ג'ינסים": "ביגוד",
+  "מכנסיים": "ביגוד",
+  "מכנסי טרנינג": "ביגוד",
+  "חצאיות": "ביגוד",
+  "שמלות ואוברו": "ביגוד",
+  "צעיפים": "ביגוד",
+  "כובעים": "ביגוד",
+  "סט new born": "ביגוד",
+  "סט new born": "ביגוד", // Variante avec majuscules
 };
 
 function normalizeCategory(cat: string): Category {
-  return categoryMap[cat] || "תיק";
+  if (!cat) return "תיק";
+  
+  const normalized = cat.trim();
+  
+  // Vérifier d'abord le mapping direct
+  if (subcategoryToCategory[normalized]) {
+    return subcategoryToCategory[normalized];
+  }
+  
+  // Vérifier si ça commence par une catégorie principale
+  if (normalized.startsWith("תיק")) return "תיק";
+  if (normalized.startsWith("נעל")) return "נעל";
+  if (normalized.startsWith("ביגוד")) return "ביגוד";
+  
+  // Vérifier les mots-clés spécifiques
+  const lower = normalized.toLowerCase();
+  if (lower.includes("ארנק") || lower.includes("מזווד") || lower.includes("מחזיק מפתחות")) return "תיק";
+  if (lower.includes("סניקר") || lower.includes("כפכף") || lower.includes("סנדל") || lower.includes("מגפ")) return "נעל";
+  if (lower.includes("טישירט") || lower.includes("סווטשירט") || lower.includes("חולצ") || 
+      lower.includes("ג'קט") || lower.includes("ג'ינס") || lower.includes("מכנס") || 
+      lower.includes("חצאית") || lower.includes("שמלה") || lower.includes("צעיף") || 
+      lower.includes("כובע") || lower.includes("new born")) return "ביגוד";
+  
+  // Par défaut
+  return "תיק";
 }
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -74,3 +132,4 @@ export async function fetchProducts(): Promise<Product[]> {
     size: String(p.size ?? "")
   }));
 }
+
