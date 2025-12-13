@@ -175,12 +175,16 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       }
     }
 
-    // Try common sheet names if we don't have specific ones
-    if (sheetNames.length === 0 || (sheetNames.length === 1 && sheetNames[0] === "Sheet1")) {
-      // Try common names
-      const commonNames = ["Sheet1", "Sheet2", "Sheet3", "ביגוד", "תיקים", "נעליים", "גיליון1", "גיליון2"];
-      sheetNames = [...new Set([...sheetNames, ...commonNames])];
+    // Only try common sheet names if no sheets were specified at all
+    // DO NOT auto-add sheets if user specified even one sheet name
+    if (sheetNames.length === 0) {
+      // Only if completely empty, try the default Sheet1
+      sheetNames = ["Sheet1"];
+      console.log("[fetchGoogleSheet] No sheet names specified, using default: Sheet1");
     }
+    
+    // Remove duplicates from sheet names list
+    sheetNames = [...new Set(sheetNames)];
 
     console.log(`[fetchGoogleSheet] Reading sheets: ${sheetNames.join(", ")}`);
 
