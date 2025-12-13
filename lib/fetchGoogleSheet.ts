@@ -64,10 +64,9 @@ async function fetchSheetAsCSV(sheetName: string): Promise<string | null> {
   const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   
   try {
-    const response = await fetch(csvUrl, {
-      next: { revalidate: 0 }, // Always fetch fresh data
-      cache: 'no-store', // Don't cache on server
-    });
+          const response = await fetch(csvUrl, {
+            cache: 'no-store', // Don't cache on server
+          });
 
     if (!response.ok) {
       if (response.status === 404) {

@@ -127,23 +127,50 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Exact match
   if (imgColorUpper === prodColorUpper) return true;
   
-  // Image color starts with product color or vice versa
-  if (prodColorUpper.startsWith(imgColorUpper) || imgColorUpper.startsWith(prodColorUpper)) return true;
+  // Normalize: remove extra spaces and special chars for comparison
+  const imgNormalized = imgColorUpper.replace(/[^A-Z0-9]/g, "");
+  const prodNormalized = prodColorUpper.replace(/[^A-Z0-9]/g, "");
   
-  // Check if image color is an abbreviation
+  if (imgNormalized === prodNormalized) return true;
+  
+  // Image color starts with product color or vice versa (at least 3 chars)
+  if (imgColorUpper.length >= 3 && prodColorUpper.startsWith(imgColorUpper)) return true;
+  if (prodColorUpper.length >= 3 && imgColorUpper.startsWith(prodColorUpper)) return true;
+  
+  // Check if image color is an abbreviation in COLOR_MAP
   const mappedColors = COLOR_MAP[imgColorUpper] || [];
-  if (mappedColors.some(mapped => prodColorUpper.includes(mapped) || mapped.includes(prodColorUpper))) return true;
+  for (const mapped of mappedColors) {
+    if (prodColorUpper.includes(mapped) || mapped.includes(prodColorUpper)) return true;
+    // Also check normalized versions
+    const mappedNormalized = mapped.replace(/[^A-Z0-9]/g, "");
+    if (prodNormalized.includes(mappedNormalized) || mappedNormalized.includes(prodNormalized)) return true;
+  }
+  
+  // Try reverse: product color might be abbreviation
+  const reverseMapped = COLOR_MAP[prodColorUpper] || [];
+  for (const mapped of reverseMapped) {
+    if (imgColorUpper.includes(mapped) || mapped.includes(imgColorUpper)) return true;
+    const mappedNormalized = mapped.replace(/[^A-Z0-9]/g, "");
+    if (imgNormalized.includes(mappedNormalized) || mappedNormalized.includes(imgNormalized)) return true;
+  }
   
   // Partial match: if any word in product color matches
-  const prodWords = prodColorUpper.split(/[\s\/\-]+/);
-  const imgWords = imgColorUpper.split(/[\s\/\-]+/);
+  const prodWords = prodColorUpper.split(/[\s\/\-]+/).filter(w => w.length >= 2);
+  const imgWords = imgColorUpper.split(/[\s\/\-]+/).filter(w => w.length >= 2);
   
   for (const imgWord of imgWords) {
     for (const prodWord of prodWords) {
-      if (imgWord.length >= 3 && (prodWord.startsWith(imgWord) || imgWord.startsWith(prodWord.substring(0, 3)))) {
-        return true;
-      }
+      // Match if one starts with the other (at least 3 chars) or exact match
+      if (imgWord.length >= 3 && prodWord.startsWith(imgWord)) return true;
+      if (prodWord.length >= 3 && imgWord.startsWith(prodWord)) return true;
+      if (imgWord === prodWord) return true;
     }
+  }
+  
+  // Last resort: check if first 3-4 chars match
+  if (imgNormalized.length >= 3 && prodNormalized.length >= 3) {
+    if (imgNormalized.substring(0, 4) === prodNormalized.substring(0, 4)) return true;
+    if (imgNormalized.substring(0, 3) === prodNormalized.substring(0, 3)) return true;
   }
   
   return false;
@@ -281,11 +308,24 @@ export async function fetchProducts(): Promise<Product[]> {
       imageMap = await fetchAllImagesFromSupabaseStorage();
     }
     
+    // Build index for faster lookup: modelRef -> array of {color, images}
+    const modelRefIndex = new Map<string, Array<{ color: string; images: { imageUrl: string; gallery: string[] } }>>();
+    for (const [imgKey, imgData] of imageMap.entries()) {
+      const [imgModelRef, imgColor] = imgKey.split("|");
+      if (!modelRefIndex.has(imgModelRef)) {
+        modelRefIndex.set(imgModelRef, []);
+      }
+      modelRefIndex.get(imgModelRef)!.push({ color: imgColor, images: imgData });
+    }
+    
+    console.log(`[fetchProducts] Built index: ${modelRefIndex.size} unique modelRefs with images`);
+    
     // Combine products with images (intelligent matching)
     let matchedCount = 0;
     let exactMatches = 0;
     let colorMatches = 0;
     let modelOnlyMatches = 0;
+    let noMatches = 0;
     
     const products: Product[] = productsWithData.map((productData) => {
       const productModelRef = productData.modelRef.toUpperCase().trim();
@@ -299,34 +339,33 @@ export async function fetchProducts(): Promise<Product[]> {
         exactMatches++;
         matchedCount++;
       } else {
-        // If no exact match, try to find by modelRef + color matching
-        for (const [imgKey, imgData] of imageMap.entries()) {
-          const [imgModelRef, imgColor] = imgKey.split("|");
-          
-          // Match modelRef exactly
-          if (imgModelRef === productModelRef) {
-            // Try intelligent color matching
-            if (matchesColor(imgColor, productColor)) {
-              images = imgData;
+        // Look up by modelRef in index
+        const modelRefImages = modelRefIndex.get(productModelRef);
+        
+        if (modelRefImages && modelRefImages.length > 0) {
+          // Try to match by color intelligently
+          let foundMatch = false;
+          for (const item of modelRefImages) {
+            if (matchesColor(item.color, productColor)) {
+              images = item.images;
               colorMatches++;
               matchedCount++;
+              foundMatch = true;
               break;
             }
+          }
+          
+          // If no color match, use first image for this modelRef
+          if (!foundMatch && modelRefImages.length > 0) {
+            images = modelRefImages[0].images;
+            modelOnlyMatches++;
+            matchedCount++;
           }
         }
       }
       
-      // If still no match, try modelRef only (last resort)
       if (!images) {
-        for (const [imgKey, imgData] of imageMap.entries()) {
-          const [imgModelRef] = imgKey.split("|");
-          if (imgModelRef === productModelRef) {
-            images = imgData;
-            modelOnlyMatches++;
-            matchedCount++;
-            break; // Take first match by modelRef
-          }
-        }
+        noMatches++;
       }
       
       return {
@@ -341,7 +380,8 @@ export async function fetchProducts(): Promise<Product[]> {
     console.log(`  - Exact matches: ${exactMatches}`);
     console.log(`  - Color-matched: ${colorMatches}`);
     console.log(`  - ModelRef-only: ${modelOnlyMatches}`);
-    console.log(`  - Total matched: ${matchedCount}/${products.length} products`);
+    console.log(`  - No matches: ${noMatches}`);
+    console.log(`  - Total matched: ${matchedCount}/${products.length} products (${((matchedCount/products.length)*100).toFixed(1)}%)`);
 
     console.log(`[fetchProducts] Successfully combined ${products.length} products`);
     
