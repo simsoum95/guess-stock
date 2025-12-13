@@ -164,7 +164,7 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
 
-  // Build images array: prioritize image ending with "-PZ" before extension, then others
+  // Build images array: prioritize image ending with "PZ", then others (limit to 6 for speed)
   const allImages = useMemo(() => {
     const all = [product.imageUrl, ...(product.gallery || [])].filter(
       (img) => img && !img.includes("default")
@@ -173,21 +173,21 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
     // Remove duplicates
     const unique = Array.from(new Set(all));
     
-    // Sort: images with filename ending in "PZ" (before extension) come first
+    // Helper function to check if URL contains "PZ" in filename (before extension or at end)
+    const hasPZ = (url: string) => {
+      try {
+        const urlLower = url.toLowerCase();
+        // Check for "pz" followed by "-" or "." or at end of string (common pattern: MODEL-COLOR-PZ.jpg)
+        return /[_-]pz([._-]|$)/.test(urlLower) || urlLower.includes('-pz.') || urlLower.includes('_pz.');
+      } catch {
+        return false;
+      }
+    };
+    
+    // Sort: images with "PZ" first (case insensitive), then others
     const sorted = unique.sort((a, b) => {
-      // Extract filename without extension and path
-      const getFileBase = (url: string) => {
-        const fileName = url.split('/').pop() || '';
-        return fileName.replace(/\.[^.]+$/, '').toUpperCase();
-      };
-      
-      const aBase = getFileBase(a);
-      const bBase = getFileBase(b);
-      
-      // Check if filename ends with PZ, -PZ, or _PZ
-      const aIsPZ = aBase.endsWith('PZ') || aBase.endsWith('-PZ') || aBase.endsWith('_PZ');
-      const bIsPZ = bBase.endsWith('PZ') || bBase.endsWith('-PZ') || bBase.endsWith('_PZ');
-      
+      const aIsPZ = hasPZ(a);
+      const bIsPZ = hasPZ(b);
       if (aIsPZ && !bIsPZ) return -1;
       if (!aIsPZ && bIsPZ) return 1;
       return 0;

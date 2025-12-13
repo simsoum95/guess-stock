@@ -10,7 +10,7 @@ async function getProducts() {
   const supabase = createServerClient();
   const { data } = await supabase
     .from("products")
-    .select("id, modelRef, productName, brand, color, subcategory, collection, priceWholesale, priceRetail, stockQuantity, imageUrl")
+    .select("modelRef, productName, brand, color, subcategory, priceWholesale, priceRetail, stockQuantity, imageUrl")
     .order("modelRef");
   return data || [];
 }
@@ -41,4 +41,3 @@ export default async function AdminProductsPage() {
     </div>
   );
 }
-
