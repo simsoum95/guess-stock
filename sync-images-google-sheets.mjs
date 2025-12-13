@@ -12,7 +12,121 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { fetchProductsFromGoogleSheet, mapSheetRowToProduct } from "./lib/fetchGoogleSheet.ts";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Import fetch functions (inline version for script)
+async function fetchProductsFromGoogleSheet() {
+  const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+  const GOOGLE_SHEET_NAME = process.env.GOOGLE_SHEET_NAME || "Sheet1";
+  
+  if (!GOOGLE_SHEET_ID) {
+    throw new Error("GOOGLE_SHEET_ID not set");
+  }
+
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(GOOGLE_SHEET_NAME)}`;
+  const response = await fetch(csvUrl);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Google Sheet: ${response.status}`);
+  }
+
+  const csvText = await response.text();
+  const lines = csvText.split("\n").filter(l => l.trim());
+  if (lines.length === 0) return [];
+
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = values[idx] || "";
+    });
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, ""));
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ""));
+  return result;
+}
+
+function mapSheetRowToProduct(row, index) {
+  const getValue = (keys) => {
+    for (const key of keys) {
+      const value = row[key] || row[key.toLowerCase()] || row[key.toUpperCase()];
+      if (value !== undefined && value !== null && value !== "") {
+        return String(value).trim();
+      }
+    }
+    return "";
+  };
+
+  const getNumber = (keys) => {
+    const value = getValue(keys);
+    if (!value) return 0;
+    const cleaned = value.replace(/₪/g, "").replace(/\s+/g, "").replace(/,/g, ".");
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const modelRef = getValue(["קוד גם", "קוד דגם", "modelRef"]);
+  const color = getValue(["צבע", "color"]);
+  const subcategory = getValue(["תת משפחה", "subcategory"]);
+  
+  let category = "ביגוד";
+  const subLower = subcategory.toLowerCase();
+  if (subLower.includes("כפכפים") || subLower.includes("נעל")) {
+    category = "נעל";
+  } else if (subLower.includes("תיק")) {
+    category = "תיק";
+  }
+
+  return {
+    id: `${modelRef}-${color}-${index}`,
+    collection: getValue(["קולקציה", "collection"]),
+    category: category,
+    subcategory: subcategory,
+    brand: getValue(["מותג", "brand"]),
+    modelRef: modelRef,
+    gender: getValue(["מגדר", "gender"]),
+    supplier: getValue(["ספק", "supplier"]),
+    color: color,
+    priceRetail: getNumber(["מחיר כולל מע\"מ בסיס", "priceRetail"]),
+    priceWholesale: getNumber(["סיטונאי", "priceWholesale"]),
+    stockQuantity: getNumber(["כמות מלאי נוכחי", "stockQuantity"]),
+    productName: getValue(["שם מוצר", "productName"]) || modelRef,
+    size: getValue(["מידה", "size"]),
+  };
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
