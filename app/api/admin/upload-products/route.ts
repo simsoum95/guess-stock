@@ -211,8 +211,9 @@ export async function POST(request: NextRequest) {
       const rowNum = i + 2;
 
       // Extraire id, modelRef et color (essayer plusieurs variantes de noms de colonnes)
-      const id = row.id || row.ID || row.Id || row.ID || row["מזהה"] || row["מק\"ט מלא"] || row["מק״ט מלא"];
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row["מק״ט"] || row["מק\"ט"] || row["model"] || row["Model"];
+      // Support hébreu complet
+      const id = row.id || row.ID || row.Id || row["מזהה"] || row["מק\"ט מלא"] || row["מק״ט מלא"] || row["מזהה מלא"];
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row["מק״ט"] || row["מק\"ט"] || row["קוד גם"] || row["קוד"] || row["model"] || row["Model"];
       const color = row.color || row.Color || row.COLOR || row["צבע"] || row["colour"];
 
       if (!modelRef || !color) {
@@ -276,15 +277,24 @@ export async function POST(request: NextRequest) {
           id: uniqueId,
           modelRef: modelRef,
           color: color,
-          brand: row.brand || row.Brand || "GUESS",
-          subcategory: row.subcategory || row.category || row.Category || "תיק",
-          category: row.subcategory || row.category || row.Category || "תיק",
-          collection: row.collection || row.Collection || "",
-          supplier: row.supplier || row.Supplier || "",
-          gender: row.gender || row.Gender || "Women",
-          priceRetail: parseNumberIntelligent(row.priceRetail || 0, true),
-          priceWholesale: parseNumberIntelligent(row.priceWholesale || 0, true),
-          stockQuantity: parseNumberIntelligent(row.stockQuantity || row.stock || 0, false),
+          brand: row.brand || row.Brand || row["מותג"] || "GUESS",
+          subcategory: row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק",
+          category: row.subcategory || row.category || row.Category || row["תת משפחה"] || row["תת-משפחה"] || row["קטגוריה"] || "תיק",
+          collection: row.collection || row.Collection || row["קולקציה"] || "",
+          supplier: row.supplier || row.Supplier || row["ספק"] || "",
+          gender: row.gender || row.Gender || row["מגדר"] || "Women",
+          priceRetail: parseNumberIntelligent(
+            row.priceRetail || row["מחיר כולל מע\"מ בסיס"] || row["מחיר כולל מע״מ בסיס"] || row["מחיר קמעונאי"] || row["מחיר"] || 0, 
+            true
+          ),
+          priceWholesale: parseNumberIntelligent(
+            row.priceWholesale || row["סיטונאי"] || row["מחיר סיטונאי"] || 0, 
+            true
+          ),
+          stockQuantity: parseNumberIntelligent(
+            row.stockQuantity || row.stock || row["כמות מלאי נוכחי"] || row["מלאי"] || row["כמות"] || 0, 
+            false
+          ),
           imageUrl: row.imageUrl || "/images/default.png",
           gallery: [],
           productName: row.productName || modelRef,
@@ -310,7 +320,8 @@ export async function POST(request: NextRequest) {
       const rowChanges: Change[] = [];
 
       // stockQuantity - Parsing intelligent qui gère points ET virgules (Excel + Google Sheets)
-      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
+      // Support hébreu : כמות מלאי נוכחי, מלאי, כמות
+      const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock ?? row["כמות מלאי נוכחי"] ?? row["מלאי"] ?? row["כמות"];
       if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
         // Parsing intelligent : gère les points ET les virgules comme séparateurs décimaux
         const newVal = parseNumberIntelligent(stockRaw);
@@ -338,11 +349,13 @@ export async function POST(request: NextRequest) {
       }
 
       // priceRetail - Parsing intelligent (points ET virgules)
-      if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
-        const newVal = parseNumberIntelligent(row.priceRetail, true);
+      // Support hébreu : מחיר כולל מע"מ בסיס, מחיר קמעונאי, מחיר
+      const priceRetailRaw = row.priceRetail ?? row.PriceRetail ?? row["מחיר כולל מע\"מ בסיס"] ?? row["מחיר כולל מע״מ בסיס"] ?? row["מחיר קמעונאי"] ?? row["מחיר"];
+      if (priceRetailRaw !== undefined && priceRetailRaw !== null && priceRetailRaw !== "") {
+        const newVal = parseNumberIntelligent(priceRetailRaw, true);
         
         if (isNaN(newVal) || !isFinite(newVal)) {
-          errors.push({ row: rowNum, message: `Prix retail invalide: "${row.priceRetail}"` });
+          errors.push({ row: rowNum, message: `Prix retail invalide: "${priceRetailRaw}"` });
         } else if (newVal < 0) {
           errors.push({ row: rowNum, message: `Prix retail négatif: ${newVal}` });
         } else if (newVal > 100000) {
@@ -357,11 +370,13 @@ export async function POST(request: NextRequest) {
       }
 
       // priceWholesale - Parsing intelligent (points ET virgules)
-      if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
-        const newVal = parseNumberIntelligent(row.priceWholesale, true);
+      // Support hébreu : סיטונאי, מחיר סיטונאי
+      const priceWholesaleRaw = row.priceWholesale ?? row.PriceWholesale ?? row["סיטונאי"] ?? row["מחיר סיטונאי"];
+      if (priceWholesaleRaw !== undefined && priceWholesaleRaw !== null && priceWholesaleRaw !== "") {
+        const newVal = parseNumberIntelligent(priceWholesaleRaw, true);
         
         if (isNaN(newVal) || !isFinite(newVal)) {
-          errors.push({ row: rowNum, message: `Prix wholesale invalide: "${row.priceWholesale}"` });
+          errors.push({ row: rowNum, message: `Prix wholesale invalide: "${priceWholesaleRaw}"` });
         } else if (newVal < 0) {
           errors.push({ row: rowNum, message: `Prix wholesale négatif: ${newVal}` });
         } else if (newVal > 100000) {
