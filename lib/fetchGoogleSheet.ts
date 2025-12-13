@@ -259,14 +259,14 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     
     for (const sheetName of sheetNames) {
       try {
-        const csvText = await fetchSheetAsCSV(sheetName);
-        if (!csvText) {
+        // Use new API method that gets ALL rows (no 150 row limit)
+        const rows = await fetchSheetData(sheetName);
+        if (!rows || rows.length === 0) {
           console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found or empty, skipping...`);
           continue;
         }
 
-        const rows = parseCSV(csvText);
-        console.log(`[fetchGoogleSheet] Parsed ${rows.length} total rows from CSV for sheet "${sheetName}"`);
+        console.log(`[fetchGoogleSheet] Got ${rows.length} total rows from sheet "${sheetName}"`);
         
         if (rows.length > 0) {
           // Filter out header row and completely empty rows
