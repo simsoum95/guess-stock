@@ -27,8 +27,14 @@ export default async function ProductsPage() {
             <p>אפשרויות לפתרון:</p>
             <ul className="list-disc list-inside space-y-1 mr-4">
               <li>ודא שהגיליון האלקטרוני (Google Sheet) פומבי: <strong>Share → "Anyone with the link" → "Viewer"</strong></li>
-              <li>ודא שהמשתנה GOOGLE_SHEET_ID מוגדר ב-.env.local</li>
+              <li>
+                <strong>En production (Vercel):</strong> ודא שהמשתנה GOOGLE_SHEET_ID מוגדר ב-Vercel Settings → Environment Variables
+              </li>
+              <li>
+                <strong>En local:</strong> ודא שהמשתנה GOOGLE_SHEET_ID מוגדר ב-.env.local
+              </li>
               <li>נסה לרענן את העמוד</li>
+              <li>בדוק את ה-logs של Vercel pour plus de détails</li>
             </ul>
           </div>
         </div>

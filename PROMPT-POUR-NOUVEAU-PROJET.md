@@ -138,3 +138,4 @@ Créez un nouveau projet Next.js avec TypeScript et Tailwind CSS, puis configure
 
 **IMPORTANT** : Commencez par créer la structure de base, puis on implémentera chaque fonctionnalité une par une en testant à chaque étape.
 
+

@@ -128,9 +128,23 @@ export default function ProductsClient({ products }: { products: Product[] }) {
         {/* Empty State */}
         {filtered.length === 0 && (
           <div className="py-40 text-center">
-            <p className="text-sm font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.05em" }}>
-              לא נמצאו מוצרים התואמים לחיפוש
-            </p>
+            {products.length === 0 ? (
+              <>
+                <p className="text-lg font-medium text-luxury-noir mb-2">
+                  לא נמצאו מוצרים
+                </p>
+                <p className="text-sm font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.05em" }}>
+                  ייתכן שהגיליון האלקטרוני ריק או שאין גישה אליו.
+                </p>
+                <p className="text-xs text-luxury-grey mt-4">
+                  בדוק את המשתנים הסביבה ב-Vercel Settings
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.05em" }}>
+                לא נמצאו מוצרים התואמים לחיפוש או לפילטרים
+              </p>
+            )}
           </div>
         )}
       </section>

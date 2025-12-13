@@ -308,12 +308,25 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
 
 export async function fetchProducts(): Promise<Product[]> {
   try {
+    // Check environment variable first
+    if (!process.env.GOOGLE_SHEET_ID) {
+      const errorMsg = "GOOGLE_SHEET_ID environment variable is not set. Please configure it in Vercel Settings → Environment Variables.";
+      console.error("[fetchProducts] FATAL:", errorMsg);
+      throw new Error(errorMsg);
+    }
+
     // Step 1: Fetch products from Google Sheets
     console.log("[fetchProducts] Fetching products from Google Sheets...");
+    if (process.env.GOOGLE_SHEET_ID) {
+      console.log(`[fetchProducts] GOOGLE_SHEET_ID: ${process.env.GOOGLE_SHEET_ID.substring(0, 10)}...`);
+    }
     const sheetRows = await fetchProductsFromGoogleSheet();
     
     if (sheetRows.length === 0) {
-      console.warn("[fetchProducts] Google Sheet returned no products");
+      console.warn("[fetchProducts] Google Sheet returned no products - this might be due to:");
+      console.warn("  1. Sheet is empty or has no data rows");
+      console.warn("  2. Sheet is not public (needs 'Anyone with the link' → 'Viewer' permission)");
+      console.warn("  3. Sheet name doesn't match any of the expected names");
       return [];
     }
 

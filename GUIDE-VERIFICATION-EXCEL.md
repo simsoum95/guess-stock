@@ -86,3 +86,4 @@ Si le problème persiste après avoir vérifié tout ce qui précède :
 2. Regardez les erreurs affichées après l'upload
 3. Vérifiez qu'il n'y a pas de produits dupliqués dans votre fichier Excel
 
+
