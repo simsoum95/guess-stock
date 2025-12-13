@@ -53,7 +53,7 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
 
     if (error) {
       // If folder doesn't exist, that's okay - just skip it
-      if (error.message?.includes("not found") || error.statusCode === "404") {
+      if (error.message?.includes("not found") || error.message?.includes("404")) {
         return allFiles;
       }
       console.warn(`[fetchProducts] Error listing ${folder || "root"}:`, error.message);
