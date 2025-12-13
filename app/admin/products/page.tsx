@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { fetchProducts } from "@/lib/fetchProducts";
 import { ProductsTable } from "@/components/admin/ProductsTable";
 import Link from "next/link";
 
@@ -7,12 +7,24 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function getProducts() {
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from("products")
-    .select("modelRef, productName, brand, color, subcategory, priceWholesale, priceRetail, stockQuantity, imageUrl")
-    .order("modelRef");
-  return data || [];
+  try {
+    const products = await fetchProducts();
+    // Convert to format expected by ProductsTable
+    return products.map(p => ({
+      modelRef: p.modelRef,
+      productName: p.productName || p.modelRef,
+      brand: p.brand,
+      color: p.color,
+      subcategory: p.subcategory,
+      priceWholesale: p.priceWholesale,
+      priceRetail: p.priceRetail,
+      stockQuantity: p.stockQuantity,
+      imageUrl: p.imageUrl,
+    }));
+  } catch (error) {
+    console.error("[AdminProductsPage] Error fetching products:", error);
+    return [];
+  }
 }
 
 export default async function AdminProductsPage() {

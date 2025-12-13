@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { fetchProducts } from "@/lib/fetchProducts";
 import { ProductForm } from "@/components/admin/ProductForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,16 +13,30 @@ interface PageProps {
 }
 
 async function getProduct(modelRef: string, color: string) {
-  const supabase = createServerClient();
+  const products = await fetchProducts();
+  const product = products.find(
+    p => p.modelRef === decodeURIComponent(modelRef) && 
+         p.color === decodeURIComponent(color)
+  );
   
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("modelRef", decodeURIComponent(modelRef))
-    .eq("color", decodeURIComponent(color))
-    .single();
+  if (!product) return null;
 
-  return data;
+  // Convert to format expected by ProductForm
+  return {
+    modelRef: product.modelRef,
+    productName: product.productName,
+    brand: product.brand,
+    color: product.color,
+    subcategory: product.subcategory,
+    collection: product.collection,
+    supplier: product.supplier,
+    gender: product.gender,
+    priceRetail: product.priceRetail,
+    priceWholesale: product.priceWholesale,
+    stockQuantity: product.stockQuantity,
+    imageUrl: product.imageUrl,
+    gallery: product.gallery || [],
+  };
 }
 
 export default async function EditProductPage({ params, searchParams }: PageProps) {

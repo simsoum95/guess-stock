@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase-server";
+import { fetchProducts } from "@/lib/fetchProducts";
 import Link from "next/link";
 
 // Always fetch fresh data
@@ -6,28 +6,27 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function getStats() {
-  const supabase = createServerClient();
-  
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("stockQuantity, priceWholesale, imageUrl, subcategory");
+  try {
+    const products = await fetchProducts();
 
-  if (error || !products) return null;
+    const total = products.length;
+    const inStock = products.filter(p => p.stockQuantity > 0).length;
+    const outOfStock = products.filter(p => p.stockQuantity === 0).length;
+    const lowStock = products.filter(p => p.stockQuantity > 0 && p.stockQuantity < 5).length;
+    const withImages = products.filter(p => p.imageUrl && !p.imageUrl.includes("default")).length;
+    const totalValue = products.reduce((sum, p) => sum + (p.priceWholesale * p.stockQuantity), 0);
+    
+    const byCategory: Record<string, number> = {};
+    products.forEach(p => {
+      const cat = p.subcategory || "אחר";
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+    });
 
-  const total = products.length;
-  const inStock = products.filter(p => p.stockQuantity > 0).length;
-  const outOfStock = products.filter(p => p.stockQuantity === 0).length;
-  const lowStock = products.filter(p => p.stockQuantity > 0 && p.stockQuantity < 5).length;
-  const withImages = products.filter(p => p.imageUrl && !p.imageUrl.includes("default")).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.priceWholesale * p.stockQuantity), 0);
-  
-  const byCategory: Record<string, number> = {};
-  products.forEach(p => {
-    const cat = p.subcategory || "אחר";
-    byCategory[cat] = (byCategory[cat] || 0) + 1;
-  });
-
-  return { total, inStock, outOfStock, lowStock, withImages, totalValue, byCategory };
+    return { total, inStock, outOfStock, lowStock, withImages, totalValue, byCategory };
+  } catch (error) {
+    console.error("[AdminDashboard] Error fetching stats:", error);
+    return null;
+  }
 }
 
 export default async function AdminDashboard() {
