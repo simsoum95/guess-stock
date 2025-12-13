@@ -271,22 +271,22 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       
-      // Skip rows that are completely empty (no modelRef, no itemCode)
-      if (!modelRef && !itemCode) {
-        skippedRows.push({ index: index + 1, reason: "No modelRef or itemCode", row: { modelRef, color, itemCode } });
+      // Skip rows that are completely empty (no modelRef)
+      // NOTE: "קוד פריט" doesn't exist in your Google Sheet, so we only check modelRef
+      if (!modelRef) {
+        skippedRows.push({ index: index + 1, reason: "No modelRef", row: { modelRef, color } });
         return;
       }
       
-      // Create key: use itemCode first (most unique), then row index as fallback
-      // Since קוד פריט should be unique per product, use it directly as the key
+      // CRITICAL: Always include row index in key to ensure ALL rows are kept as unique products
+      // Even if two rows have same modelRef+color, they are different products (different rows)
+      // Your Google Sheet doesn't have "קוד פריט", so each row = one unique product
       let key: string;
       if (itemCode) {
-        // Use itemCode directly as key - it should be unique per product variant
-        // Example: "BG1001-BL" should be unique
-        key = itemCode.toUpperCase().trim();
+        // If itemCode exists (unlikely), use it but still add row index for safety
+        key = `${itemCode}|ROW${index}`.toUpperCase().trim();
       } else if (modelRef && color) {
-        // Fallback: use modelRef + color + row index to ensure uniqueness
-        // This prevents removing products that legitimately have same modelRef+color
+        // Use modelRef + color + row index - ALWAYS include row index to keep all products
         if (size) {
           key = `${modelRef}|${color}|${size}|ROW${index}`.toUpperCase();
         } else {
