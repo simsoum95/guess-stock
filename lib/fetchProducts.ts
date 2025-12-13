@@ -14,68 +14,94 @@ function normalizeCategory(cat: string): Category {
 
 /**
  * Fetch images from Supabase Storage for a product
+ * Returns default image if product not found in Supabase (which is OK - images are optional)
  */
 async function fetchProductImages(modelRef: string, color: string): Promise<{ imageUrl: string; gallery: string[] }> {
   try {
+    // Use maybeSingle() instead of single() to handle no results gracefully
     const { data, error } = await supabase
       .from("products")
       .select("imageUrl, gallery")
       .eq("modelRef", modelRef)
       .eq("color", color)
-      .single();
+      .maybeSingle(); // Returns null instead of error if no row found
 
+    // If no product found in Supabase or error, return default image
     if (error || !data) {
       return { imageUrl: "/images/default.png", gallery: [] };
     }
 
+    // Return images from Supabase if they exist
     return {
       imageUrl: String(data.imageUrl || "/images/default.png"),
       gallery: Array.isArray(data.gallery) ? (data.gallery as string[]) : [],
     };
   } catch (error) {
-    console.error(`[fetchProducts] Error fetching images for ${modelRef} ${color}:`, error);
+    // Silently return default image if any error occurs
+    // This is expected if Supabase products table is empty
     return { imageUrl: "/images/default.png", gallery: [] };
   }
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  // Step 1: Fetch products from Google Sheets
-  console.log("[fetchProducts] Fetching products from Google Sheets...");
-  const sheetRows = await fetchProductsFromGoogleSheet();
-  
-  if (sheetRows.length === 0) {
-    throw new Error("Google Sheet returned no products.");
-  }
+  try {
+    // Step 1: Fetch products from Google Sheets
+    console.log("[fetchProducts] Fetching products from Google Sheets...");
+    const sheetRows = await fetchProductsFromGoogleSheet();
+    
+    if (sheetRows.length === 0) {
+      console.warn("[fetchProducts] Google Sheet returned no products");
+      return [];
+    }
 
-  console.log(`[fetchProducts] Fetched ${sheetRows.length} products from Google Sheets`);
+    console.log(`[fetchProducts] Fetched ${sheetRows.length} products from Google Sheets`);
 
-  // Step 2: Map sheet rows to product structure
-  const productsWithData = sheetRows.map((row, index) => mapSheetRowToProduct(row, index));
+    // Step 2: Map sheet rows to product structure
+    const productsWithData = sheetRows.map((row, index) => mapSheetRowToProduct(row, index));
 
-  // Step 3: Fetch images from Supabase and combine with product data
-  console.log("[fetchProducts] Fetching images from Supabase...");
-  
-  // Fetch images in batches to avoid too many requests
-  const products: Product[] = [];
-  const batchSize = 10;
-  
-  for (let i = 0; i < productsWithData.length; i += batchSize) {
-    const batch = productsWithData.slice(i, i + batchSize);
-    const imagePromises = batch.map((p) => fetchProductImages(p.modelRef, p.color));
-    const images = await Promise.all(imagePromises);
+    // Step 3: Fetch images from Supabase and combine with product data
+    // Images are optional - if Supabase is empty, products will show default images
+    console.log("[fetchProducts] Fetching images from Supabase (optional)...");
+    
+    // Fetch images in batches to avoid too many requests
+    const products: Product[] = [];
+    const batchSize = 20; // Increased batch size for better performance
+    
+    for (let i = 0; i < productsWithData.length; i += batchSize) {
+      const batch = productsWithData.slice(i, i + batchSize);
+      
+      // Fetch images in parallel, but handle errors gracefully
+      const imagePromises = batch.map((p) => 
+        fetchProductImages(p.modelRef, p.color).catch(() => ({
+          imageUrl: "/images/default.png",
+          gallery: [],
+        }))
+      );
+      
+      const images = await Promise.all(imagePromises);
 
-    batch.forEach((productData, idx) => {
-      const productImages = images[idx];
-      products.push({
-        ...productData,
-        category: normalizeCategory(productData.subcategory || productData.category),
-        imageUrl: productImages.imageUrl,
-        gallery: productImages.gallery,
+      batch.forEach((productData, idx) => {
+        const productImages = images[idx];
+        products.push({
+          ...productData,
+          category: normalizeCategory(productData.subcategory || productData.category),
+          imageUrl: productImages.imageUrl || "/images/default.png",
+          gallery: productImages.gallery || [],
+        });
       });
-    });
-  }
+      
+      // Log progress for large datasets
+      if ((i + batchSize) % 100 === 0 || i + batchSize >= productsWithData.length) {
+        console.log(`[fetchProducts] Processed ${Math.min(i + batchSize, productsWithData.length)}/${productsWithData.length} products...`);
+      }
+    }
 
-  console.log(`[fetchProducts] Combined ${products.length} products with images from Supabase`);
-  
-  return products;
+    console.log(`[fetchProducts] Successfully combined ${products.length} products (images from Supabase if available)`);
+    
+    return products;
+  } catch (error) {
+    console.error("[fetchProducts] Fatal error:", error);
+    // Re-throw with more context
+    throw new Error(`Failed to fetch products: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }

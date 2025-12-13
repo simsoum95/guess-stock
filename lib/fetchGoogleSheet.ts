@@ -16,7 +16,7 @@ const SHEET_NAME = process.env.GOOGLE_SHEET_NAME || "Sheet1"; // Default sheet n
  */
 async function fetchSheetAsCSV(): Promise<string> {
   if (!GOOGLE_SHEET_ID) {
-    throw new Error("GOOGLE_SHEET_ID environment variable is not set");
+    throw new Error("GOOGLE_SHEET_ID environment variable is not set. Please add it to .env.local");
   }
 
   // Method 1: CSV export (works if sheet is public)
@@ -25,14 +25,34 @@ async function fetchSheetAsCSV(): Promise<string> {
   try {
     const response = await fetch(csvUrl, {
       next: { revalidate: 0 }, // Always fetch fresh data
+      cache: 'no-store', // Don't cache on server
     });
 
     if (!response.ok) {
+      if (response.status === 403 || response.status === 404) {
+        throw new Error(
+          `Google Sheet is not accessible (${response.status}). ` +
+          `Please make sure the Sheet is public: Share → "Anyone with the link" → "Viewer"`
+        );
+      }
       throw new Error(`Failed to fetch Google Sheet: ${response.status} ${response.statusText}`);
     }
 
-    return await response.text();
+    const text = await response.text();
+    
+    // Check if response is HTML error page instead of CSV
+    if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
+      throw new Error(
+        `Google Sheet returned HTML instead of CSV. ` +
+        `The Sheet might not be public. Please share it: Share → "Anyone with the link" → "Viewer"`
+      );
+    }
+
+    return text;
   } catch (error) {
+    if (error instanceof Error && error.message.includes('not accessible')) {
+      throw error; // Re-throw our custom error messages
+    }
     throw new Error(`Error fetching Google Sheet: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
