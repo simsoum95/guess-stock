@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { fetchProductsFromGoogleSheet, mapSheetRowToProduct } from "./fetchGoogleSheet";
 import type { Product, Category } from "./types";
 
 const categoryMap: Record<string, Category> = {
@@ -11,66 +12,70 @@ function normalizeCategory(cat: string): Category {
   return categoryMap[cat] || "תיק";
 }
 
-export async function fetchProducts(): Promise<Product[]> {
-  // Fetch ALL products by paginating (Supabase default limit is 1000)
-  const allData: Record<string, unknown>[] = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const from = page * pageSize;
-    const to = from + pageSize - 1;
-    
+/**
+ * Fetch images from Supabase Storage for a product
+ */
+async function fetchProductImages(modelRef: string, color: string): Promise<{ imageUrl: string; gallery: string[] }> {
+  try {
     const { data, error } = await supabase
       .from("products")
-      .select("*")
-      .range(from, to);
+      .select("imageUrl, gallery")
+      .eq("modelRef", modelRef)
+      .eq("color", color)
+      .single();
 
-    if (error) {
-      console.error("[fetchProducts] Supabase error:", error.message);
-      throw new Error(`Supabase fetch failed: ${error.message}`);
+    if (error || !data) {
+      return { imageUrl: "/images/default.png", gallery: [] };
     }
 
-    if (data && data.length > 0) {
-      allData.push(...data);
-      hasMore = data.length === pageSize; // If we got full page, there might be more
-      page++;
-    } else {
-      hasMore = false;
-    }
+    return {
+      imageUrl: String(data.imageUrl || "/images/default.png"),
+      gallery: Array.isArray(data.gallery) ? (data.gallery as string[]) : [],
+    };
+  } catch (error) {
+    console.error(`[fetchProducts] Error fetching images for ${modelRef} ${color}:`, error);
+    return { imageUrl: "/images/default.png", gallery: [] };
   }
+}
 
-  if (allData.length === 0) {
-    throw new Error("Supabase returned no products.");
-  }
-
-  console.log(`[fetchProducts] Fetched ${allData.length} products from Supabase`);
+export async function fetchProducts(): Promise<Product[]> {
+  // Step 1: Fetch products from Google Sheets
+  console.log("[fetchProducts] Fetching products from Google Sheets...");
+  const sheetRows = await fetchProductsFromGoogleSheet();
   
-  const data = allData;
+  if (sheetRows.length === 0) {
+    throw new Error("Google Sheet returned no products.");
+  }
 
-  // Map Supabase data to Product type
-  // Using subcategory as category (contains תיק, נעל, ביגוד)
-  return data.map((p: Record<string, unknown>, index: number) => ({
-    // Use modelRef + color + index as unique ID (original id is "GUESS" for all)
-    id: `${p.modelRef ?? "product"}-${p.color ?? ""}-${index}`,
-    collection: String(p.collection ?? ""),
-    // subcategory contains the category values (תיק, נעל, ביגוד)
-    category: normalizeCategory(String(p.subcategory ?? "")),
-    subcategory: String(p.subcategory ?? ""),
-    brand: String(p.brand ?? ""),
-    modelRef: String(p.modelRef ?? ""),
-    gender: String(p.gender ?? ""),
-    supplier: String(p.supplier ?? ""),
-    color: String(p.color ?? ""),
-    // Use raw numeric values - NO TRANSFORMATION
-    priceRetail: Number(p.priceRetail ?? 0),
-    priceWholesale: Number(p.priceWholesale ?? 0),
-    stockQuantity: Number(p.stockQuantity ?? 0),
-    // Use imageUrl directly from Supabase
-    imageUrl: String(p.imageUrl ?? "/images/default.png"),
-    gallery: Array.isArray(p.gallery) ? (p.gallery as string[]) : [],
-    productName: String(p.productName ?? p.modelRef ?? ""),
-    size: String(p.size ?? "")
-  }));
+  console.log(`[fetchProducts] Fetched ${sheetRows.length} products from Google Sheets`);
+
+  // Step 2: Map sheet rows to product structure
+  const productsWithData = sheetRows.map((row, index) => mapSheetRowToProduct(row, index));
+
+  // Step 3: Fetch images from Supabase and combine with product data
+  console.log("[fetchProducts] Fetching images from Supabase...");
+  
+  // Fetch images in batches to avoid too many requests
+  const products: Product[] = [];
+  const batchSize = 10;
+  
+  for (let i = 0; i < productsWithData.length; i += batchSize) {
+    const batch = productsWithData.slice(i, i + batchSize);
+    const imagePromises = batch.map((p) => fetchProductImages(p.modelRef, p.color));
+    const images = await Promise.all(imagePromises);
+
+    batch.forEach((productData, idx) => {
+      const productImages = images[idx];
+      products.push({
+        ...productData,
+        category: normalizeCategory(productData.subcategory || productData.category),
+        imageUrl: productImages.imageUrl,
+        gallery: productImages.gallery,
+      });
+    });
+  }
+
+  console.log(`[fetchProducts] Combined ${products.length} products with images from Supabase`);
+  
+  return products;
 }
