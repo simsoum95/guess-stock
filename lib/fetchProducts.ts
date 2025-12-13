@@ -43,33 +43,110 @@ function normalizeCategory(cat: string): Category {
  * Recursively list all files in a Storage folder
  */
 async function listStorageRecursive(folder: string = "", allFiles: { path: string; name: string }[] = []): Promise<{ path: string; name: string }[]> {
-  const { data: items, error } = await supabase.storage
-    .from("guess-images")
-    .list(folder, {
-      limit: 1000,
-      sortBy: { column: "name", order: "asc" }
-    });
+  try {
+    const { data: items, error } = await supabase.storage
+      .from("guess-images")
+      .list(folder, {
+        limit: 1000,
+        sortBy: { column: "name", order: "asc" }
+      });
 
-  if (error) {
-    console.warn(`[fetchProducts] Error listing ${folder}:`, error.message);
-    return allFiles;
-  }
-
-  if (!items) return allFiles;
-
-  for (const item of items) {
-    const fullPath = folder ? `${folder}/${item.name}` : item.name;
-    
-    // If it's a folder (no extension or ends with /), recurse
-    if (!item.name.includes(".") || item.id === null) {
-      await listStorageRecursive(fullPath, allFiles);
-    } else {
-      // It's a file
-      allFiles.push({ path: fullPath, name: item.name });
+    if (error) {
+      // If folder doesn't exist, that's okay - just skip it
+      if (error.message?.includes("not found") || error.statusCode === "404") {
+        return allFiles;
+      }
+      console.warn(`[fetchProducts] Error listing ${folder || "root"}:`, error.message);
+      return allFiles;
     }
+
+    if (!items || items.length === 0) return allFiles;
+
+    for (const item of items) {
+      const fullPath = folder ? `${folder}/${item.name}` : item.name;
+      
+      // Check if it's a file (has extension) or folder (no extension, might have metadata)
+      const hasExtension = item.name.includes(".") && !item.name.endsWith("/");
+      const isLikelyFile = hasExtension || item.metadata?.size !== undefined;
+      
+      if (!isLikelyFile) {
+        // It's likely a folder, recurse
+        await listStorageRecursive(fullPath, allFiles);
+      } else {
+        // It's a file - only add image files
+        const ext = item.name.toLowerCase().split(".").pop();
+        if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext || "")) {
+          allFiles.push({ path: fullPath, name: item.name });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`[fetchProducts] Exception listing ${folder || "root"}:`, error);
   }
 
   return allFiles;
+}
+
+/**
+ * Color mapping: abbreviations to full color names
+ */
+const COLOR_MAP: Record<string, string[]> = {
+  "BLA": ["BLACK", "NOIR", "שחור"],
+  "BLK": ["BLACK", "NOIR", "שחור"],
+  "WHI": ["WHITE", "BLANC", "לבן"],
+  "WHT": ["WHITE", "BLANC", "לבן"],
+  "NAD": ["NATURAL", "NATUREL", "טבעי"],
+  "NAT": ["NATURAL", "NATUREL", "טבעי"],
+  "BRO": ["BROWN", "BRUN", "חום"],
+  "TAN": ["TAN", "BEIGE", "בז'"],
+  "RED": ["RED", "ROUGE", "אדום"],
+  "BLU": ["BLUE", "BLEU", "כחול"],
+  "GRE": ["GREEN", "VERT", "ירוק"],
+  "PUR": ["PURPLE", "VIOLET", "סגול"],
+  "PIN": ["PINK", "ROSE", "ורוד"],
+  "YEL": ["YELLOW", "JAUNE", "צהוב"],
+  "GRA": ["GRAY", "GREY", "GRIS", "אפור"],
+  "GRY": ["GRAY", "GREY", "GRIS", "אפור"],
+  "IVO": ["IVORY", "IVOIRE", "שנהב"],
+  "NAV": ["NAVY", "NAVY BLUE", "כחול כהה"],
+  "ORA": ["ORANGE", "ORANGE", "כתום"],
+  "CAM": ["CAMEL", "CHAMEAU", "גמל"],
+  "GOL": ["GOLD", "OR", "זהב"],
+  "SIL": ["SILVER", "ARGENT", "כסף"],
+  "DGR": ["DARK GRAY", "GRIS FONCÉ", "אפור כהה"],
+  "LGR": ["LIGHT GRAY", "GRIS CLAIR", "אפור בהיר"],
+};
+
+/**
+ * Try to match image color abbreviation with product color
+ */
+function matchesColor(imageColor: string, productColor: string): boolean {
+  const imgColorUpper = imageColor.toUpperCase().trim();
+  const prodColorUpper = productColor.toUpperCase().trim();
+  
+  // Exact match
+  if (imgColorUpper === prodColorUpper) return true;
+  
+  // Image color starts with product color or vice versa
+  if (prodColorUpper.startsWith(imgColorUpper) || imgColorUpper.startsWith(prodColorUpper)) return true;
+  
+  // Check if image color is an abbreviation
+  const mappedColors = COLOR_MAP[imgColorUpper] || [];
+  if (mappedColors.some(mapped => prodColorUpper.includes(mapped) || mapped.includes(prodColorUpper))) return true;
+  
+  // Partial match: if any word in product color matches
+  const prodWords = prodColorUpper.split(/[\s\/\-]+/);
+  const imgWords = imgColorUpper.split(/[\s\/\-]+/);
+  
+  for (const imgWord of imgWords) {
+    for (const prodWord of prodWords) {
+      if (imgWord.length >= 3 && (prodWord.startsWith(imgWord) || imgWord.startsWith(prodWord.substring(0, 3)))) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -204,21 +281,67 @@ export async function fetchProducts(): Promise<Product[]> {
       imageMap = await fetchAllImagesFromSupabaseStorage();
     }
     
-    // Combine products with images (fast lookup from map)
+    // Combine products with images (intelligent matching)
+    let matchedCount = 0;
+    let exactMatches = 0;
+    let colorMatches = 0;
+    let modelOnlyMatches = 0;
+    
     const products: Product[] = productsWithData.map((productData) => {
-      const key = `${productData.modelRef}|${productData.color}`.toUpperCase();
-      const images = imageMap.get(key) || {
-        imageUrl: "/images/default.png",
-        gallery: [],
-      };
+      const productModelRef = productData.modelRef.toUpperCase().trim();
+      const productColor = productData.color.toUpperCase().trim();
+      
+      // Try exact match first
+      let key = `${productModelRef}|${productColor}`;
+      let images = imageMap.get(key);
+      
+      if (images) {
+        exactMatches++;
+        matchedCount++;
+      } else {
+        // If no exact match, try to find by modelRef + color matching
+        for (const [imgKey, imgData] of imageMap.entries()) {
+          const [imgModelRef, imgColor] = imgKey.split("|");
+          
+          // Match modelRef exactly
+          if (imgModelRef === productModelRef) {
+            // Try intelligent color matching
+            if (matchesColor(imgColor, productColor)) {
+              images = imgData;
+              colorMatches++;
+              matchedCount++;
+              break;
+            }
+          }
+        }
+      }
+      
+      // If still no match, try modelRef only (last resort)
+      if (!images) {
+        for (const [imgKey, imgData] of imageMap.entries()) {
+          const [imgModelRef] = imgKey.split("|");
+          if (imgModelRef === productModelRef) {
+            images = imgData;
+            modelOnlyMatches++;
+            matchedCount++;
+            break; // Take first match by modelRef
+          }
+        }
+      }
       
       return {
         ...productData,
         category: normalizeCategory(productData.subcategory || productData.category),
-        imageUrl: images.imageUrl,
-        gallery: images.gallery,
+        imageUrl: images?.imageUrl || "/images/default.png",
+        gallery: images?.gallery || [],
       };
     });
+    
+    console.log(`[fetchProducts] Image matching stats:`);
+    console.log(`  - Exact matches: ${exactMatches}`);
+    console.log(`  - Color-matched: ${colorMatches}`);
+    console.log(`  - ModelRef-only: ${modelOnlyMatches}`);
+    console.log(`  - Total matched: ${matchedCount}/${products.length} products`);
 
     console.log(`[fetchProducts] Successfully combined ${products.length} products`);
     
