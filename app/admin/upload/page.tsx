@@ -479,8 +479,9 @@ export default function UploadPage() {
         <h3 className="font-medium text-slate-900 mb-3">פורמט הקובץ</h3>
         <div className="space-y-2 text-sm text-slate-600">
           <p>• עמודות נדרשות: <code className="bg-slate-200 px-1.5 py-0.5 rounded">modelRef</code>, <code className="bg-slate-200 px-1.5 py-0.5 rounded">color</code></p>
+          <p>• עמודה מומלצת: <code className="bg-blue-100 px-1.5 py-0.5 rounded">id</code> - משמש להבדיל בין מוצרים עם אותו modelRef+color</p>
           <p>• עמודות אופציונליות: stockQuantity, priceRetail, priceWholesale, productName...</p>
-          <p>• מוצרים קיימים יעודכנו לפי התאמת modelRef + color</p>
+          <p>• <strong>זיהוי מוצרים:</strong> אם יש עמודת <code className="bg-slate-200 px-1.5 py-0.5 rounded">id</code>, המערכת תשתמש בה (הכי מדויק). אחרת, modelRef + color</p>
           <p>• רק שדות ששונו בפועל יעודכנו</p>
         </div>
       </div>

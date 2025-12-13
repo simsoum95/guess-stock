@@ -98,6 +98,11 @@ export async function POST(request: NextRequest) {
     console.log("[Upload] Colonnes:", columns);
     console.log("[Upload] Total lignes:", rows.length);
     console.log("[Upload] Feuilles:", sheetInfo);
+    
+    // Afficher un exemple de ligne pour debug
+    if (rows.length > 0) {
+      console.log("[Upload] Exemple de ligne (première):", JSON.stringify(rows[0], null, 2));
+    }
 
     // Charger TOUS les produits de Supabase
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
@@ -106,22 +111,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index SIMPLIFIÉ: Utiliser uniquement modelRef + color comme clé unique
-    // C'est plus fiable et évite les problèmes de matching multiple
-    const productByRefColor = new Map<string, any>(); // modelRef + color
+    // Index MULTI-NIVEAU: ID en priorité, puis modelRef + color
+    // Permet de différencier les produits avec même modelRef+color mais IDs différents
+    const productById = new Map<string, any>(); // ID unique (le plus précis)
+    const productByRefColor = new Map<string, any[]>(); // modelRef + color (peut avoir plusieurs produits)
     
     for (const p of products || []) {
-      // Index par modelRef + color (clé unique principale)
-      const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
-      
-      // Si plusieurs produits ont la même clé, garder le premier (ou le plus récent)
-      // En général, il ne devrait y avoir qu'un seul produit par modelRef+color
-      if (!productByRefColor.has(refColorKey)) {
-        productByRefColor.set(refColorKey, p);
+      // Index par ID (le plus précis)
+      if (p.id && p.id !== "GUESS") {
+        productById.set(norm(p.id), p);
       }
+      
+      // Index par modelRef + color (peut avoir plusieurs produits)
+      const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
+      if (!productByRefColor.has(refColorKey)) {
+        productByRefColor.set(refColorKey, []);
+      }
+      productByRefColor.get(refColorKey)!.push(p);
     }
 
-    console.log(`[Upload] ${products?.length} produits en base, ${productByRefColor.size} combinaisons uniques (modelRef+color)`);
+    console.log(`[Upload] ${products?.length} produits en base`);
+    console.log(`[Upload] ${productById.size} produits avec ID unique, ${productByRefColor.size} combinaisons modelRef+color`);
 
     // Résultats
     let updated = 0;
@@ -142,22 +152,57 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire id, modelRef et color
-      const id = row.id || row.ID || row.Id;
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF;
-      const color = row.color || row.Color || row.COLOR;
+      // Extraire id, modelRef et color (essayer plusieurs variantes de noms de colonnes)
+      const id = row.id || row.ID || row.Id || row.ID || row["מזהה"] || row["מק\"ט מלא"] || row["מק״ט מלא"];
+      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row["מק״ט"] || row["מק\"ט"] || row["model"] || row["Model"];
+      const color = row.color || row.Color || row.COLOR || row["צבע"] || row["colour"];
 
       if (!modelRef || !color) {
         errors.push({ row: rowNum, message: "modelRef או color חסר" });
         continue;
       }
 
-      // Chercher le produit UNIQUEMENT par modelRef + color (clé unique)
-      // C'est plus simple et plus fiable
-      const key = `${norm(modelRef)}|${norm(color)}`;
-      const existing = productByRefColor.get(key);
+      // Chercher le produit: PRIORITÉ à l'ID si fourni, sinon modelRef + color
+      let existing = null;
+      let matchedBy = "";
       
-      console.log(`[Row ${rowNum}] modelRef="${modelRef}", color="${color}" → ${existing ? "FOUND" : "NOT FOUND"}`);
+      // 1. Si un ID est fourni, essayer de matcher par ID d'abord (le plus précis)
+      if (id) {
+        existing = productById.get(norm(id));
+        if (existing) {
+          matchedBy = "id";
+          console.log(`[Row ${rowNum}] Matched by ID: "${id}" → ${existing.modelRef} / ${existing.color}`);
+        }
+      }
+      
+      // 2. Si pas de match par ID, chercher par modelRef + color
+      if (!existing) {
+        const key = `${norm(modelRef)}|${norm(color)}`;
+        const candidates = productByRefColor.get(key) || [];
+        
+        if (candidates.length === 1) {
+          // Un seul produit avec ce modelRef+color
+          existing = candidates[0];
+          matchedBy = "modelRef+color (unique)";
+          console.log(`[Row ${rowNum}] Matched by modelRef+color (unique): "${modelRef}" / "${color}"`);
+        } else if (candidates.length > 1) {
+          // Plusieurs produits avec le même modelRef+color
+          // Si un ID était fourni mais pas trouvé, c'est une erreur
+          if (id) {
+            errors.push({ 
+              row: rowNum, 
+              message: `Plusieurs produits avec modelRef="${modelRef}" et color="${color}". ID "${id}" non trouvé. Utilisez l'ID exact.` 
+            });
+            continue;
+          }
+          // Sinon, prendre le premier (ou on pourrait prendre celui avec le stock le plus élevé)
+          existing = candidates[0];
+          matchedBy = `modelRef+color (${candidates.length} produits, pris le premier)`;
+          console.log(`[Row ${rowNum}] ⚠️  Plusieurs produits avec "${modelRef}" / "${color}". Pris le premier (ID: ${existing.id})`);
+        }
+      }
+      
+      console.log(`[Row ${rowNum}] id="${id || 'N/A'}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
 
       // Tracker le produit vu pour syncStock
       if (existing) {
@@ -166,8 +211,10 @@ export async function POST(request: NextRequest) {
 
       if (!existing) {
         // NOUVEAU PRODUIT → L'INSÉRER
-        // Générer un ID unique basé sur modelRef + color + timestamp
+        // Utiliser l'ID fourni dans le fichier, ou générer un ID unique
         const uniqueId = id || `${modelRef}-${color}-${Date.now()}`;
+        
+        console.log(`[Row ${rowNum}] NOUVEAU PRODUIT - ID: "${uniqueId}", modelRef: "${modelRef}", color: "${color}"`);
         
         const newProduct: Record<string, any> = {
           id: uniqueId,
