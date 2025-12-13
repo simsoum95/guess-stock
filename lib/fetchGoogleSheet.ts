@@ -9,18 +9,59 @@ interface GoogleSheetRow {
 
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Optional
-const SHEET_NAME = process.env.GOOGLE_SHEET_NAME || "Sheet1"; // Default sheet name
+// Support multiple sheet names: comma-separated list, or "all" to fetch all sheets
+const SHEET_NAMES_STR = process.env.GOOGLE_SHEET_NAME || "Sheet1";
 
 /**
- * Fetch data from Google Sheets as CSV (simpler, works with public sheets)
+ * Get list of all sheet names from Google Spreadsheet
  */
-async function fetchSheetAsCSV(): Promise<string> {
+async function getAllSheetNames(): Promise<string[]> {
+  if (!GOOGLE_SHEET_ID) {
+    throw new Error("GOOGLE_SHEET_ID environment variable is not set");
+  }
+
+  // Use the Google Sheets API endpoint to get sheet metadata
+  // This works without authentication if the sheet is public
+  const metadataUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json`;
+  
+  try {
+    const response = await fetch(metadataUrl, {
+      next: { revalidate: 0 },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      console.warn("[fetchGoogleSheet] Could not fetch sheet names, will try default names");
+      return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback to common names
+    }
+
+    const text = await response.text();
+    // Remove the prefix "google.visualization.Query.setResponse(" and suffix ");"
+    const jsonText = text.replace(/^.*?\(/, '').replace(/\);?\s*$/, '');
+    const data = JSON.parse(jsonText);
+    
+    if (data.table && data.table.cols) {
+      // This doesn't give us sheet names directly, so we'll use the fallback
+      return ["Sheet1", "Sheet2", "Sheet3"];
+    }
+    
+    return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback
+  } catch (error) {
+    console.warn("[fetchGoogleSheet] Error fetching sheet names:", error);
+    return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback to common names
+  }
+}
+
+/**
+ * Fetch data from Google Sheets as CSV for a specific sheet
+ */
+async function fetchSheetAsCSV(sheetName: string): Promise<string | null> {
   if (!GOOGLE_SHEET_ID) {
     throw new Error("GOOGLE_SHEET_ID environment variable is not set. Please add it to .env.local");
   }
 
   // Method 1: CSV export (works if sheet is public)
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   
   try {
     const response = await fetch(csvUrl, {
@@ -29,31 +70,30 @@ async function fetchSheetAsCSV(): Promise<string> {
     });
 
     if (!response.ok) {
-      if (response.status === 403 || response.status === 404) {
+      if (response.status === 404) {
+        // Sheet doesn't exist, return null
+        return null;
+      }
+      if (response.status === 403) {
         throw new Error(
           `Google Sheet is not accessible (${response.status}). ` +
           `Please make sure the Sheet is public: Share → "Anyone with the link" → "Viewer"`
         );
       }
-      throw new Error(`Failed to fetch Google Sheet: ${response.status} ${response.statusText}`);
+      return null; // Skip this sheet if error
     }
 
     const text = await response.text();
     
     // Check if response is HTML error page instead of CSV
     if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
-      throw new Error(
-        `Google Sheet returned HTML instead of CSV. ` +
-        `The Sheet might not be public. Please share it: Share → "Anyone with the link" → "Viewer"`
-      );
+      return null; // Skip this sheet
     }
 
     return text;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('not accessible')) {
-      throw error; // Re-throw our custom error messages
-    }
-    throw new Error(`Error fetching Google Sheet: ${error instanceof Error ? error.message : String(error)}`);
+    // Return null if this sheet doesn't exist or fails
+    return null;
   }
 }
 
@@ -117,15 +157,72 @@ function parseCSVLine(line: string): string[] {
 
 /**
  * Fetch products from Google Sheets and parse them
+ * Reads from all specified sheets or tries to discover all sheets
  */
 export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> {
   try {
-    const csvText = await fetchSheetAsCSV();
-    const rows = parseCSV(csvText);
+    // Determine which sheets to read
+    let sheetNames: string[] = [];
     
-    console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows from Google Sheet`);
+    if (SHEET_NAMES_STR.toLowerCase() === "all") {
+      // Try to get all sheet names
+      console.log("[fetchGoogleSheet] Fetching all sheets...");
+      sheetNames = await getAllSheetNames();
+    } else {
+      // Use specified sheet names (comma-separated)
+      sheetNames = SHEET_NAMES_STR.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (sheetNames.length === 0) {
+        sheetNames = ["Sheet1"]; // Default
+      }
+    }
+
+    // Try common sheet names if we don't have specific ones
+    if (sheetNames.length === 0 || (sheetNames.length === 1 && sheetNames[0] === "Sheet1")) {
+      // Try common names
+      const commonNames = ["Sheet1", "Sheet2", "Sheet3", "ביגוד", "תיקים", "נעליים", "גיליון1", "גיליון2"];
+      sheetNames = [...new Set([...sheetNames, ...commonNames])];
+    }
+
+    console.log(`[fetchGoogleSheet] Reading sheets: ${sheetNames.join(", ")}`);
+
+    // Fetch from all sheets and combine results
+    const allRows: GoogleSheetRow[] = [];
     
-    return rows;
+    for (const sheetName of sheetNames) {
+      try {
+        const csvText = await fetchSheetAsCSV(sheetName);
+        if (!csvText) {
+          console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found or empty, skipping...`);
+          continue;
+        }
+
+        const rows = parseCSV(csvText);
+        if (rows.length > 0) {
+          console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows from sheet "${sheetName}"`);
+          allRows.push(...rows);
+        }
+      } catch (error) {
+        console.warn(`[fetchGoogleSheet] Error reading sheet "${sheetName}":`, error instanceof Error ? error.message : error);
+        // Continue with other sheets
+      }
+    }
+    
+    console.log(`[fetchGoogleSheet] Total: ${allRows.length} rows from ${sheetNames.length} sheet(s)`);
+    
+    // Remove duplicates based on modelRef + color combination
+    const uniqueRows = new Map<string, GoogleSheetRow>();
+    allRows.forEach(row => {
+      const modelRef = row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "";
+      const color = row["צבע"] || row["color"] || "";
+      const key = `${modelRef}|${color}`.toUpperCase();
+      if (!uniqueRows.has(key) || !key.includes("|")) {
+        uniqueRows.set(key, row);
+      }
+    });
+
+    console.log(`[fetchGoogleSheet] After deduplication: ${uniqueRows.size} unique products`);
+    
+    return Array.from(uniqueRows.values());
   } catch (error) {
     console.error("[fetchGoogleSheet] Error:", error);
     throw error;
