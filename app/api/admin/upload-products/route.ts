@@ -226,9 +226,24 @@ export async function POST(request: NextRequest) {
           collection: row.collection || row.Collection || "",
           supplier: row.supplier || row.Supplier || "",
           gender: row.gender || row.Gender || "Women",
-          priceRetail: parseFloat(String(row.priceRetail || 0).replace(",", ".")) || 0,
-          priceWholesale: parseFloat(String(row.priceWholesale || 0).replace(",", ".")) || 0,
-          stockQuantity: parseInt(String(row.stockQuantity || row.stock || 0)) || 0,
+          priceRetail: (() => {
+            const val = row.priceRetail || 0;
+            const cleaned = String(val).trim().replace(/,/g, ".").replace(/\s/g, "");
+            const parsed = parseFloat(cleaned);
+            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 100000);
+          })(),
+          priceWholesale: (() => {
+            const val = row.priceWholesale || 0;
+            const cleaned = String(val).trim().replace(/,/g, ".").replace(/\s/g, "");
+            const parsed = parseFloat(cleaned);
+            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 100000);
+          })(),
+          stockQuantity: (() => {
+            const val = row.stockQuantity || row.stock || 0;
+            const cleaned = String(val).trim().replace(/,/g, "").replace(/\s/g, "");
+            const parsed = parseInt(cleaned, 10);
+            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 10000);
+          })(),
           imageUrl: row.imageUrl || "/images/default.png",
           gallery: [],
           productName: row.productName || modelRef,
@@ -253,35 +268,73 @@ export async function POST(request: NextRequest) {
       const updates: Record<string, any> = {};
       const rowChanges: Change[] = [];
 
-      // stockQuantity
+      // stockQuantity - Parsing strict avec validation
       const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
       if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
-        const newVal = parseInt(String(stockRaw)) || 0;
-        const oldVal = parseInt(String(existing.stockQuantity)) || 0;
-        console.log(`[Row ${rowNum}] Stock: file=${stockRaw} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
-        if (newVal !== oldVal) {
+        // Nettoyer la valeur : enlever les espaces, virgules, etc.
+        const cleaned = String(stockRaw).trim().replace(/,/g, "").replace(/\s/g, "");
+        const newVal = parseInt(cleaned, 10);
+        
+        // Validation : stock doit être un nombre valide entre 0 et 10000 (limite raisonnable)
+        if (isNaN(newVal) || !isFinite(newVal)) {
+          errors.push({ row: rowNum, message: `Stock invalide: "${stockRaw}" (doit être un nombre)` });
+          continue;
+        }
+        
+        if (newVal < 0) {
+          errors.push({ row: rowNum, message: `Stock négatif: ${newVal} (mis à 0)` });
+          updates.stockQuantity = 0;
+        } else if (newVal > 10000) {
+          errors.push({ row: rowNum, message: `Stock suspect (>10000): ${newVal}. Vérifiez la valeur.` });
+          // On met quand même à jour mais avec un avertissement
           updates.stockQuantity = newVal;
-          rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
+        } else {
+          const oldVal = parseInt(String(existing.stockQuantity || 0), 10) || 0;
+          if (newVal !== oldVal) {
+            updates.stockQuantity = newVal;
+            rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
+          }
         }
+        console.log(`[Row ${rowNum}] Stock: file="${stockRaw}" → cleaned="${cleaned}" → parsed=${newVal}, db=${existing.stockQuantity}`);
       }
 
-      // priceRetail
+      // priceRetail - Parsing strict avec validation
       if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
-        const newVal = parseFloat(String(row.priceRetail).replace(",", ".")) || 0;
-        const oldVal = existing.priceRetail || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceRetail = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
+        const cleaned = String(row.priceRetail).trim().replace(/,/g, ".").replace(/\s/g, "");
+        const newVal = parseFloat(cleaned);
+        
+        if (isNaN(newVal) || !isFinite(newVal)) {
+          errors.push({ row: rowNum, message: `Prix retail invalide: "${row.priceRetail}"` });
+        } else if (newVal < 0) {
+          errors.push({ row: rowNum, message: `Prix retail négatif: ${newVal}` });
+        } else if (newVal > 100000) {
+          errors.push({ row: rowNum, message: `Prix retail suspect (>100000): ${newVal}. Vérifiez la valeur.` });
+        } else {
+          const oldVal = existing.priceRetail || 0;
+          if (Math.abs(newVal - oldVal) > 0.01) {
+            updates.priceRetail = newVal;
+            rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
+          }
         }
       }
 
-      // priceWholesale
+      // priceWholesale - Parsing strict avec validation
       if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
-        const newVal = parseFloat(String(row.priceWholesale).replace(",", ".")) || 0;
-        const oldVal = existing.priceWholesale || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceWholesale = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
+        const cleaned = String(row.priceWholesale).trim().replace(/,/g, ".").replace(/\s/g, "");
+        const newVal = parseFloat(cleaned);
+        
+        if (isNaN(newVal) || !isFinite(newVal)) {
+          errors.push({ row: rowNum, message: `Prix wholesale invalide: "${row.priceWholesale}"` });
+        } else if (newVal < 0) {
+          errors.push({ row: rowNum, message: `Prix wholesale négatif: ${newVal}` });
+        } else if (newVal > 100000) {
+          errors.push({ row: rowNum, message: `Prix wholesale suspect (>100000): ${newVal}. Vérifiez la valeur.` });
+        } else {
+          const oldVal = existing.priceWholesale || 0;
+          if (Math.abs(newVal - oldVal) > 0.01) {
+            updates.priceWholesale = newVal;
+            rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
+          }
         }
       }
 

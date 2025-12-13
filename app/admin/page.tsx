@@ -19,7 +19,15 @@ async function getStats() {
   const outOfStock = products.filter(p => p.stockQuantity === 0).length;
   const lowStock = products.filter(p => p.stockQuantity > 0 && p.stockQuantity < 5).length;
   const withImages = products.filter(p => p.imageUrl && !p.imageUrl.includes("default")).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.priceWholesale * p.stockQuantity), 0);
+  const totalValue = products.reduce((sum, p) => {
+    const stock = Number(p.stockQuantity) || 0;
+    const price = Number(p.priceWholesale) || 0;
+    // Vérifier que les valeurs sont valides avant de calculer
+    if (isNaN(stock) || isNaN(price) || !isFinite(stock) || !isFinite(price)) {
+      return sum; // Ignorer les valeurs invalides
+    }
+    return sum + (price * stock);
+  }, 0);
   
   const byCategory: Record<string, number> = {};
   products.forEach(p => {
@@ -189,3 +197,4 @@ function StatCard({ title, value, color }: { title: string; value: string | numb
     </div>
   );
 }
+
