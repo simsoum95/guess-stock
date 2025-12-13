@@ -22,16 +22,13 @@ function parseExcel(buffer: ArrayBuffer): { rows: any[]; sheetNames: string[] } 
   const allRows: any[] = [];
   const sheetNames: string[] = [];
   
-  // Parcourir TOUTES les feuilles
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
-    console.log(`[Excel] Feuille "${sheetName}": ${rows.length} lignes`);
     sheetNames.push(`${sheetName} (${rows.length})`);
     allRows.push(...rows);
   }
   
-  console.log(`[Excel] Total: ${allRows.length} lignes de ${workbook.SheetNames.length} feuilles`);
   return { rows: allRows, sheetNames };
 }
 
@@ -53,25 +50,27 @@ function norm(s: any): string {
   return String(s).trim().toLowerCase();
 }
 
-// Noms hébreux des champs
-const hebrewNames: Record<string, string> = {
-  stockQuantity: "מלאי",
-  priceRetail: "מחיר קמעונאי",
-  priceWholesale: "מחיר סיטונאי",
-  productName: "שם מוצר",
-};
+// Extraire valeur avec noms anglais + hébreu
+function getVal(row: any, ...keys: string[]): any {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== "") {
+      return row[k];
+    }
+  }
+  return undefined;
+}
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const syncStock = formData.get("syncStock") === "true"; // Option pour synchroniser le stock
+    const syncStock = formData.get("syncStock") === "true";
 
     if (!file) {
       return NextResponse.json({ success: false, error: "לא נבחר קובץ" }, { status: 400 });
     }
-
-    console.log("[Upload] Mode synchronisation stock:", syncStock);
 
     // Parser le fichier
     const fileName = file.name.toLowerCase();
@@ -93,257 +92,229 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "קובץ ריק" }, { status: 400 });
     }
 
-    // Log colonnes détectées
     const columns = Object.keys(rows[0]);
-    console.log("[Upload] Colonnes:", columns);
-    console.log("[Upload] Total lignes:", rows.length);
-    console.log("[Upload] Feuilles:", sheetInfo);
+    console.log(`[Upload] ${rows.length} lignes, colonnes: ${columns.join(", ")}`);
 
-    // Charger TOUS les produits de Supabase
+    // Charger TOUS les produits de Supabase (1 seule requête)
     const { data: products, error: fetchErr } = await supabase.from("products").select("*");
     
     if (fetchErr) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index par TOUTES les clés possibles (du plus précis au moins précis)
-    const productByFullKey = new Map<string, any>(); // id + modelRef + color
-    const productById = new Map<string, any>();       // id seul
-    const productByRefColor = new Map<string, any>(); // modelRef + color
+    // Créer les index pour recherche rapide
+    const productById = new Map<string, any>();
+    const productByRefColor = new Map<string, any>();
     
     for (const p of products || []) {
-      // Clé complète : id + modelRef + color (la plus précise)
-      const fullKey = `${norm(p.id)}|${norm(p.modelRef)}|${norm(p.color)}`;
-      productByFullKey.set(fullKey, p);
-      
-      // Index par ID seul
-      if (p.id) {
-        productById.set(norm(p.id), p);
-      }
-      
-      // Index par modelRef + color
-      const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
-      productByRefColor.set(refColorKey, p);
+      if (p.id) productById.set(norm(p.id), p);
+      const key = `${norm(p.modelRef)}|${norm(p.color)}`;
+      productByRefColor.set(key, p);
     }
 
-    console.log(`[Upload] ${products?.length} produits en base`);
-
+    // Collections pour batch operations
+    const toInsert: any[] = [];
+    const toUpdate: { id: string; updates: Record<string, any> }[] = [];
+    const seenProductIds = new Set<string>();
+    
     // Résultats
-    let updated = 0;
-    let inserted = 0;
-    let unchanged = 0;
-    let stockZeroed = 0;
-    const notFound: Array<{ modelRef: string; color: string }> = [];
-    const insertedProducts: Array<{ modelRef: string; color: string }> = [];
-    const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
     const changes: Change[] = [];
     const errors: Array<{ row: number; message: string }> = [];
-    
-    // Tracker les produits vus dans le fichier (pour syncStock)
-    const seenProductIds = new Set<string>();
+    const insertedProducts: Array<{ modelRef: string; color: string }> = [];
+    let unchanged = 0;
 
-    // Traiter chaque ligne
+    // Traiter chaque ligne (juste préparer les données, pas de requête)
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      // Extraire id, modelRef et color (anglais + hébreu)
-      const id = row.id || row.ID || row.Id || row["מזהה"];
-      const modelRef = row.modelRef || row.ModelRef || row.MODELREF || row["קוד גם"] || row["קוד"] || row["מק\"ט"] || row["מקט"];
-      const color = row.color || row.Color || row.COLOR || row["צבע"];
+      // Extraire les champs (anglais + hébreu)
+      const id = getVal(row, "id", "ID", "Id", "מזהה");
+      const modelRef = getVal(row, "modelRef", "ModelRef", "MODELREF", "קוד גם", "קוד", 'מק"ט', "מקט");
+      const color = getVal(row, "color", "Color", "COLOR", "צבע");
 
       if (!modelRef || !color) {
         errors.push({ row: rowNum, message: "modelRef או color חסר" });
         continue;
       }
 
-      // Chercher le produit - Du PLUS PRÉCIS au moins précis
+      // Chercher le produit existant
       let existing = null;
-      let matchedBy = "";
-      
-      // 1. D'abord essayer avec la clé complète (id + modelRef + color)
-      if (id) {
-        const fullKey = `${norm(id)}|${norm(modelRef)}|${norm(color)}`;
-        existing = productByFullKey.get(fullKey);
-        if (existing) matchedBy = "id+modelRef+color";
-      }
-      
-      // 2. Sinon essayer avec l'ID seul
-      if (!existing && id) {
-        existing = productById.get(norm(id));
-        if (existing) matchedBy = "id";
-      }
-      
-      // 3. Enfin essayer avec modelRef + color
-      if (!existing) {
-        const key = `${norm(modelRef)}|${norm(color)}`;
-        existing = productByRefColor.get(key);
-        if (existing) matchedBy = "modelRef+color";
-      }
-      
-      console.log(`[Row ${rowNum}] id="${id}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
+      if (id) existing = productById.get(norm(id));
+      if (!existing) existing = productByRefColor.get(`${norm(modelRef)}|${norm(color)}`);
 
-      // Tracker le produit vu pour syncStock
-      if (existing) {
-        seenProductIds.add(existing.id);
-      }
+      if (existing) seenProductIds.add(existing.id);
+
+      // Extraire les valeurs
+      const stockRaw = getVal(row, "stockQuantity", "stock", "Stock", "כמות מלאי נוכחי", "מלאי", "כמות");
+      const priceRetailRaw = getVal(row, "priceRetail", 'מחיר כולל מע"מ בסיס', 'מחיר כולל מע"מ', "מחיר קמעונאי", "מחיר");
+      const priceWholesaleRaw = getVal(row, "priceWholesale", "סיטונאי", "מחיר סיטונאי");
+      const productNameRaw = getVal(row, "productName", "שם מוצר");
 
       if (!existing) {
-        // NOUVEAU PRODUIT → L'INSÉRER
-        // Extraire les valeurs (anglais + hébreu)
-        const brand = row.brand || row.Brand || row["מותג"] || "GUESS";
-        const subcategory = row.subcategory || row.category || row.Category || row["תת משפחה"] || row["קטגוריה"] || "תיק";
-        const collection = row.collection || row.Collection || row["קולקציה"] || "";
-        const supplier = row.supplier || row.Supplier || row["ספק"] || "";
-        const gender = row.gender || row.Gender || row["מגדר"] || "Women";
-        const priceRetailRaw = row.priceRetail || row["מחיר כולל מע\"מ בסיס"] || row["מחיר כולל מע\"מ"] || row["מחיר קמעונאי"] || row["מחיר"] || 0;
-        const priceWholesaleRaw = row.priceWholesale || row["סיטונאי"] || row["מחיר סיטונאי"] || 0;
-        const stockRaw = row.stockQuantity || row.stock || row["כמות מלאי נוכחי"] || row["מלאי"] || row["כמות"] || 0;
+        // NOUVEAU PRODUIT - ajouter à la liste d'insertion
+        const brand = getVal(row, "brand", "Brand", "מותג") || "GUESS";
+        const subcategory = getVal(row, "subcategory", "category", "Category", "תת משפחה", "קטגוריה") || "תיק";
+        const collection = getVal(row, "collection", "Collection", "קולקציה") || "";
+        const supplier = getVal(row, "supplier", "Supplier", "ספק") || "";
+        const gender = getVal(row, "gender", "Gender", "מגדר") || "Women";
         
-        const newProduct: Record<string, any> = {
-          id: id || `${modelRef}-${color}-${Date.now()}`, // Générer un ID unique
-          modelRef: modelRef,
-          color: color,
-          brand: brand,
-          subcategory: subcategory,
+        toInsert.push({
+          id: id || `${modelRef}-${color}-${Date.now()}-${i}`,
+          modelRef,
+          color,
+          brand,
+          subcategory,
           category: subcategory,
-          collection: collection,
-          supplier: supplier,
-          gender: gender,
-          priceRetail: parseFloat(String(priceRetailRaw).replace(",", ".")) || 0,
-          priceWholesale: parseFloat(String(priceWholesaleRaw).replace(",", ".")) || 0,
-          stockQuantity: parseInt(String(stockRaw)) || 0,
+          collection,
+          supplier,
+          gender,
+          priceRetail: parseFloat(String(priceRetailRaw || 0).replace(",", ".")) || 0,
+          priceWholesale: parseFloat(String(priceWholesaleRaw || 0).replace(",", ".")) || 0,
+          stockQuantity: parseInt(String(stockRaw || 0)) || 0,
           imageUrl: row.imageUrl || "/images/default.png",
           gallery: [],
-          productName: row.productName || row["שם מוצר"] || modelRef,
-        };
-
-        console.log(`[Row ${rowNum}] INSERTING NEW PRODUCT:`, newProduct);
-
-        const { error: insertErr } = await supabase.from("products").insert(newProduct);
-
-        if (insertErr) {
-          console.error(`[Row ${rowNum}] Insert error:`, insertErr);
-          errors.push({ row: rowNum, message: `שגיאה בהוספה: ${insertErr.message}` });
-          notFound.push({ modelRef, color });
-        } else {
-          inserted++;
-          insertedProducts.push({ modelRef, color });
-        }
-        continue;
-      }
-
-      // Comparer et préparer les mises à jour
-      const updates: Record<string, any> = {};
-      const rowChanges: Change[] = [];
-
-      // stockQuantity (anglais + hébreu)
-      const stockRawUpdate = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock ?? row["כמות מלאי נוכחי"] ?? row["מלאי"] ?? row["כמות"];
-      if (stockRawUpdate !== undefined && stockRawUpdate !== null && stockRawUpdate !== "") {
-        const newVal = parseInt(String(stockRawUpdate)) || 0;
-        const oldVal = parseInt(String(existing.stockQuantity)) || 0;
-        console.log(`[Row ${rowNum}] Stock: file=${stockRawUpdate} (parsed=${newVal}), db=${existing.stockQuantity} (parsed=${oldVal}), different=${newVal !== oldVal}`);
-        if (newVal !== oldVal) {
-          updates.stockQuantity = newVal;
-          rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // priceRetail (anglais + hébreu)
-      const priceRetailVal = row.priceRetail ?? row["מחיר כולל מע\"מ בסיס"] ?? row["מחיר כולל מע\"מ"] ?? row["מחיר קמעונאי"] ?? row["מחיר"];
-      if (priceRetailVal !== undefined && priceRetailVal !== null && priceRetailVal !== "") {
-        const newVal = parseFloat(String(priceRetailVal).replace(",", ".")) || 0;
-        const oldVal = existing.priceRetail || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceRetail = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // priceWholesale (anglais + hébreu)
-      const priceWholesaleVal = row.priceWholesale ?? row["סיטונאי"] ?? row["מחיר סיטונאי"];
-      if (priceWholesaleVal !== undefined && priceWholesaleVal !== null && priceWholesaleVal !== "") {
-        const newVal = parseFloat(String(priceWholesaleVal).replace(",", ".")) || 0;
-        const oldVal = existing.priceWholesale || 0;
-        if (Math.abs(newVal - oldVal) > 0.01) {
-          updates.priceWholesale = newVal;
-          rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // productName (anglais + hébreu)
-      const productNameVal = row.productName ?? row["שם מוצר"];
-      if (productNameVal !== undefined && productNameVal !== null && productNameVal !== "") {
-        const newVal = String(productNameVal).trim();
-        const oldVal = existing.productName || "";
-        if (newVal !== oldVal) {
-          updates.productName = newVal;
-          rowChanges.push({ modelRef, color, field: "שם מוצר", oldValue: oldVal, newValue: newVal });
-        }
-      }
-
-      // Si des changements existent, faire l'UPDATE
-      if (Object.keys(updates).length > 0) {
-        console.log(`[Upload] Updating id="${existing.id}" (${modelRef} / ${color}):`, updates);
-        
-        // Utiliser l'ID pour l'update si disponible (plus précis)
-        let updateQuery = supabase.from("products").update(updates);
-        
-        if (existing.id && existing.id !== "GUESS") {
-          updateQuery = updateQuery.eq("id", existing.id);
-        } else {
-          updateQuery = updateQuery.eq("modelRef", existing.modelRef).eq("color", existing.color);
-        }
-        
-        const { error: updateErr } = await updateQuery;
-
-        if (updateErr) {
-          errors.push({ row: rowNum, message: updateErr.message });
-        } else {
-          updated++;
-          changes.push(...rowChanges);
-        }
+          productName: productNameRaw || modelRef,
+        });
+        insertedProducts.push({ modelRef, color });
       } else {
-        unchanged++;
+        // PRODUIT EXISTANT - préparer les updates
+        const updates: Record<string, any> = {};
+        const rowChanges: Change[] = [];
+
+        // Stock
+        if (stockRaw !== undefined) {
+          const newVal = parseInt(String(stockRaw)) || 0;
+          const oldVal = parseInt(String(existing.stockQuantity)) || 0;
+          if (newVal !== oldVal) {
+            updates.stockQuantity = newVal;
+            rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
+          }
+        }
+
+        // Prix retail
+        if (priceRetailRaw !== undefined) {
+          const newVal = parseFloat(String(priceRetailRaw).replace(",", ".")) || 0;
+          const oldVal = existing.priceRetail || 0;
+          if (Math.abs(newVal - oldVal) > 0.01) {
+            updates.priceRetail = newVal;
+            rowChanges.push({ modelRef, color, field: "מחיר קמעונאי", oldValue: oldVal, newValue: newVal });
+          }
+        }
+
+        // Prix wholesale
+        if (priceWholesaleRaw !== undefined) {
+          const newVal = parseFloat(String(priceWholesaleRaw).replace(",", ".")) || 0;
+          const oldVal = existing.priceWholesale || 0;
+          if (Math.abs(newVal - oldVal) > 0.01) {
+            updates.priceWholesale = newVal;
+            rowChanges.push({ modelRef, color, field: "מחיר סיטונאי", oldValue: oldVal, newValue: newVal });
+          }
+        }
+
+        // Nom produit
+        if (productNameRaw !== undefined) {
+          const newVal = String(productNameRaw).trim();
+          const oldVal = existing.productName || "";
+          if (newVal !== oldVal) {
+            updates.productName = newVal;
+            rowChanges.push({ modelRef, color, field: "שם מוצר", oldValue: oldVal, newValue: newVal });
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          toUpdate.push({ id: existing.id, updates });
+          changes.push(...rowChanges);
+        } else {
+          unchanged++;
+        }
       }
     }
 
-    // SYNCHRONISATION STOCK: Mettre à 0 les produits qui ne sont pas dans le fichier
-    if (syncStock) {
-      console.log(`[SyncStock] ${seenProductIds.size} produits vus dans le fichier, ${products?.length || 0} en base`);
-      
-      for (const product of products || []) {
-        // Si le produit n'a pas été vu dans le fichier ET a du stock > 0
-        if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
-          console.log(`[SyncStock] Mise à 0 stock: ${product.modelRef} / ${product.color} (était: ${product.stockQuantity})`);
-          
-          const { error: zeroErr } = await supabase
-            .from("products")
-            .update({ stockQuantity: 0 })
-            .eq("id", product.id);
+    // ====== BATCH OPERATIONS ======
+    let inserted = 0;
+    let updated = 0;
+    let stockZeroed = 0;
+    const zeroedProducts: Array<{ modelRef: string; color: string; oldStock: number }> = [];
 
-          if (zeroErr) {
-            errors.push({ row: -1, message: `Erreur sync ${product.modelRef}: ${zeroErr.message}` });
+    // BATCH INSERT (par lots de 100)
+    if (toInsert.length > 0) {
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+        const batch = toInsert.slice(i, i + BATCH_SIZE);
+        const { error: insertErr } = await supabase.from("products").insert(batch);
+        if (insertErr) {
+          console.error("[Batch Insert Error]", insertErr);
+          errors.push({ row: -1, message: `Erreur insertion batch: ${insertErr.message}` });
+        } else {
+          inserted += batch.length;
+        }
+      }
+    }
+
+    // BATCH UPDATE (utiliser upsert ou updates individuels groupés)
+    if (toUpdate.length > 0) {
+      // Grouper les updates par champs identiques pour optimiser
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+        const batch = toUpdate.slice(i, i + BATCH_SIZE);
+        
+        // Exécuter les updates en parallèle
+        const updatePromises = batch.map(({ id, updates }) =>
+          supabase.from("products").update(updates).eq("id", id)
+        );
+        
+        const results = await Promise.all(updatePromises);
+        
+        for (const { error } of results) {
+          if (error) {
+            errors.push({ row: -1, message: error.message });
           } else {
-            stockZeroed++;
-            zeroedProducts.push({ 
-              modelRef: product.modelRef, 
-              color: product.color, 
-              oldStock: product.stockQuantity 
-            });
-            changes.push({
-              modelRef: product.modelRef,
-              color: product.color,
-              field: "מלאי (סנכרון)",
-              oldValue: product.stockQuantity,
-              newValue: 0,
-            });
+            updated++;
           }
         }
       }
-      
-      console.log(`[SyncStock] ${stockZeroed} produits mis à stock 0`);
     }
+
+    // SYNC STOCK - Batch update pour mettre à 0
+    if (syncStock) {
+      const toZero: string[] = [];
+      
+      for (const product of products || []) {
+        if (!seenProductIds.has(product.id) && product.stockQuantity > 0) {
+          toZero.push(product.id);
+          zeroedProducts.push({
+            modelRef: product.modelRef,
+            color: product.color,
+            oldStock: product.stockQuantity,
+          });
+          changes.push({
+            modelRef: product.modelRef,
+            color: product.color,
+            field: "מלאי (סנכרון)",
+            oldValue: product.stockQuantity,
+            newValue: 0,
+          });
+        }
+      }
+
+      // Batch zero update
+      if (toZero.length > 0) {
+        const { error: zeroErr } = await supabase
+          .from("products")
+          .update({ stockQuantity: 0 })
+          .in("id", toZero);
+
+        if (zeroErr) {
+          errors.push({ row: -1, message: `Erreur sync: ${zeroErr.message}` });
+        } else {
+          stockZeroed = toZero.length;
+        }
+      }
+    }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Upload] Terminé en ${duration}s: ${inserted} insérés, ${updated} modifiés, ${unchanged} inchangés`);
 
     return NextResponse.json({
       success: true,
@@ -352,7 +323,6 @@ export async function POST(request: NextRequest) {
       inserted,
       unchanged,
       stockZeroed,
-      notFound,
       insertedProducts,
       zeroedProducts,
       changes,
@@ -360,6 +330,7 @@ export async function POST(request: NextRequest) {
       detectedColumns: columns,
       sheets: sheetInfo,
       syncStockEnabled: syncStock,
+      duration: `${duration}s`,
     });
 
   } catch (err: any) {
