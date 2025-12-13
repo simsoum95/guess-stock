@@ -280,36 +280,52 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         console.log(`[fetchGoogleSheet] Got ${rows.length} total rows from sheet "${sheetName}"`);
         
         if (rows.length > 0) {
+          // Log first row to see structure
+          if (rows.length > 0) {
+            console.log(`[fetchGoogleSheet] First row keys:`, Object.keys(rows[0]));
+            console.log(`[fetchGoogleSheet] First row sample (first 3 cols):`, Object.entries(rows[0]).slice(0, 3));
+          }
+          
           // Filter out header row and completely empty rows
           // Header row usually has column names like "קולקציה", "תת משפחה", etc.
           const validRows = rows.filter((row, idx) => {
             // Skip if it looks like a header row (has common Hebrew column names in first column)
             const firstValue = Object.values(row)[0]?.toString().toLowerCase() || "";
-            if (firstValue.includes("קולקציה") || firstValue.includes("תת משפחה") || firstValue.includes("מותג")) {
+            const secondValue = Object.values(row)[1]?.toString().toLowerCase() || "";
+            
+            // More lenient header detection - only skip if BOTH first and second columns match header patterns
+            if ((firstValue.includes("קולקציה") || firstValue.includes("תת משפחה") || firstValue.includes("מותג")) &&
+                (secondValue.includes("תת משפחה") || secondValue.includes("מותג") || secondValue.includes("קוד"))) {
               if (idx === 0) {
                 console.log(`[fetchGoogleSheet] Skipping header row at index ${idx}`);
               }
               return false;
             }
             
-            // Check if row has actual data (at least modelRef or any non-empty value)
+            // Check if row has ANY data at all
             const hasData = Object.values(row).some(val => {
               const str = String(val || "").trim();
               return str.length > 0;
             });
             
-            // Also check specifically for modelRef - CRITICAL: must have modelRef
-            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+            if (!hasData) {
+              return false; // Skip completely empty rows
+            }
+            
+            // Check for modelRef - but be more flexible
+            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || row["קוד פריט"] || "").toString().trim();
             const hasModelRef = modelRef.length > 0;
             
+            // TEMPORARY: Accept rows with data even without modelRef for debugging
+            // We'll log them but keep them to see what we're getting
             if (hasData && !hasModelRef) {
-              // Row has data but no modelRef - log a warning for first few
-              if (idx < 5) {
-                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef, skipping:`, Object.keys(row).slice(0, 3));
+              if (idx < 10) {
+                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef. Keys:`, Object.keys(row).slice(0, 5));
               }
             }
             
-            return hasData && hasModelRef; // Must have modelRef to be valid
+            // Keep ALL rows that have data - we'll handle modelRef later
+            return hasData;
           });
           
         console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
