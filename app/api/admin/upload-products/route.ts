@@ -53,6 +53,64 @@ function norm(s: any): string {
   return String(s).trim().toLowerCase();
 }
 
+// Parsing intelligent des nombres - gère automatiquement points ET virgules
+// Compatible Excel (virgules) et Google Sheets (points)
+function parseNumberIntelligent(value: any, isDecimal: boolean = false): number {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+  
+  // Convertir en string et nettoyer
+  let cleaned = String(value).trim();
+  
+  // Enlever les espaces
+  cleaned = cleaned.replace(/\s/g, "");
+  
+  // Détecter le format : si virgule ET point, la virgule est probablement un séparateur de milliers
+  // Exemples :
+  // - "1.234,56" (format européen) → virgule = décimal, point = milliers
+  // - "1,234.56" (format US) → point = décimal, virgule = milliers
+  // - "1234,56" → virgule = décimal
+  // - "1234.56" → point = décimal
+  
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+  
+  if (hasComma && hasDot) {
+    // Les deux présents : déterminer lequel est le séparateur décimal
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    
+    if (lastComma > lastDot) {
+      // "1.234,56" → format européen (virgule = décimal)
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      // "1,234.56" → format US (point = décimal)
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    // Seulement virgule : peut être décimal ou milliers
+    // Si c'est un entier, on enlève juste la virgule
+    // Si c'est un décimal, on remplace par un point
+    if (isDecimal) {
+      cleaned = cleaned.replace(",", ".");
+    } else {
+      // Pour les entiers, on enlève la virgule (probablement un séparateur de milliers)
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (hasDot && !isDecimal) {
+    // Point dans un entier : probablement un séparateur de milliers
+    // Mais on garde pour parseInt qui va l'ignorer
+    cleaned = cleaned.replace(/\./g, "");
+  }
+  // Si seulement point et isDecimal = true, on garde tel quel
+  
+  // Parser
+  const parsed = isDecimal ? parseFloat(cleaned) : parseInt(cleaned, 10);
+  
+  return isNaN(parsed) || !isFinite(parsed) ? 0 : parsed;
+}
+
 // Noms hébreux des champs
 const hebrewNames: Record<string, string> = {
   stockQuantity: "מלאי",
@@ -111,27 +169,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
     }
 
-    // Index MULTI-NIVEAU: ID en priorité, puis modelRef + color
-    // Permet de différencier les produits avec même modelRef+color mais IDs différents
-    const productById = new Map<string, any>(); // ID unique (le plus précis)
+    // Index par modelRef + color (PRIORITÉ) - comme l'ancienne version
+    // Si plusieurs produits ont le même modelRef+color, on les stocke tous
     const productByRefColor = new Map<string, any[]>(); // modelRef + color (peut avoir plusieurs produits)
+    const productById = new Map<string, any>(); // ID (utilisé seulement si modelRef+color a plusieurs résultats)
     
     for (const p of products || []) {
-      // Index par ID (le plus précis)
-      if (p.id && p.id !== "GUESS") {
-        productById.set(norm(p.id), p);
-      }
-      
-      // Index par modelRef + color (peut avoir plusieurs produits)
+      // Index par modelRef + color (PRIORITÉ)
       const refColorKey = `${norm(p.modelRef)}|${norm(p.color)}`;
       if (!productByRefColor.has(refColorKey)) {
         productByRefColor.set(refColorKey, []);
       }
       productByRefColor.get(refColorKey)!.push(p);
+      
+      // Index par ID (seulement pour différencier les doublons modelRef+color)
+      if (p.id && p.id !== "GUESS") {
+        productById.set(norm(p.id), p);
+      }
     }
 
     console.log(`[Upload] ${products?.length} produits en base`);
-    console.log(`[Upload] ${productById.size} produits avec ID unique, ${productByRefColor.size} combinaisons modelRef+color`);
+    console.log(`[Upload] ${productByRefColor.size} combinaisons modelRef+color (${Array.from(productByRefColor.values()).filter(arr => arr.length > 1).length} avec doublons)`);
 
     // Résultats
     let updated = 0;
@@ -162,47 +220,45 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Chercher le produit: PRIORITÉ à l'ID si fourni, sinon modelRef + color
+      // Chercher le produit: PRIORITÉ au modelRef + color (comme l'ancienne version)
+      // Seulement si plusieurs produits ont le même modelRef+color, on utilise l'ID pour différencier
       let existing = null;
       let matchedBy = "";
       
-      // 1. Si un ID est fourni, essayer de matcher par ID d'abord (le plus précis)
-      if (id) {
-        existing = productById.get(norm(id));
-        if (existing) {
-          matchedBy = "id";
-          console.log(`[Row ${rowNum}] Matched by ID: "${id}" → ${existing.modelRef} / ${existing.color}`);
-        }
-      }
+      // 1. D'abord chercher par modelRef + color (PRIORITÉ)
+      const key = `${norm(modelRef)}|${norm(color)}`;
+      const candidates = productByRefColor.get(key) || [];
       
-      // 2. Si pas de match par ID, chercher par modelRef + color
-      if (!existing) {
-        const key = `${norm(modelRef)}|${norm(color)}`;
-        const candidates = productByRefColor.get(key) || [];
-        
-        if (candidates.length === 1) {
-          // Un seul produit avec ce modelRef+color
-          existing = candidates[0];
-          matchedBy = "modelRef+color (unique)";
-          console.log(`[Row ${rowNum}] Matched by modelRef+color (unique): "${modelRef}" / "${color}"`);
-        } else if (candidates.length > 1) {
-          // Plusieurs produits avec le même modelRef+color
-          // Si un ID était fourni mais pas trouvé, c'est une erreur
-          if (id) {
+      if (candidates.length === 1) {
+        // Un seul produit avec ce modelRef+color → C'EST LE BON
+        existing = candidates[0];
+        matchedBy = "modelRef+color";
+        console.log(`[Row ${rowNum}] Matched by modelRef+color: "${modelRef}" / "${color}"`);
+      } else if (candidates.length > 1) {
+        // Plusieurs produits avec le même modelRef+color → Utiliser l'ID pour différencier
+        if (id) {
+          const foundById = productById.get(norm(id));
+          if (foundById) {
+            existing = foundById;
+            matchedBy = "modelRef+color+id (doublon résolu par ID)";
+            console.log(`[Row ${rowNum}] Matched by modelRef+color+id: "${modelRef}" / "${color}" / "${id}" (${candidates.length} doublons)`);
+          } else {
+            // ID fourni mais pas trouvé parmi les doublons
             errors.push({ 
               row: rowNum, 
-              message: `Plusieurs produits avec modelRef="${modelRef}" et color="${color}". ID "${id}" non trouvé. Utilisez l'ID exact.` 
+              message: `Plusieurs produits avec modelRef="${modelRef}" et color="${color}". ID "${id}" non trouvé parmi eux.` 
             });
             continue;
           }
-          // Sinon, prendre le premier (ou on pourrait prendre celui avec le stock le plus élevé)
+        } else {
+          // Pas d'ID fourni mais plusieurs produits → Prendre le premier
           existing = candidates[0];
-          matchedBy = `modelRef+color (${candidates.length} produits, pris le premier)`;
+          matchedBy = `modelRef+color (${candidates.length} doublons, pris le premier - ID recommandé)`;
           console.log(`[Row ${rowNum}] ⚠️  Plusieurs produits avec "${modelRef}" / "${color}". Pris le premier (ID: ${existing.id})`);
         }
       }
       
-      console.log(`[Row ${rowNum}] id="${id || 'N/A'}", modelRef="${modelRef}", color="${color}" → ${matchedBy || "NOT FOUND"}`);
+      console.log(`[Row ${rowNum}] modelRef="${modelRef}", color="${color}", id="${id || 'N/A'}" → ${matchedBy || "NOT FOUND"}`);
 
       // Tracker le produit vu pour syncStock
       if (existing) {
@@ -226,24 +282,9 @@ export async function POST(request: NextRequest) {
           collection: row.collection || row.Collection || "",
           supplier: row.supplier || row.Supplier || "",
           gender: row.gender || row.Gender || "Women",
-          priceRetail: (() => {
-            const val = row.priceRetail || 0;
-            const cleaned = String(val).trim().replace(/,/g, ".").replace(/\s/g, "");
-            const parsed = parseFloat(cleaned);
-            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 100000);
-          })(),
-          priceWholesale: (() => {
-            const val = row.priceWholesale || 0;
-            const cleaned = String(val).trim().replace(/,/g, ".").replace(/\s/g, "");
-            const parsed = parseFloat(cleaned);
-            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 100000);
-          })(),
-          stockQuantity: (() => {
-            const val = row.stockQuantity || row.stock || 0;
-            const cleaned = String(val).trim().replace(/,/g, "").replace(/\s/g, "");
-            const parsed = parseInt(cleaned, 10);
-            return (isNaN(parsed) || !isFinite(parsed) || parsed < 0) ? 0 : Math.min(parsed, 10000);
-          })(),
+          priceRetail: parseNumberIntelligent(row.priceRetail || 0, true),
+          priceWholesale: parseNumberIntelligent(row.priceWholesale || 0, true),
+          stockQuantity: parseNumberIntelligent(row.stockQuantity || row.stock || 0, false),
           imageUrl: row.imageUrl || "/images/default.png",
           gallery: [],
           productName: row.productName || modelRef,
@@ -268,14 +309,13 @@ export async function POST(request: NextRequest) {
       const updates: Record<string, any> = {};
       const rowChanges: Change[] = [];
 
-      // stockQuantity - Parsing strict avec validation
+      // stockQuantity - Parsing intelligent qui gère points ET virgules (Excel + Google Sheets)
       const stockRaw = row.stockQuantity ?? row.StockQuantity ?? row.STOCKQUANTITY ?? row.stock ?? row.Stock;
       if (stockRaw !== undefined && stockRaw !== null && stockRaw !== "") {
-        // Nettoyer la valeur : enlever les espaces, virgules, etc.
-        const cleaned = String(stockRaw).trim().replace(/,/g, "").replace(/\s/g, "");
-        const newVal = parseInt(cleaned, 10);
+        // Parsing intelligent : gère les points ET les virgules comme séparateurs décimaux
+        const newVal = parseNumberIntelligent(stockRaw);
         
-        // Validation : stock doit être un nombre valide entre 0 et 10000 (limite raisonnable)
+        // Validation : stock doit être un nombre valide entre 0 et 10000
         if (isNaN(newVal) || !isFinite(newVal)) {
           errors.push({ row: rowNum, message: `Stock invalide: "${stockRaw}" (doit être un nombre)` });
           continue;
@@ -286,7 +326,6 @@ export async function POST(request: NextRequest) {
           updates.stockQuantity = 0;
         } else if (newVal > 10000) {
           errors.push({ row: rowNum, message: `Stock suspect (>10000): ${newVal}. Vérifiez la valeur.` });
-          // On met quand même à jour mais avec un avertissement
           updates.stockQuantity = newVal;
         } else {
           const oldVal = parseInt(String(existing.stockQuantity || 0), 10) || 0;
@@ -295,13 +334,12 @@ export async function POST(request: NextRequest) {
             rowChanges.push({ modelRef, color, field: "מלאי", oldValue: oldVal, newValue: newVal });
           }
         }
-        console.log(`[Row ${rowNum}] Stock: file="${stockRaw}" → cleaned="${cleaned}" → parsed=${newVal}, db=${existing.stockQuantity}`);
+        console.log(`[Row ${rowNum}] Stock: file="${stockRaw}" → parsed=${newVal}, db=${existing.stockQuantity}`);
       }
 
-      // priceRetail - Parsing strict avec validation
+      // priceRetail - Parsing intelligent (points ET virgules)
       if (row.priceRetail !== undefined && row.priceRetail !== null && row.priceRetail !== "") {
-        const cleaned = String(row.priceRetail).trim().replace(/,/g, ".").replace(/\s/g, "");
-        const newVal = parseFloat(cleaned);
+        const newVal = parseNumberIntelligent(row.priceRetail, true);
         
         if (isNaN(newVal) || !isFinite(newVal)) {
           errors.push({ row: rowNum, message: `Prix retail invalide: "${row.priceRetail}"` });
@@ -318,10 +356,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // priceWholesale - Parsing strict avec validation
+      // priceWholesale - Parsing intelligent (points ET virgules)
       if (row.priceWholesale !== undefined && row.priceWholesale !== null && row.priceWholesale !== "") {
-        const cleaned = String(row.priceWholesale).trim().replace(/,/g, ".").replace(/\s/g, "");
-        const newVal = parseFloat(cleaned);
+        const newVal = parseNumberIntelligent(row.priceWholesale, true);
         
         if (isNaN(newVal) || !isFinite(newVal)) {
           errors.push({ row: rowNum, message: `Prix wholesale invalide: "${row.priceWholesale}"` });
