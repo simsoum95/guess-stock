@@ -227,15 +227,18 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         }
 
         const rows = parseCSV(csvText);
+        console.log(`[fetchGoogleSheet] Parsed ${rows.length} total rows from CSV for sheet "${sheetName}"`);
+        
         if (rows.length > 0) {
-          console.log(`[fetchGoogleSheet] Fetched ${rows.length} rows (including header) from sheet "${sheetName}"`);
           // Filter out header row and completely empty rows
           // Header row usually has column names like "קולקציה", "תת משפחה", etc.
           const validRows = rows.filter((row, idx) => {
-            // Skip if it looks like a header row (has common Hebrew column names)
+            // Skip if it looks like a header row (has common Hebrew column names in first column)
             const firstValue = Object.values(row)[0]?.toString().toLowerCase() || "";
             if (firstValue.includes("קולקציה") || firstValue.includes("תת משפחה") || firstValue.includes("מותג")) {
-              console.log(`[fetchGoogleSheet] Skipping header row at index ${idx}`);
+              if (idx === 0) {
+                console.log(`[fetchGoogleSheet] Skipping header row at index ${idx}`);
+              }
               return false;
             }
             
@@ -245,12 +248,27 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               return str.length > 0;
             });
             
-            // Also check specifically for modelRef
-            const hasModelRef = !!(row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+            // Also check specifically for modelRef - CRITICAL: must have modelRef
+            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+            const hasModelRef = modelRef.length > 0;
+            
+            if (hasData && !hasModelRef) {
+              // Row has data but no modelRef - log a warning for first few
+              if (idx < 5) {
+                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef, skipping:`, Object.keys(row).slice(0, 3));
+              }
+            }
             
             return hasData && hasModelRef; // Must have modelRef to be valid
           });
-          console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}"`);
+          
+          console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
+          
+          if (validRows.length === 0 && rows.length > 1) {
+            console.warn(`[fetchGoogleSheet] WARNING: No valid rows found in "${sheetName}" despite ${rows.length} parsed rows!`);
+            console.warn(`[fetchGoogleSheet] Sample of first row keys:`, Object.keys(rows[0] || {}));
+          }
+          
           allRows.push(...validRows);
         }
       } catch (error) {
