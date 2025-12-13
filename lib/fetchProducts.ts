@@ -368,6 +368,14 @@ export async function fetchProducts(): Promise<Product[]> {
     let modelOnlyMatches = 0;
     let noMatches = 0;
     
+    // Track category distribution for debugging
+    const categoryStats = {
+      "תיק": 0,
+      "נעל": 0,
+      "ביגוד": 0,
+    };
+    const subcategoryMap = new Map<string, number>();
+    
     const products: Product[] = productsWithData.map((productData) => {
       const productModelRef = productData.modelRef.toUpperCase().trim();
       const productColor = productData.color.toUpperCase().trim();

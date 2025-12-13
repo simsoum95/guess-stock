@@ -219,13 +219,27 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     
     // Debug: Show sample of rows before deduplication
     if (allRows.length > 0 && allRows.length <= 50) {
-      console.log(`[fetchGoogleSheet] Sample rows (first 3):`, allRows.slice(0, 3).map((row, idx) => ({
-        index: idx,
+      console.log(`[fetchGoogleSheet] Sample rows (first 5):`, allRows.slice(0, 5).map((row, idx) => ({
+        index: idx + 1,
+        subcategory: row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "",
         modelRef: row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
         color: row["צבע"] || row["color"] || "",
         itemCode: row["קוד פריט"] || row["itemCode"] || "",
       })));
     }
+    
+    // Debug: Count rows by subcategory before deduplication
+    const subcategoryCount = new Map<string, number>();
+    allRows.forEach(row => {
+      const subcat = (row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "unknown").toString().trim();
+      subcategoryCount.set(subcat, (subcategoryCount.get(subcat) || 0) + 1);
+    });
+    console.log(`[fetchGoogleSheet] Rows by subcategory before deduplication:`);
+    Array.from(subcategoryCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([subcat, count]) => {
+        console.log(`  - "${subcat}": ${count} rows`);
+      });
     
     // Remove duplicates based on modelRef + color + item code combination
     // Use "קוד פריט" (item code) if available to differentiate products with same modelRef+color
