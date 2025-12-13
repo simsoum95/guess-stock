@@ -223,22 +223,35 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         index: idx,
         modelRef: row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
         color: row["צבע"] || row["color"] || "",
-        size: row["מידה"] || row["size"] || "",
+        itemCode: row["קוד פריט"] || row["itemCode"] || "",
       })));
     }
     
-    // Remove duplicates based on modelRef + color + size combination
-    // This ensures products with same modelRef+color but different sizes are kept separate
+    // Remove duplicates based on modelRef + color + item code combination
+    // Use "קוד פריט" (item code) if available to differentiate products with same modelRef+color
     const uniqueRows = new Map<string, GoogleSheetRow>();
     const duplicateCount = new Map<string, number>();
     
     allRows.forEach((row, index) => {
       const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
       const color = (row["צבע"] || row["color"] || "").toString().trim();
+      const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       
-      // Create key with modelRef, color, and size to avoid removing products with same modelRef+color but different sizes
-      const key = `${modelRef}|${color}|${size}`.toUpperCase();
+      // Create key: use itemCode first (most unique), then size, then row index
+      // This ensures products are differentiated properly - if no itemCode, use row index to keep all rows
+      let key: string;
+      if (itemCode) {
+        // Use itemCode as primary differentiator (קוד פריט)
+        key = `${modelRef}|${color}|${itemCode}`.toUpperCase();
+      } else if (size) {
+        // Fallback to size if available
+        key = `${modelRef}|${color}|${size}`.toUpperCase();
+      } else {
+        // If no itemCode and no size, use row index to ensure ALL products are kept
+        // This prevents aggressive deduplication when products legitimately have same modelRef+color
+        key = `${modelRef}|${color}|ROW${index}`.toUpperCase();
+      }
       
       if (!uniqueRows.has(key)) {
         uniqueRows.set(key, row);
