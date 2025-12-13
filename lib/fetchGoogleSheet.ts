@@ -86,12 +86,13 @@ async function fetchSheetData(sheetName: string): Promise<GoogleSheetRow[] | nul
     try {
       console.log(`[fetchGoogleSheet] Using Google Sheets API v4 for "${sheetName}"...`);
       
-      // Get the sheet GID
-      const gid = await getSheetGID(sheetName);
-      const range = encodeURIComponent(sheetName);
-      
       // Fetch all data using the API (no row limits)
+      // Use the sheet name directly in the range
+      const range = encodeURIComponent(sheetName);
       const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}?key=${GOOGLE_API_KEY}`;
+      
+      console.log(`[fetchGoogleSheet] API URL: ${apiUrl.replace(GOOGLE_API_KEY, '***')}`);
+      
       const response = await fetch(apiUrl, { cache: 'no-store' });
       
       if (response.ok) {
@@ -105,7 +106,8 @@ async function fetchSheetData(sheetName: string): Promise<GoogleSheetRow[] | nul
         
         // First row is headers
         const headers = rows[0].map((h: string) => String(h).trim());
-        console.log(`[fetchGoogleSheet] API returned ${rows.length} rows (including header) for "${sheetName}"`);
+        console.log(`[fetchGoogleSheet] ✅ API SUCCESS: ${rows.length} rows (including header) for "${sheetName}"`);
+        console.log(`[fetchGoogleSheet] Headers:`, headers.slice(0, 5).join(", "), "...");
         
         // Convert to GoogleSheetRow format
         const result: GoogleSheetRow[] = [];
@@ -117,19 +119,28 @@ async function fetchSheetData(sheetName: string): Promise<GoogleSheetRow[] | nul
           result.push(row);
         }
         
-        console.log(`[fetchGoogleSheet] Converted ${result.length} product rows from API for "${sheetName}"`);
+        console.log(`[fetchGoogleSheet] ✅ Converted ${result.length} product rows from API for "${sheetName}"`);
         return result;
-      } else if (response.status === 404) {
-        console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found via API`);
-        return null;
       } else {
-        console.warn(`[fetchGoogleSheet] API returned ${response.status}, falling back to CSV...`);
+        const errorText = await response.text();
+        console.error(`[fetchGoogleSheet] ❌ API error ${response.status} for "${sheetName}":`, errorText.substring(0, 200));
+        
+        if (response.status === 404) {
+          console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found via API`);
+          return null;
+        } else if (response.status === 403) {
+          console.warn(`[fetchGoogleSheet] API returned 403 - check API key permissions, falling back to CSV...`);
+        } else {
+          console.warn(`[fetchGoogleSheet] API returned ${response.status}, falling back to CSV...`);
+        }
       }
     } catch (error) {
-      console.warn(`[fetchGoogleSheet] API error for "${sheetName}", falling back to CSV:`, error instanceof Error ? error.message : error);
+      console.error(`[fetchGoogleSheet] ❌ API exception for "${sheetName}":`, error instanceof Error ? error.message : error);
+      console.warn(`[fetchGoogleSheet] Falling back to CSV export...`);
     }
   } else {
-    console.log(`[fetchGoogleSheet] No GOOGLE_API_KEY, using CSV export (limited to ~150 rows)...`);
+    console.warn(`[fetchGoogleSheet] ⚠️  No GOOGLE_API_KEY configured, using CSV export (LIMITED to ~150 rows)!`);
+    console.warn(`[fetchGoogleSheet] To get ALL rows, add GOOGLE_API_KEY to Vercel environment variables.`);
   }
 
   // Fallback to CSV (limited to ~150 rows)
