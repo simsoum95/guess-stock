@@ -242,7 +242,7 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
         productImages.set(key, []);
       }
 
-      // Get public URL for this file
+      // Get public URL for this file (also store the filename for sorting)
       const { data: urlData } = supabase.storage
         .from("guess-images")
         .getPublicUrl(file.path);
@@ -254,13 +254,41 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
 
     // Build final map with first image as imageUrl and all as gallery
     productImages.forEach((urls, key) => {
-      // Sort URLs: prioritize files with "PZ" in name
+      // Sort URLs with priority rules:
+      // 1. Images ending with "PZ" (case insensitive)
+      // 2. Images ending with "F" (if no PZ found)
+      // 3. Other images
       const sorted = urls.sort((a, b) => {
-        const aIsPZ = a.toLowerCase().includes("-pz") || a.toLowerCase().includes("_pz") || a.toLowerCase().includes("pz.");
-        const bIsPZ = b.toLowerCase().includes("-pz") || b.toLowerCase().includes("_pz") || b.toLowerCase().includes("pz.");
-        if (aIsPZ && !bIsPZ) return -1;
-        if (!aIsPZ && bIsPZ) return 1;
-        return 0;
+        // Extract filename from URL (get last part after /)
+        const getFileName = (url: string) => {
+          const parts = url.split('/');
+          return parts[parts.length - 1].toLowerCase();
+        };
+        
+        const aFile = getFileName(a);
+        const bFile = getFileName(b);
+        
+        // Check if filename ends with "PZ" (before extension)
+        const aEndsPZ = /pz\.(jpg|jpeg|png|webp|gif)$/i.test(aFile);
+        const bEndsPZ = /pz\.(jpg|jpeg|png|webp|gif)$/i.test(bFile);
+        
+        // Check if filename ends with "F" (before extension)
+        const aEndsF = /f\.(jpg|jpeg|png|webp|gif)$/i.test(aFile);
+        const bEndsF = /f\.(jpg|jpeg|png|webp|gif)$/i.test(bFile);
+        
+        // Priority 1: PZ images first
+        if (aEndsPZ && !bEndsPZ) return -1;
+        if (!aEndsPZ && bEndsPZ) return 1;
+        
+        // Priority 2: If no PZ, F images come first
+        // Only prioritize F if there's no PZ in the list
+        const hasAnyPZ = urls.some(url => /pz\.(jpg|jpeg|png|webp|gif)$/i.test(getFileName(url)));
+        if (!hasAnyPZ) {
+          if (aEndsF && !bEndsF) return -1;
+          if (!aEndsF && bEndsF) return 1;
+        }
+        
+        return 0; // Keep original order for others
       });
 
       imageMap.set(key, {

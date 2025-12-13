@@ -164,7 +164,7 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
 
-  // Build images array: prioritize image ending with "PZ", then others (limit to 6 for speed)
+  // Build images array: prioritize image ending with "PZ", then "F", then others (limit to 6 for speed)
   const allImages = useMemo(() => {
     const all = [product.imageUrl, ...(product.gallery || [])].filter(
       (img) => img && !img.includes("default")
@@ -173,24 +173,47 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
     // Remove duplicates
     const unique = Array.from(new Set(all));
     
-    // Helper function to check if URL contains "PZ" in filename (before extension or at end)
-    const hasPZ = (url: string) => {
+    // Helper function to extract filename from URL
+    const getFileName = (url: string) => {
       try {
-        const urlLower = url.toLowerCase();
-        // Check for "pz" followed by "-" or "." or at end of string (common pattern: MODEL-COLOR-PZ.jpg)
-        return /[_-]pz([._-]|$)/.test(urlLower) || urlLower.includes('-pz.') || urlLower.includes('_pz.');
+        const parts = url.split('/');
+        return parts[parts.length - 1].toLowerCase();
       } catch {
-        return false;
+        return '';
       }
     };
     
-    // Sort: images with "PZ" first (case insensitive), then others
+    // Helper function to check if filename ends with "PZ" (before extension)
+    const endsWithPZ = (url: string) => {
+      const fileName = getFileName(url);
+      return /pz\.(jpg|jpeg|png|webp|gif)$/i.test(fileName);
+    };
+    
+    // Helper function to check if filename ends with "F" (before extension)
+    const endsWithF = (url: string) => {
+      const fileName = getFileName(url);
+      return /f\.(jpg|jpeg|png|webp|gif)$/i.test(fileName);
+    };
+    
+    // Sort with priority: PZ first, then F (if no PZ), then others
     const sorted = unique.sort((a, b) => {
-      const aIsPZ = hasPZ(a);
-      const bIsPZ = hasPZ(b);
+      const aIsPZ = endsWithPZ(a);
+      const bIsPZ = endsWithPZ(b);
+      
+      // Priority 1: PZ images first
       if (aIsPZ && !bIsPZ) return -1;
       if (!aIsPZ && bIsPZ) return 1;
-      return 0;
+      
+      // Priority 2: If no PZ in list, prioritize F images
+      const hasAnyPZ = unique.some(url => endsWithPZ(url));
+      if (!hasAnyPZ) {
+        const aIsF = endsWithF(a);
+        const bIsF = endsWithF(b);
+        if (aIsF && !bIsF) return -1;
+        if (!aIsF && bIsF) return 1;
+      }
+      
+      return 0; // Keep original order for others
     });
     
     return sorted.slice(0, 6);
