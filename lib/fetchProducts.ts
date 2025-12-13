@@ -13,50 +13,99 @@ function normalizeCategory(cat: string): Category {
 }
 
 /**
- * Fetch ALL images from Supabase Storage directly (no products table needed)
- * Images are stored as: products/{modelRef}-{color}-*.jpg
+ * Recursively list all files in a Storage folder
+ */
+async function listStorageRecursive(folder: string = "", allFiles: { path: string; name: string }[] = []): Promise<{ path: string; name: string }[]> {
+  const { data: items, error } = await supabase.storage
+    .from("guess-images")
+    .list(folder, {
+      limit: 1000,
+      sortBy: { column: "name", order: "asc" }
+    });
+
+  if (error) {
+    console.warn(`[fetchProducts] Error listing ${folder}:`, error.message);
+    return allFiles;
+  }
+
+  if (!items) return allFiles;
+
+  for (const item of items) {
+    const fullPath = folder ? `${folder}/${item.name}` : item.name;
+    
+    // If it's a folder (no extension or ends with /), recurse
+    if (!item.name.includes(".") || item.id === null) {
+      await listStorageRecursive(fullPath, allFiles);
+    } else {
+      // It's a file
+      allFiles.push({ path: fullPath, name: item.name });
+    }
+  }
+
+  return allFiles;
+}
+
+/**
+ * Parse filename to extract modelRef and color
+ * Supports: MODELREF-COLOR-*.jpg, MODELREF_COLOR_*.jpg, or any format with separators
+ */
+function parseImageFilename(fileName: string): { modelRef: string; color: string } | null {
+  const baseName = fileName.replace(/\.[^/.]+$/, ""); // Remove extension
+  
+  // Try dash format first: MODELREF-COLOR-...
+  if (baseName.includes("-")) {
+    const parts = baseName.split("-");
+    if (parts.length >= 2) {
+      return {
+        modelRef: parts[0].trim().toUpperCase(),
+        color: parts[1].trim().toUpperCase(),
+      };
+    }
+  }
+  
+  // Try underscore format: MODELREF_COLOR_...
+  if (baseName.includes("_")) {
+    const parts = baseName.split("_");
+    if (parts.length >= 2) {
+      return {
+        modelRef: parts[0].trim().toUpperCase(),
+        color: parts[1].trim().toUpperCase(),
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Fetch ALL images from Supabase Storage directly (recursively, no products table needed)
+ * Images can be in any folder structure
  * Returns a Map with key "modelRef|color" -> { imageUrl, gallery }
  */
 async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
-    // List all files in the products folder in Supabase Storage
-    const { data: files, error } = await supabase.storage
-      .from("guess-images")
-      .list("products", {
-        limit: 10000, // Get up to 10000 images
-        sortBy: { column: "name", order: "asc" }
-      });
-
-    if (error) {
-      // If bucket doesn't exist or no files, return empty map
-      console.warn("[fetchProducts] Error listing images from Supabase Storage:", error.message);
-      return imageMap;
-    }
-
-    if (!files || files.length === 0) {
+    console.log("[fetchProducts] Listing all images from Supabase Storage (recursive)...");
+    
+    // List ALL files recursively from root of bucket
+    const allFiles = await listStorageRecursive();
+    
+    if (allFiles.length === 0) {
       console.log("[fetchProducts] No images found in Supabase Storage");
       return imageMap;
     }
 
+    console.log(`[fetchProducts] Found ${allFiles.length} files in Storage`);
+
     // Group images by product (modelRef + color)
-    // Format: MODELREF-COLOR-*.jpg or MODELREF_COLOR_*.jpg
     const productImages = new Map<string, string[]>();
 
-    for (const file of files) {
-      if (!file.name || file.name.includes(".") === false) continue;
+    for (const file of allFiles) {
+      const parsed = parseImageFilename(file.name);
+      if (!parsed) continue;
 
-      // Extract modelRef and color from filename
-      // Try both - and _ as separators
-      const baseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
-      const parts = baseName.split(/[-_]/);
-      
-      if (parts.length < 2) continue;
-
-      const modelRef = parts[0].toUpperCase();
-      const color = parts[1].toUpperCase();
-      const key = `${modelRef}|${color}`;
+      const key = `${parsed.modelRef}|${parsed.color}`;
 
       if (!productImages.has(key)) {
         productImages.set(key, []);
@@ -65,7 +114,7 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
       // Get public URL for this file
       const { data: urlData } = supabase.storage
         .from("guess-images")
-        .getPublicUrl(`products/${file.name}`);
+        .getPublicUrl(file.path);
 
       if (urlData?.publicUrl) {
         productImages.get(key)!.push(urlData.publicUrl);
@@ -74,10 +123,10 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
 
     // Build final map with first image as imageUrl and all as gallery
     productImages.forEach((urls, key) => {
-      // Sort URLs: prioritize files ending with "PZ"
+      // Sort URLs: prioritize files with "PZ" in name
       const sorted = urls.sort((a, b) => {
-        const aIsPZ = a.toLowerCase().includes("-pz") || a.toLowerCase().includes("_pz");
-        const bIsPZ = b.toLowerCase().includes("-pz") || b.toLowerCase().includes("_pz");
+        const aIsPZ = a.toLowerCase().includes("-pz") || a.toLowerCase().includes("_pz") || a.toLowerCase().includes("pz.");
+        const bIsPZ = b.toLowerCase().includes("-pz") || b.toLowerCase().includes("_pz") || b.toLowerCase().includes("pz.");
         if (aIsPZ && !bIsPZ) return -1;
         if (!aIsPZ && bIsPZ) return 1;
         return 0;
@@ -89,7 +138,7 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
       });
     });
 
-    console.log(`[fetchProducts] Loaded ${imageMap.size} product image mappings from Supabase Storage`);
+    console.log(`[fetchProducts] Mapped ${imageMap.size} products with images from Storage`);
   } catch (error) {
     console.warn("[fetchProducts] Failed to fetch images from Supabase Storage:", error);
     // Return empty map - all products will use default images
