@@ -417,12 +417,31 @@ export async function fetchProducts(): Promise<Product[]> {
         noMatches++;
       }
       
+      const finalCategory = normalizeCategory(productData.subcategory || productData.category);
+      
+      // Track category statistics
+      categoryStats[finalCategory] = (categoryStats[finalCategory] || 0) + 1;
+      const subcat = productData.subcategory || productData.category || "unknown";
+      subcategoryMap.set(subcat, (subcategoryMap.get(subcat) || 0) + 1);
+      
       return {
         ...productData,
-        category: normalizeCategory(productData.subcategory || productData.category),
+        category: finalCategory,
         imageUrl: images?.imageUrl || "/images/default.png",
         gallery: images?.gallery || [],
       };
+    });
+    
+    console.log(`[fetchProducts] Category distribution:`);
+    console.log(`  - תיק (Bags): ${categoryStats["תיק"]} products`);
+    console.log(`  - נעל (Shoes): ${categoryStats["נעל"]} products`);
+    console.log(`  - ביגוד (Clothes): ${categoryStats["ביגוד"]} products`);
+    console.log(`[fetchProducts] Total products by subcategory (top 10):`);
+    const sortedSubcats = Array.from(subcategoryMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    sortedSubcats.forEach(([subcat, count]) => {
+      console.log(`  - "${subcat}": ${count} products`);
     });
     
     console.log(`[fetchProducts] Image matching stats:`);
