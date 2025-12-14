@@ -146,7 +146,7 @@ function getTargetSheetName(subcategory: string): string {
   
   const shoesSubcategories = [
     "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים", "נעליים",
-    "נעל", "נעלים" // Added singular and common variations
+    "נעל", "נעלים" // Singular and common variations
   ];
 
   const subLower = subcategory.toLowerCase();
@@ -154,7 +154,7 @@ function getTargetSheetName(subcategory: string): string {
   if (bagSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
     return "תיקים";
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
-    return "נעליים";
+    return "גיליון2"; // Shoes sheet is named "גיליון2"
   }
   return "ביגוד";
 }
