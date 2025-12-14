@@ -270,14 +270,22 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     
     for (const sheetName of sheetNames) {
       try {
+        console.log(`[fetchGoogleSheet] ===== FETCHING SHEET: "${sheetName}" =====`);
+        
         // Use new API method that gets ALL rows (no 150 row limit)
         const rows = await fetchSheetData(sheetName);
-        if (!rows || rows.length === 0) {
-          console.log(`[fetchGoogleSheet] Sheet "${sheetName}" not found or empty, skipping...`);
+        
+        if (!rows) {
+          console.error(`[fetchGoogleSheet] ❌ Sheet "${sheetName}" returned null`);
+          continue;
+        }
+        
+        if (rows.length === 0) {
+          console.error(`[fetchGoogleSheet] ❌ Sheet "${sheetName}" returned empty array`);
           continue;
         }
 
-        console.log(`[fetchGoogleSheet] Got ${rows.length} total rows from sheet "${sheetName}"`);
+        console.log(`[fetchGoogleSheet] ✅ Got ${rows.length} total rows from sheet "${sheetName}"`);
         
         if (rows.length > 0) {
           // Log first row to see structure
