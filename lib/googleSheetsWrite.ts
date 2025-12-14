@@ -98,9 +98,47 @@ async function getSheetNames(): Promise<string[]> {
 }
 
 /**
+ * Find the actual sheet name that matches a target (handles spaces, etc.)
+ */
+async function findActualSheetName(accessToken: string, targetName: string): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      const sheetNames: string[] = data.sheets?.map((s: any) => s.properties.title) || [];
+      
+      // Find exact match first
+      const exactMatch = sheetNames.find(name => name === targetName);
+      if (exactMatch) return exactMatch;
+      
+      // Find match with trimmed names
+      const trimmedMatch = sheetNames.find(name => name.trim() === targetName.trim());
+      if (trimmedMatch) return trimmedMatch;
+      
+      // Find partial match (target is contained in sheet name or vice versa)
+      const partialMatch = sheetNames.find(name => 
+        name.includes(targetName) || targetName.includes(name.trim())
+      );
+      if (partialMatch) return partialMatch;
+      
+      console.warn(`[googleSheetsWrite] No match found for "${targetName}" in sheets: ${sheetNames.join(", ")}`);
+    }
+  } catch (error) {
+    console.error(`[googleSheetsWrite] Error finding sheet name:`, error);
+  }
+  
+  // Return original name as fallback
+  return targetName;
+}
+
+/**
  * Determine which sheet to add the product to based on subcategory
  */
-function getTargetSheet(subcategory: string): string {
+function getTargetSheetName(subcategory: string): string {
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
     "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק"
@@ -217,7 +255,13 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
     }
 
     const accessToken = await getAccessToken();
-    const targetSheet = product.subcategory ? getTargetSheet(product.subcategory) : "ביגוד";
+    
+    // Get the target sheet name based on subcategory
+    const targetSheetBase = product.subcategory ? getTargetSheetName(product.subcategory) : "ביגוד";
+    
+    // Find the actual sheet name (handles spaces, etc.)
+    const targetSheet = await findActualSheetName(accessToken, targetSheetBase);
+    console.log(`[googleSheetsWrite] Target sheet: "${targetSheetBase}" -> actual: "${targetSheet}"`);
     
     // STEP 1: Read the headers from the target sheet to know the column order
     console.log(`[googleSheetsWrite] Reading headers from "${targetSheet}"...`);
