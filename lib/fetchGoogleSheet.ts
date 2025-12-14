@@ -13,43 +13,35 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Optional
 const SHEET_NAMES_STR = process.env.GOOGLE_SHEET_NAME || "Sheet1";
 
 /**
- * Get list of all sheet names from Google Spreadsheet
+ * Get list of all sheet names from Google Spreadsheet using API v4
  */
 async function getAllSheetNames(): Promise<string[]> {
   if (!GOOGLE_SHEET_ID) {
     throw new Error("GOOGLE_SHEET_ID environment variable is not set");
   }
 
-  // Use the Google Sheets API endpoint to get sheet metadata
-  // This works without authentication if the sheet is public
-  const metadataUrl = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json`;
-  
-  try {
-    const response = await fetch(metadataUrl, {
-      next: { revalidate: 0 },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      console.warn("[fetchGoogleSheet] Could not fetch sheet names, will try default names");
-      return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback to common names
+  // Use API v4 to get sheet names if we have API key
+  if (GOOGLE_API_KEY) {
+    try {
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}?key=${GOOGLE_API_KEY}`;
+      const response = await fetch(apiUrl, { cache: 'no-store' });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const sheetNames = data.sheets?.map((s: any) => s.properties.title) || [];
+        if (sheetNames.length > 0) {
+          console.log(`[fetchGoogleSheet] Found sheet names via API: ${sheetNames.join(", ")}`);
+          return sheetNames;
+        }
+      }
+    } catch (error) {
+      console.warn("[fetchGoogleSheet] Error fetching sheet names via API:", error);
     }
-
-    const text = await response.text();
-    // Remove the prefix "google.visualization.Query.setResponse(" and suffix ");"
-    const jsonText = text.replace(/^.*?\(/, '').replace(/\);?\s*$/, '');
-    const data = JSON.parse(jsonText);
-    
-    if (data.table && data.table.cols) {
-      // This doesn't give us sheet names directly, so we'll use the fallback
-      return ["Sheet1", "Sheet2", "Sheet3"];
-    }
-    
-    return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback
-  } catch (error) {
-    console.warn("[fetchGoogleSheet] Error fetching sheet names:", error);
-    return ["Sheet1", "Sheet2", "Sheet3"]; // Fallback to common names
   }
+
+  // Fallback: try common names including "final test"
+  console.warn("[fetchGoogleSheet] Could not fetch sheet names, trying common names");
+  return ["final test", "Sheet1", "ביגוד", "תיקים", "נעליים", "גיליון2", "גיליון1"];
 }
 
 /**
@@ -255,9 +247,17 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     // Only try common sheet names if no sheets were specified at all
     // DO NOT auto-add sheets if user specified even one sheet name
     if (sheetNames.length === 0) {
-      // Only if completely empty, try the default Sheet1
-      sheetNames = ["Sheet1"];
-      console.log("[fetchGoogleSheet] No sheet names specified, using default: Sheet1");
+      // Try to discover sheet names automatically, or use common defaults
+      console.log("[fetchGoogleSheet] No sheet names specified, trying to discover...");
+      const discoveredNames = await getAllSheetNames();
+      if (discoveredNames.length > 0) {
+        sheetNames = discoveredNames;
+        console.log(`[fetchGoogleSheet] Using discovered sheet names: ${sheetNames.join(", ")}`);
+      } else {
+        // Fallback to "final test" (the actual name from the sheet)
+        sheetNames = ["final test"];
+        console.log("[fetchGoogleSheet] Could not discover sheet names, using default: final test");
+      }
     }
     
     // Remove duplicates from sheet names list
