@@ -141,16 +141,19 @@ async function findActualSheetName(accessToken: string, targetName: string): Pro
 function getTargetSheetName(subcategory: string): string {
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק"
+    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק", "תיקים"
   ];
   
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים", "נעליים"
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים", "נעליים",
+    "נעל", "נעלים" // Added singular and common variations
   ];
 
-  if (bagSubcategories.some(sub => subcategory.includes(sub))) {
+  const subLower = subcategory.toLowerCase();
+  
+  if (bagSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
     return "תיקים";
-  } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
+  } else if (shoesSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
     return "נעליים";
   }
   return "ביגוד";
@@ -309,14 +312,13 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
 
 /**
  * Find a product row by modelRef and color
- * Columns: A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
- *          G: קוד פריט, H: צבע, I: מחיר, J: כמות מלאי, K: סיטונאי
+ * Dynamically finds the correct columns by reading headers first
  */
 async function findProductRow(sheetName: string, modelRef: string, color: string): Promise<number | null> {
   const accessToken = await getAccessToken();
   
-  // Fetch columns A to H to get modelRef (D=3) and color (H=7)
-  const range = encodeURIComponent(`${sheetName}!A:H`);
+  // Fetch all data from the sheet
+  const range = encodeURIComponent(`${sheetName}`);
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}`,
     {
@@ -325,23 +327,56 @@ async function findProductRow(sheetName: string, modelRef: string, color: string
   );
 
   if (!response.ok) {
+    console.error(`[findProductRow] Failed to fetch sheet "${sheetName}": ${response.status}`);
     return null;
   }
 
   const data = await response.json();
   const rows = data.values || [];
+  
+  if (rows.length < 2) {
+    console.log(`[findProductRow] Sheet "${sheetName}" has no data rows`);
+    return null;
+  }
 
-  for (let i = 1; i < rows.length; i++) { // Skip header row
+  // Find column indices from headers
+  const headers = rows[0].map((h: string) => h.trim());
+  
+  // Find modelRef column (קוד גם)
+  let modelRefColIndex = headers.findIndex((h: string) => 
+    h.includes("קוד גם") || h.includes("קוד דגם") || h.includes("modelRef")
+  );
+  
+  // Find color column (צבע)
+  let colorColIndex = headers.findIndex((h: string) => 
+    h.includes("צבע") || h.includes("color")
+  );
+
+  console.log(`[findProductRow] Sheet "${sheetName}" - modelRef col: ${modelRefColIndex}, color col: ${colorColIndex}`);
+  console.log(`[findProductRow] Looking for modelRef="${modelRef}", color="${color}"`);
+
+  if (modelRefColIndex === -1) {
+    console.error(`[findProductRow] Could not find modelRef column in "${sheetName}". Headers: ${headers.join(", ")}`);
+    return null;
+  }
+
+  // Search for the product
+  for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const rowModelRef = (row[3] || "").toString().trim(); // Column D (index 3) = קוד גם
-    const rowColor = (row[7] || "").toString().trim();    // Column H (index 7) = צבע
+    const rowModelRef = (row[modelRefColIndex] || "").toString().trim();
+    const rowColor = colorColIndex >= 0 ? (row[colorColIndex] || "").toString().trim() : "";
     
-    if (rowModelRef.toUpperCase() === modelRef.toUpperCase() && 
-        rowColor.toUpperCase() === color.toUpperCase()) {
+    // Match by modelRef and color (case-insensitive)
+    const modelRefMatch = rowModelRef.toUpperCase() === modelRef.toUpperCase();
+    const colorMatch = colorColIndex === -1 || rowColor.toUpperCase() === color.toUpperCase();
+    
+    if (modelRefMatch && colorMatch) {
+      console.log(`[findProductRow] Found product at row ${i + 1} in "${sheetName}"`);
       return i + 1; // Google Sheets rows are 1-indexed
     }
   }
 
+  console.log(`[findProductRow] Product not found in "${sheetName}"`);
   return null;
 }
 
