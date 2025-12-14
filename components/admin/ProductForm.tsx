@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { ImageUploader } from "./ImageUploader";
 
 interface Product {
@@ -67,58 +66,54 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
     setError("");
 
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
       if (isEdit && product) {
-        const { error: updateError } = await supabase
-          .from("products")
-          .update({
+        // Update existing product via API
+        const response = await fetch("/api/admin/products", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modelRef: product.modelRef,
+            originalColor: product.color,
             productName: form.productName,
             brand: form.brand,
             subcategory: form.subcategory,
             collection: form.collection,
             supplier: form.supplier,
             gender: form.gender,
+            color: form.color,
             priceRetail: form.priceRetail,
             priceWholesale: form.priceWholesale,
             stockQuantity: form.stockQuantity,
-            imageUrl: form.imageUrl,
-            gallery: form.gallery,
-          })
-          .eq("modelRef", product.modelRef)
-          .eq("color", product.color);
+          }),
+        });
 
-        if (updateError) {
-          console.error("Update error:", updateError);
-          throw new Error(updateError.message);
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || "שגיאה בעדכון המוצר");
         }
       } else {
-        const { error: insertError } = await supabase
-          .from("products")
-          .insert({
-            id: "GUESS",
+        // Add new product via API
+        const response = await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             modelRef: form.modelRef,
             productName: form.productName,
             brand: form.brand,
             color: form.color,
             subcategory: form.subcategory,
-            category: form.subcategory,
             collection: form.collection,
             supplier: form.supplier,
             gender: form.gender,
             priceRetail: form.priceRetail,
             priceWholesale: form.priceWholesale,
             stockQuantity: form.stockQuantity,
-            imageUrl: form.imageUrl,
-            gallery: form.gallery,
-          });
+          }),
+        });
 
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          throw new Error(insertError.message);
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || "שגיאה בהוספת המוצר");
         }
       }
 
