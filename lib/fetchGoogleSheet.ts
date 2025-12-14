@@ -353,16 +353,25 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
         
         if (validRows.length === 0 && rows.length > 1) {
-          console.error(`[fetchGoogleSheet] ❌ CRITICAL: No valid rows found in "${sheetName}" despite ${rows.length} parsed rows!`);
+          console.error(`[fetchGoogleSheet] ❌❌❌ CRITICAL: No valid rows found in "${sheetName}" despite ${rows.length} parsed rows! ❌❌❌`);
+          console.error(`[fetchGoogleSheet] ===== DEBUG INFO START =====`);
+          console.error(`[fetchGoogleSheet] First row (index 0) ALL data:`, JSON.stringify(rows[0], null, 2));
           console.error(`[fetchGoogleSheet] First row keys:`, Object.keys(rows[0] || {}));
-          console.error(`[fetchGoogleSheet] First row sample:`, Object.entries(rows[0] || {}).slice(0, 5));
           
-          // Log a few sample rows to help debug
-          const sampleRows = rows.slice(0, 3);
-          sampleRows.forEach((row, idx) => {
-            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
-            console.error(`[fetchGoogleSheet] Sample row ${idx}: modelRef="${modelRef}", keys=`, Object.keys(row));
+          // Test filtering on first few rows manually
+          const testRows = rows.slice(0, 5);
+          testRows.forEach((row, idx) => {
+            const firstValue = String(Object.values(row)[0] || "").toLowerCase();
+            const hasData = Object.values(row).some(val => {
+              const str = String(val || "").trim();
+              return str.length > 0;
+            });
+            const modelRef = (row["קוד גם"] || row["מגז-קוד גם"] || row["קוד דגם"] || "").toString().trim();
+            const itemCode = (row["קוד פריט"] || "").toString().trim();
+            console.error(`[fetchGoogleSheet] Test row ${idx}: firstValue="${firstValue}", hasData=${hasData}, modelRef="${modelRef}", itemCode="${itemCode}"`);
+            console.error(`[fetchGoogleSheet] Test row ${idx} all values:`, Object.entries(row).map(([k, v]) => `${k}="${String(v).substring(0, 30)}"`).join(", "));
           });
+          console.error(`[fetchGoogleSheet] ===== DEBUG INFO END =====`);
         }
         
         if (validRows.length > 0) {
