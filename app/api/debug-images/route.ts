@@ -3,17 +3,20 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
-// List ALL files with pagination
-async function listAllFiles(folder: string): Promise<string[]> {
+// List files with pagination - limited batches to avoid timeout
+async function listAllFiles(folder: string, maxBatches: number = 15): Promise<{ files: string[], totalBatches: number }> {
   const allFiles: string[] = [];
   const BATCH_SIZE = 1000;
   let offset = 0;
+  let batchCount = 0;
   let hasMore = true;
 
-  while (hasMore) {
+  while (hasMore && batchCount < maxBatches) {
     const { data: items, error } = await supabase.storage
       .from("guess-images")
       .list(folder, { limit: BATCH_SIZE, offset });
+
+    batchCount++;
 
     if (error || !items || items.length === 0) {
       hasMore = false;
@@ -33,7 +36,7 @@ async function listAllFiles(folder: string): Promise<string[]> {
     }
   }
 
-  return allFiles;
+  return { files: allFiles, totalBatches: batchCount };
 }
 
 export async function GET(request: Request) {
@@ -42,7 +45,7 @@ export async function GET(request: Request) {
   
   try {
     // List ALL files with pagination
-    const files = await listAllFiles("products");
+    const { files, totalBatches } = await listAllFiles("products", 15);
 
     // Filter for modelRef
     const matchingFiles = files.filter(f => 
@@ -63,6 +66,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       modelRef,
       totalFilesInProducts: files.length,
+      totalBatches,
       matchingFiles: matchingFiles.length,
       images: imagesWithUrls
     });
