@@ -43,6 +43,11 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Don't show sidebar on login page
+  if (pathname === "/admin/login") {
+    return null;
+  }
+
   const handleLogout = async () => {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
