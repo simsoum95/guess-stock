@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchProductsFromGoogleSheet, mapSheetRowToProduct } from "@/lib/fetchGoogleSheet";
 
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +96,52 @@ export async function GET() {
       debug.csvError = errText.substring(0, 200);
     }
 
-    debug.steps.push("✅ Debug complete");
+    debug.steps.push("✅ Basic debug complete");
+    
+    // Step 4: Test the actual fetchProductsFromGoogleSheet function
+    debug.steps.push("🔄 Testing fetchProductsFromGoogleSheet()...");
+    try {
+      const rows = await fetchProductsFromGoogleSheet();
+      debug.steps.push(`✅ fetchProductsFromGoogleSheet returned ${rows.length} rows`);
+      debug.fetchedRowCount = rows.length;
+      
+      if (rows.length > 0) {
+        debug.steps.push("🔄 Testing mapSheetRowToProduct on first 3 rows...");
+        const mappedProducts = rows.slice(0, 3).map((row, idx) => {
+          try {
+            const product = mapSheetRowToProduct(row, idx);
+            return {
+              success: true,
+              id: product.id,
+              modelRef: product.modelRef,
+              color: product.color,
+              category: product.category,
+              subcategory: product.subcategory,
+              priceRetail: product.priceRetail,
+              stockQuantity: product.stockQuantity,
+            };
+          } catch (err) {
+            return {
+              success: false,
+              error: err instanceof Error ? err.message : String(err),
+              rawRow: Object.entries(row).slice(0, 5),
+            };
+          }
+        });
+        debug.mappedProducts = mappedProducts;
+        debug.steps.push(`✅ Mapped ${mappedProducts.filter(p => p.success).length}/3 products successfully`);
+        
+        // Show first raw row for debugging
+        debug.firstRawRow = Object.fromEntries(Object.entries(rows[0]).slice(0, 10));
+      } else {
+        debug.steps.push("❌ No rows returned from fetchProductsFromGoogleSheet!");
+      }
+    } catch (fetchError) {
+      debug.steps.push(`❌ fetchProductsFromGoogleSheet error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      debug.fetchError = fetchError instanceof Error ? fetchError.stack : String(fetchError);
+    }
+    
+    debug.steps.push("✅ Full debug complete");
     
   } catch (error) {
     debug.error = error instanceof Error ? error.message : String(error);
