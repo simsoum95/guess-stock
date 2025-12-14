@@ -138,23 +138,30 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
     const accessToken = await getAccessToken();
     const targetSheet = product.subcategory ? getTargetSheet(product.subcategory) : "ביגוד";
     
-    // Prepare row data matching the Google Sheet columns:
-    // קולקציה, תת משפחה, מותג, קוד גם, מגדר, ספק, צבע, מחיר כולל מע"מ בסיס, כמות מלאי נוכחי, סיטונאי
+    // Prepare row data matching the Google Sheet columns (11 columns):
+    // A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
+    // G: קוד פריט, H: צבע, I: מחיר כולל מע"מ בסיס, J: כמות מלאי נוכחי, K: סיטונאי
+    
+    // Generate item code from modelRef + color abbreviation
+    const colorAbbrev = product.color.substring(0, 3).toUpperCase();
+    const itemCode = `${product.modelRef}-${colorAbbrev}-OS`;
+    
     const rowData = [
-      product.collection || "",
-      product.subcategory || "",
-      product.brand || "GUESS",
-      product.modelRef,
-      product.gender || "",
-      product.supplier || "",
-      product.color,
-      formatPrice(product.priceRetail),
-      product.stockQuantity?.toString() || "0",
-      formatPrice(product.priceWholesale)
+      product.collection || "",           // A: קולקציה
+      product.subcategory || "",          // B: תת משפחה
+      product.brand || "GUESS",           // C: מותג
+      product.modelRef,                   // D: קוד גם
+      product.gender || "",               // E: מגדר
+      product.supplier || "",             // F: ספק
+      itemCode,                           // G: קוד פריט (generated)
+      product.color,                      // H: צבע
+      formatPrice(product.priceRetail),   // I: מחיר כולל מע"מ בסיס
+      product.stockQuantity?.toString() || "0",  // J: כמות מלאי נוכחי (plain number)
+      formatPrice(product.priceWholesale) // K: סיטונאי
     ];
 
-    // Append row to sheet
-    const range = encodeURIComponent(`${targetSheet}!A:J`);
+    // Append row to sheet (11 columns: A to K)
+    const range = encodeURIComponent(`${targetSheet}!A:K`);
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {
@@ -187,11 +194,14 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
 
 /**
  * Find a product row by modelRef and color
+ * Columns: A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
+ *          G: קוד פריט, H: צבע, I: מחיר, J: כמות מלאי, K: סיטונאי
  */
 async function findProductRow(sheetName: string, modelRef: string, color: string): Promise<number | null> {
   const accessToken = await getAccessToken();
   
-  const range = encodeURIComponent(`${sheetName}!A:G`);
+  // Fetch columns A to H to get modelRef (D=3) and color (H=7)
+  const range = encodeURIComponent(`${sheetName}!A:H`);
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}`,
     {
@@ -208,8 +218,8 @@ async function findProductRow(sheetName: string, modelRef: string, color: string
 
   for (let i = 1; i < rows.length; i++) { // Skip header row
     const row = rows[i];
-    const rowModelRef = (row[3] || "").toString().trim(); // Column D = קוד גם
-    const rowColor = (row[6] || "").toString().trim(); // Column G = צבע
+    const rowModelRef = (row[3] || "").toString().trim(); // Column D (index 3) = קוד גם
+    const rowColor = (row[7] || "").toString().trim();    // Column H (index 7) = צבע
     
     if (rowModelRef.toUpperCase() === modelRef.toUpperCase() && 
         rowColor.toUpperCase() === color.toUpperCase()) {
@@ -254,6 +264,8 @@ export async function updateProductInSheet(
     }
 
     // Build update data - only update specified fields
+    // Columns: A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
+    //          G: קוד פריט, H: צבע, I: מחיר, J: כמות מלאי, K: סיטונאי
     const updateValues: { range: string; values: string[][] }[] = [];
     
     if (updates.collection !== undefined) {
@@ -272,16 +284,16 @@ export async function updateProductInSheet(
       updateValues.push({ range: `${foundSheet}!F${rowNumber}`, values: [[updates.supplier]] });
     }
     if (updates.color !== undefined) {
-      updateValues.push({ range: `${foundSheet}!G${rowNumber}`, values: [[updates.color]] });
+      updateValues.push({ range: `${foundSheet}!H${rowNumber}`, values: [[updates.color]] }); // H = צבע
     }
     if (updates.priceRetail !== undefined) {
-      updateValues.push({ range: `${foundSheet}!H${rowNumber}`, values: [[formatPrice(updates.priceRetail)]] });
+      updateValues.push({ range: `${foundSheet}!I${rowNumber}`, values: [[formatPrice(updates.priceRetail)]] }); // I = מחיר
     }
     if (updates.stockQuantity !== undefined) {
-      updateValues.push({ range: `${foundSheet}!I${rowNumber}`, values: [[updates.stockQuantity.toString()]] });
+      updateValues.push({ range: `${foundSheet}!J${rowNumber}`, values: [[updates.stockQuantity.toString()]] }); // J = כמות מלאי
     }
     if (updates.priceWholesale !== undefined) {
-      updateValues.push({ range: `${foundSheet}!J${rowNumber}`, values: [[formatPrice(updates.priceWholesale)]] });
+      updateValues.push({ range: `${foundSheet}!K${rowNumber}`, values: [[formatPrice(updates.priceWholesale)]] }); // K = סיטונאי
     }
 
     if (updateValues.length === 0) {
