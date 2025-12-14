@@ -38,15 +38,30 @@ export default async function AdminProductsPage() {
           <h1 className="text-2xl font-bold text-slate-900">רשימת מוצרים</h1>
           <p className="text-slate-500 mt-1">{products.length} מוצרים בקטלוג</p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          הוסף מוצר
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Google Sheets Button */}
+          <a
+            href={`https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID}/edit`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 11V9h-6V3H9v6H3v2h6v10h4V11h6zm0 4h-4v2h4v-2zm0 4h-4v2h4v-2z"/>
+            </svg>
+            Google Sheets
+          </a>
+          {/* Add Product Button */}
+          <Link
+            href="/admin/products/new"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            הוסף מוצר
+          </Link>
+        </div>
       </div>
 
       <ProductsTable products={products} />
