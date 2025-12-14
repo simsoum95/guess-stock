@@ -338,8 +338,16 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               }
             }
             
-            // Keep rows that have data AND either modelRef or itemCode
-            return hasData && hasIdentifier;
+            // DEBUG MODE: Accept ALL rows with data (temporarily to see what we get)
+            // Normally: return hasData && hasIdentifier;
+            // But for debugging, accept everything with data
+            if (hasData && !hasIdentifier) {
+              if (idx < 5) {
+                console.warn(`[fetchGoogleSheet] DEBUG: Row ${idx} has data but no modelRef/itemCode. Keeping it anyway for debugging.`);
+                console.warn(`[fetchGoogleSheet] Row ${idx} keys:`, Object.keys(row));
+              }
+            }
+            return hasData; // Accept ALL rows with data for now
           });
           
         console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
