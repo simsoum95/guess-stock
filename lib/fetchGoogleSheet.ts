@@ -312,20 +312,34 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               return false; // Skip completely empty rows
             }
             
-            // Check for modelRef - but be more flexible
-            const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || row["קוד פריט"] || "").toString().trim();
+            // Check for modelRef - Column D: "קוד גם" (base product code)
+            // Also check for itemCode - Column G: "קוד פריט" (specific item code)
+            const modelRef = (
+              row["קוד גם"] || 
+              row["מגז-קוד גם"] || 
+              row["קוד דגם"] || 
+              row["modelRef"] || 
+              ""
+            ).toString().trim();
+            
+            const itemCode = (
+              row["קוד פריט"] || 
+              row["itemCode"] || 
+              ""
+            ).toString().trim();
+            
+            // Accept row if it has EITHER modelRef OR itemCode (both exist in your sheet!)
+            const hasIdentifier = modelRef.length > 0 || itemCode.length > 0;
             const hasModelRef = modelRef.length > 0;
             
-            // TEMPORARY: Accept rows with data even without modelRef for debugging
-            // We'll log them but keep them to see what we're getting
-            if (hasData && !hasModelRef) {
+            if (hasData && !hasIdentifier) {
               if (idx < 10) {
-                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef. Keys:`, Object.keys(row).slice(0, 5));
+                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef or itemCode. Keys:`, Object.keys(row).slice(0, 5));
               }
             }
             
-            // Keep ALL rows that have data - we'll handle modelRef later
-            return hasData;
+            // Keep rows that have data AND either modelRef or itemCode
+            return hasData && hasIdentifier;
           });
           
         console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
@@ -363,7 +377,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       console.log(`[fetchGoogleSheet] Sample rows (first 5):`, allRows.slice(0, 5).map((row, idx) => ({
         index: idx + 1,
         subcategory: row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "",
-        modelRef: row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
+        modelRef: row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
         color: row["צבע"] || row["color"] || "",
         itemCode: row["קוד פריט"] || row["itemCode"] || "",
       })));
@@ -390,7 +404,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     const skippedRows: Array<{index: number; reason: string; row: any}> = [];
     
     allRows.forEach((row, index) => {
-      const modelRef = (row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+      const modelRef = (row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
       const color = (row["צבע"] || row["color"] || "").toString().trim();
       const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
@@ -532,8 +546,11 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   }
   // else: stays as "ביגוד" (already set as default)
   
+  // Use itemCode if available, otherwise use modelRef for the ID
+  const uniqueId = itemCode || `${modelRef}-${color}-${index}`;
+  
   return {
-    id: `${modelRef}-${color}-${index}`,
+    id: uniqueId,
     collection: getValue(["קולקציה", "collection", "Collection", "COLLECTION"]),
     category: category || "תיק",
     subcategory: subcategory,
@@ -542,13 +559,13 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
     gender: getValue(["מגדר", "gender", "Gender", "GENDER"]),
     supplier: getValue(["ספק", "supplier", "Supplier", "SUPPLIER"]),
     color: color,
-    // מחיר כולל מע"מ בסיס = priceRetail (column H)
-    priceRetail: getNumber(["מחיר כולל מע\"מ בסיס", "מחיר קמעונאי", "קמעונאי", "priceRetail", "PriceRetail"]),
+    // מחיר כולל מע"מ בסיס = priceRetail (column I in תיקים sheet)
+    priceRetail: getNumber(["מחיר כולל מע\"מ בסיס", "מחיר כולל מע\"מ בסיכ", "מחיר קמעונאי", "קמעונאי", "priceRetail", "PriceRetail"]),
     // סיטונאי = priceWholesale (column J)
     priceWholesale: getNumber(["סיטונאי", "מחיר סיטונאי", "priceWholesale", "PriceWholesale"]),
-    // כמות מלאי נוכחי = stockQuantity (column I)
-    stockQuantity: getNumber(["כמות מלאי נוכחי", "מלאי", "כמות", "stockQuantity", "StockQuantity"]),
-    productName: getValue(["שם מוצר", "שם", "productName", "ProductName"]) || modelRef,
+    // כמות מלאי נוכחי = stockQuantity (column K)
+    stockQuantity: getNumber(["כמות מלאי נוכחי", "כמות מלאי נוכו", "מלאי", "כמות", "stockQuantity", "StockQuantity"]),
+    productName: getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef,
     size: getValue(["מידה", "size", "Size", "SIZE"]),
   };
 }
