@@ -127,6 +127,87 @@ function formatPrice(price: number | undefined): string {
 }
 
 /**
+ * Read the headers from a sheet to determine column order
+ */
+async function getSheetHeaders(accessToken: string, sheetName: string): Promise<string[]> {
+  const range = encodeURIComponent(`${sheetName}!1:1`);
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to read headers from ${sheetName}`);
+  }
+
+  const data = await response.json();
+  const headers = data.values?.[0] || [];
+  console.log(`[googleSheetsWrite] Headers for "${sheetName}":`, headers);
+  return headers.map((h: string) => h.trim());
+}
+
+/**
+ * Build row data based on actual column headers in the sheet
+ */
+function buildRowData(headers: string[], product: ProductData): string[] {
+  // Generate item code from modelRef + color abbreviation
+  const colorAbbrev = product.color.substring(0, 3).toUpperCase();
+  const itemCode = `${product.modelRef}-${colorAbbrev}-OS`;
+
+  // Map column names to values (supporting multiple possible names for each field)
+  const columnMappings: { [key: string]: string } = {
+    // Collection
+    "קולקציה": product.collection || "",
+    // Subcategory
+    "תת משפחה": product.subcategory || "",
+    // Brand
+    "מותג": product.brand || "GUESS",
+    // Model Reference
+    "קוד גם": product.modelRef,
+    // Gender
+    "מגדר": product.gender || "",
+    // Supplier
+    "ספק": product.supplier || "",
+    // Item Code
+    "קוד פריט": itemCode,
+    // Color
+    "צבע": product.color,
+    // Retail Price (with ₪ symbol)
+    "מחיר כולל מע\"מ בסיס": formatPrice(product.priceRetail),
+    " מחיר כולל מע\"מ בסיס ": formatPrice(product.priceRetail), // with spaces
+    "מחיר כולל מע\"מ בסיכ": formatPrice(product.priceRetail), // typo variant
+    // Stock Quantity (plain number)
+    "כמות מלאי נוכחי": product.stockQuantity?.toString() || "0",
+    " כמות מלאי נוכחי ": product.stockQuantity?.toString() || "0", // with spaces
+    "כמות מלאי נוכו": product.stockQuantity?.toString() || "0", // typo variant
+    // Wholesale Price
+    "סיטונאי": formatPrice(product.priceWholesale),
+    " סיטונאי ": formatPrice(product.priceWholesale), // with spaces
+    " סיטונאי  ": formatPrice(product.priceWholesale), // with more spaces
+  };
+
+  // Build row data in the order of the actual headers
+  const rowData: string[] = [];
+  for (const header of headers) {
+    const trimmedHeader = header.trim();
+    // Try to find matching value, use empty string if not found
+    let value = "";
+    for (const [key, val] of Object.entries(columnMappings)) {
+      if (trimmedHeader.includes(key.trim()) || key.trim().includes(trimmedHeader)) {
+        value = val;
+        break;
+      }
+    }
+    rowData.push(value);
+  }
+
+  console.log(`[googleSheetsWrite] Built row data for ${headers.length} columns:`, rowData);
+  return rowData;
+}
+
+/**
  * Add a new product to Google Sheets
  */
 export async function addProductToSheet(product: ProductData): Promise<{ success: boolean; error?: string }> {
@@ -138,30 +219,20 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
     const accessToken = await getAccessToken();
     const targetSheet = product.subcategory ? getTargetSheet(product.subcategory) : "ביגוד";
     
-    // Prepare row data matching the Google Sheet columns (11 columns):
-    // A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
-    // G: קוד פריט, H: צבע, I: מחיר כולל מע"מ בסיס, J: כמות מלאי נוכחי, K: סיטונאי
+    // STEP 1: Read the headers from the target sheet to know the column order
+    console.log(`[googleSheetsWrite] Reading headers from "${targetSheet}"...`);
+    const headers = await getSheetHeaders(accessToken, targetSheet);
     
-    // Generate item code from modelRef + color abbreviation
-    const colorAbbrev = product.color.substring(0, 3).toUpperCase();
-    const itemCode = `${product.modelRef}-${colorAbbrev}-OS`;
-    
-    const rowData = [
-      product.collection || "",           // A: קולקציה
-      product.subcategory || "",          // B: תת משפחה
-      product.brand || "GUESS",           // C: מותג
-      product.modelRef,                   // D: קוד גם
-      product.gender || "",               // E: מגדר
-      product.supplier || "",             // F: ספק
-      itemCode,                           // G: קוד פריט (generated)
-      product.color,                      // H: צבע
-      formatPrice(product.priceRetail),   // I: מחיר כולל מע"מ בסיס
-      product.stockQuantity?.toString() || "0",  // J: כמות מלאי נוכחי (plain number)
-      formatPrice(product.priceWholesale) // K: סיטונאי
-    ];
+    if (headers.length === 0) {
+      throw new Error(`Sheet "${targetSheet}" has no headers`);
+    }
 
-    // Append row to sheet (11 columns: A to K)
-    const range = encodeURIComponent(`${targetSheet}!A:K`);
+    // STEP 2: Build row data based on actual column order
+    const rowData = buildRowData(headers, product);
+
+    // STEP 3: Append row to sheet
+    const lastColumn = String.fromCharCode(64 + headers.length); // A=65, so 64+1=A, 64+11=K
+    const range = encodeURIComponent(`${targetSheet}!A:${lastColumn}`);
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       {
