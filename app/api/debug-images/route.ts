@@ -3,39 +3,66 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = 'force-dynamic';
 
+// List ALL files with pagination
+async function listAllFiles(folder: string): Promise<string[]> {
+  const allFiles: string[] = [];
+  const BATCH_SIZE = 1000;
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data: items, error } = await supabase.storage
+      .from("guess-images")
+      .list(folder, { limit: BATCH_SIZE, offset });
+
+    if (error || !items || items.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    for (const item of items) {
+      if (item.name.includes(".")) {
+        allFiles.push(item.name);
+      }
+    }
+
+    if (items.length < BATCH_SIZE) {
+      hasMore = false;
+    } else {
+      offset += BATCH_SIZE;
+    }
+  }
+
+  return allFiles;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const modelRef = searchParams.get("modelRef") || "CV866522";
   
   try {
-    // List all files in products folder
-    const { data: files, error } = await supabase.storage
-      .from("guess-images")
-      .list("products", { limit: 1000 });
-    
-    if (error) {
-      return NextResponse.json({ error: error.message });
-    }
+    // List ALL files with pagination
+    const files = await listAllFiles("products");
 
     // Filter for modelRef
-    const matchingFiles = files?.filter(f => 
-      f.name.toUpperCase().includes(modelRef.toUpperCase())
-    ) || [];
+    const matchingFiles = files.filter(f => 
+      f.toUpperCase().includes(modelRef.toUpperCase())
+    );
 
     // Get public URLs
     const imagesWithUrls = matchingFiles.map(f => {
       const { data } = supabase.storage
         .from("guess-images")
-        .getPublicUrl(`products/${f.name}`);
+        .getPublicUrl(`products/${f}`);
       return {
-        name: f.name,
+        name: f,
         url: data.publicUrl
       };
     });
 
     return NextResponse.json({
       modelRef,
-      totalFilesInProducts: files?.length || 0,
+      totalFilesInProducts: files.length,
       matchingFiles: matchingFiles.length,
       images: imagesWithUrls
     });

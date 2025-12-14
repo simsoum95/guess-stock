@@ -40,44 +40,59 @@ function normalizeCategory(cat: string): Category {
 }
 
 /**
- * Recursively list all files in a Storage folder
+ * Recursively list all files in a Storage folder with PAGINATION
+ * Supabase Storage has a limit of 1000 files per request
  */
 async function listStorageRecursive(folder: string = "", allFiles: { path: string; name: string }[] = []): Promise<{ path: string; name: string }[]> {
+  const BATCH_SIZE = 1000;
+  let offset = 0;
+  let hasMore = true;
+
   try {
-    const { data: items, error } = await supabase.storage
-      .from("guess-images")
-      .list(folder, {
-        limit: 1000,
-        sortBy: { column: "name", order: "asc" }
-      });
+    while (hasMore) {
+      const { data: items, error } = await supabase.storage
+        .from("guess-images")
+        .list(folder, {
+          limit: BATCH_SIZE,
+          offset: offset,
+          sortBy: { column: "name", order: "asc" }
+        });
 
-    if (error) {
-      // If folder doesn't exist, that's okay - just skip it
-      if (error.message?.includes("not found") || error.message?.includes("404")) {
-        return allFiles;
-      }
-      console.warn(`[fetchProducts] Error listing ${folder || "root"}:`, error.message);
-      return allFiles;
-    }
-
-    if (!items || items.length === 0) return allFiles;
-
-    for (const item of items) {
-      const fullPath = folder ? `${folder}/${item.name}` : item.name;
-      
-      // Check if it's a file (has extension) or folder (no extension, might have metadata)
-      const hasExtension = item.name.includes(".") && !item.name.endsWith("/");
-      const isLikelyFile = hasExtension || item.metadata?.size !== undefined;
-      
-      if (!isLikelyFile) {
-        // It's likely a folder, recurse
-        await listStorageRecursive(fullPath, allFiles);
-      } else {
-        // It's a file - only add image files
-        const ext = item.name.toLowerCase().split(".").pop();
-        if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext || "")) {
-          allFiles.push({ path: fullPath, name: item.name });
+      if (error) {
+        if (error.message?.includes("not found") || error.message?.includes("404")) {
+          return allFiles;
         }
+        console.warn(`[fetchProducts] Error listing ${folder || "root"} at offset ${offset}:`, error.message);
+        break;
+      }
+
+      if (!items || items.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      for (const item of items) {
+        const fullPath = folder ? `${folder}/${item.name}` : item.name;
+        
+        const hasExtension = item.name.includes(".") && !item.name.endsWith("/");
+        const isLikelyFile = hasExtension || item.metadata?.size !== undefined;
+        
+        if (!isLikelyFile) {
+          await listStorageRecursive(fullPath, allFiles);
+        } else {
+          const ext = item.name.toLowerCase().split(".").pop();
+          if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext || "")) {
+            allFiles.push({ path: fullPath, name: item.name });
+          }
+        }
+      }
+
+      // If we got less than BATCH_SIZE, we've reached the end
+      if (items.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        offset += BATCH_SIZE;
+        console.log(`[fetchProducts] Fetched ${allFiles.length} images so far from ${folder || "root"}...`);
       }
     }
   } catch (error) {
