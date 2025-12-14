@@ -34,6 +34,11 @@ const navigation = [
   },
 ];
 
+// Google Sheets link - using the public env variable
+const GOOGLE_SHEET_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID 
+  ? `https://docs.google.com/spreadsheets/d/${process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID}/edit`
+  : null;
+
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -87,6 +92,20 @@ export function AdminSidebar() {
               </Link>
             );
           })}
+          
+          {/* Google Sheets Button */}
+          <a
+            href={GOOGLE_SHEET_URL || "https://docs.google.com/spreadsheets/d/18-jbOyUgsPAeHkn4ZQ2cioIENugZcYoGRwl_Kh9_uhw/edit"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-600 hover:bg-green-50 transition-all"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+              <path d="M8 15h8v2H8zm0-4h8v2H8z"/>
+            </svg>
+            Google Sheets
+          </a>
         </nav>
 
         {/* User & Logout */}
