@@ -8,22 +8,30 @@ interface Props {
   gallery: string[];
   onImageChange: (imageUrl: string, gallery: string[]) => void;
   modelRef: string;
+  color?: string;
 }
 
-export function ImageUploader({ currentImage, gallery, onImageChange, modelRef }: Props) {
+export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, color }: Props) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  const uploadFile = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File, index: number): Promise<string | null> => {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     
-    const fileName = `${modelRef || "product"}-${Date.now()}-${file.name}`.replace(/[^a-zA-Z0-9.-]/g, "_");
+    // Format: MODELREF-COLOR-1.jpg (for association with products)
+    // The fetchProducts.ts looks for images by modelRef and color
+    const colorClean = (color || "DEFAULT").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const modelRefClean = (modelRef || "PRODUCT").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const extension = file.name.split('.').pop() || 'jpg';
+    const timestamp = Date.now();
+    const fileName = `${modelRefClean}-${colorClean}-${index + 1}-${timestamp}.${extension}`;
     const filePath = `products/${fileName}`;
 
-    console.log("[ImageUploader] Uploading:", filePath);
+    console.log("[ImageUploader] Uploading with product association:", filePath);
+    console.log("[ImageUploader] ModelRef:", modelRef, "Color:", color);
 
     const { error } = await supabase.storage
       .from("guess-images")
@@ -45,10 +53,11 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef }
     setUploading(true);
 
     const newUrls: string[] = [];
+    const existingCount = gallery.length;
     for (let i = 0; i < Math.min(files.length, 10); i++) {
       const file = files[i];
       if (file.type.startsWith("image/")) {
-        const url = await uploadFile(file);
+        const url = await uploadFile(file, existingCount + i);
         if (url) newUrls.push(url);
       }
     }

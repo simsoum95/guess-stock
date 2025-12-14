@@ -117,11 +117,10 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
         }
       }
 
-      router.push("/admin/products");
-      router.refresh();
+      // Force hard redirect for reliable navigation
+      window.location.href = "/admin/products";
     } catch (err: any) {
       setError(err.message || "אירעה שגיאה");
-    } finally {
       setLoading(false);
     }
   };
@@ -320,6 +319,7 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
               gallery={form.gallery || []}
               onImageChange={handleImageChange}
               modelRef={form.modelRef}
+              color={form.color}
             />
           </div>
         </div>

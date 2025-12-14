@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 
 interface Product {
   modelRef: string;
@@ -48,20 +47,26 @@ export function ProductsTable({ products }: { products: Product[] }) {
     if (!deleteModal) return;
     setDeleting(true);
     
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    
-    await supabase
-      .from("products")
-      .delete()
-      .eq("modelRef", deleteModal.modelRef)
-      .eq("color", deleteModal.color);
-
-    setDeleteModal(null);
-    setDeleting(false);
-    router.refresh();
+    try {
+      const response = await fetch(
+        `/api/admin/products?modelRef=${encodeURIComponent(deleteModal.modelRef)}&color=${encodeURIComponent(deleteModal.color)}`,
+        { method: "DELETE" }
+      );
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        alert(`שגיאה במחיקה: ${result.error}`);
+      } else {
+        // Refresh the page to show updated list
+        window.location.reload();
+      }
+    } catch (error) {
+      alert(`שגיאה: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDeleteModal(null);
+      setDeleting(false);
+    }
   };
 
   return (
