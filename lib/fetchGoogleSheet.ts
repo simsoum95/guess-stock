@@ -10,7 +10,8 @@ interface GoogleSheetRow {
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Optional
 // Support multiple sheet names: comma-separated list, or "all" to fetch all sheets
-const SHEET_NAMES_STR = process.env.GOOGLE_SHEET_NAME || "Sheet1";
+// Default to empty string to trigger auto-discovery
+const SHEET_NAMES_STR = process.env.GOOGLE_SHEET_NAME || "";
 
 /**
  * Get list of all sheet names from Google Spreadsheet using API v4
