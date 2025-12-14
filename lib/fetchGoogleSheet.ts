@@ -239,24 +239,19 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     } else {
       // Use specified sheet names (comma-separated)
       sheetNames = SHEET_NAMES_STR.split(',').map(s => s.trim()).filter(s => s.length > 0);
-      if (sheetNames.length === 0) {
-        sheetNames = ["Sheet1"]; // Default
-      }
     }
 
-    // Only try common sheet names if no sheets were specified at all
-    // DO NOT auto-add sheets if user specified even one sheet name
+    // If no sheet names specified, discover them automatically
     if (sheetNames.length === 0) {
-      // Try to discover sheet names automatically, or use common defaults
-      console.log("[fetchGoogleSheet] No sheet names specified, trying to discover...");
+      console.log("[fetchGoogleSheet] No sheet names specified, discovering automatically...");
       const discoveredNames = await getAllSheetNames();
       if (discoveredNames.length > 0) {
         sheetNames = discoveredNames;
-        console.log(`[fetchGoogleSheet] Using discovered sheet names: ${sheetNames.join(", ")}`);
+        console.log(`[fetchGoogleSheet] ✅ Discovered sheet names: ${sheetNames.join(", ")}`);
       } else {
-        // Fallback to "final test" (the actual name from the sheet)
-        sheetNames = ["final test"];
-        console.log("[fetchGoogleSheet] Could not discover sheet names, using default: final test");
+        // Fallback to common Hebrew names
+        sheetNames = ["ביגוד", "תיקים", "גיליון2"];
+        console.log("[fetchGoogleSheet] Using fallback Hebrew sheet names");
       }
     }
     
