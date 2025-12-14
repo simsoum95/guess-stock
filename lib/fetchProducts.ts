@@ -121,6 +121,7 @@ const COLOR_MAP: Record<string, string[]> = {
 
 /**
  * Try to match image color abbreviation with product color
+ * Enhanced to handle suffixes like -OS, partial matches, and abbreviations
  */
 function matchesColor(imageColor: string, productColor: string): boolean {
   const imgColorUpper = imageColor.toUpperCase().trim();
@@ -129,43 +130,70 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Exact match
   if (imgColorUpper === prodColorUpper) return true;
   
-  // Normalize: remove extra spaces and special chars for comparison
-  const imgNormalized = imgColorUpper.replace(/[^A-Z0-9]/g, "");
-  const prodNormalized = prodColorUpper.replace(/[^A-Z0-9]/g, "");
+  // Normalize: remove extra spaces, special chars, and common suffixes for comparison
+  const cleanColor = (c: string) => c
+    .replace(/[^A-Z0-9]/g, "")
+    .replace(/OS$/, "")      // Remove -OS suffix
+    .replace(/LOGO$/, "");   // Remove LOGO suffix
+  
+  const imgNormalized = cleanColor(imgColorUpper);
+  const prodNormalized = cleanColor(prodColorUpper);
   
   if (imgNormalized === prodNormalized) return true;
   
+  // Check if one contains the other
+  if (imgNormalized.includes(prodNormalized) && prodNormalized.length >= 3) return true;
+  if (prodNormalized.includes(imgNormalized) && imgNormalized.length >= 3) return true;
+  
   // Image color starts with product color or vice versa (at least 3 chars)
-  if (imgColorUpper.length >= 3 && prodColorUpper.startsWith(imgColorUpper)) return true;
-  if (prodColorUpper.length >= 3 && imgColorUpper.startsWith(prodColorUpper)) return true;
+  if (imgNormalized.length >= 3 && prodNormalized.startsWith(imgNormalized)) return true;
+  if (prodNormalized.length >= 3 && imgNormalized.startsWith(prodNormalized)) return true;
   
-  // Check if image color is an abbreviation in COLOR_MAP
-  const mappedColors = COLOR_MAP[imgColorUpper] || [];
-  for (const mapped of mappedColors) {
-    if (prodColorUpper.includes(mapped) || mapped.includes(prodColorUpper)) return true;
-    // Also check normalized versions
-    const mappedNormalized = mapped.replace(/[^A-Z0-9]/g, "");
-    if (prodNormalized.includes(mappedNormalized) || mappedNormalized.includes(prodNormalized)) return true;
+  // Check COLOR_MAP with both normalized versions
+  const tryColorMap = (abbrev: string, fullColor: string) => {
+    const mapped = COLOR_MAP[abbrev] || [];
+    const fullNorm = cleanColor(fullColor);
+    for (const m of mapped) {
+      const mNorm = cleanColor(m);
+      if (fullNorm.includes(mNorm) || mNorm.includes(fullNorm)) return true;
+      if (fullNorm.startsWith(mNorm) || mNorm.startsWith(fullNorm)) return true;
+    }
+    return false;
+  };
+  
+  // Try both directions with COLOR_MAP
+  if (tryColorMap(imgNormalized, prodNormalized)) return true;
+  if (tryColorMap(prodNormalized, imgNormalized)) return true;
+  
+  // Try with first 3 chars as abbreviation
+  if (imgNormalized.length >= 3) {
+    if (tryColorMap(imgNormalized.substring(0, 3), prodNormalized)) return true;
+  }
+  if (prodNormalized.length >= 3) {
+    if (tryColorMap(prodNormalized.substring(0, 3), imgNormalized)) return true;
   }
   
-  // Try reverse: product color might be abbreviation
-  const reverseMapped = COLOR_MAP[prodColorUpper] || [];
-  for (const mapped of reverseMapped) {
-    if (imgColorUpper.includes(mapped) || mapped.includes(imgColorUpper)) return true;
-    const mappedNormalized = mapped.replace(/[^A-Z0-9]/g, "");
-    if (imgNormalized.includes(mappedNormalized) || mappedNormalized.includes(imgNormalized)) return true;
-  }
-  
-  // Partial match: if any word in product color matches
+  // Split by words and check each
   const prodWords = prodColorUpper.split(/[\s\/\-]+/).filter(w => w.length >= 2);
   const imgWords = imgColorUpper.split(/[\s\/\-]+/).filter(w => w.length >= 2);
   
   for (const imgWord of imgWords) {
+    const imgWordClean = cleanColor(imgWord);
     for (const prodWord of prodWords) {
-      // Match if one starts with the other (at least 3 chars) or exact match
-      if (imgWord.length >= 3 && prodWord.startsWith(imgWord)) return true;
-      if (prodWord.length >= 3 && imgWord.startsWith(prodWord)) return true;
-      if (imgWord === prodWord) return true;
+      const prodWordClean = cleanColor(prodWord);
+      // Skip common suffixes that aren't colors
+      if (["OS", "LOGO", ""].includes(prodWordClean)) continue;
+      
+      // Match if one starts with the other or contains
+      if (imgWordClean.length >= 3 && prodWordClean.startsWith(imgWordClean)) return true;
+      if (prodWordClean.length >= 3 && imgWordClean.startsWith(prodWordClean)) return true;
+      if (imgWordClean.includes(prodWordClean) && prodWordClean.length >= 3) return true;
+      if (prodWordClean.includes(imgWordClean) && imgWordClean.length >= 3) return true;
+      if (imgWordClean === prodWordClean) return true;
+      
+      // Try COLOR_MAP on individual words
+      if (tryColorMap(imgWordClean, prodWordClean)) return true;
+      if (tryColorMap(prodWordClean, imgWordClean)) return true;
     }
   }
   
