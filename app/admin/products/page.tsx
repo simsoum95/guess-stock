@@ -2,6 +2,8 @@ import { fetchProducts } from "@/lib/fetchProducts";
 import { ProductsTable } from "@/components/admin/ProductsTable";
 import Link from "next/link";
 
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+
 // Always fetch fresh data
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -40,17 +42,20 @@ export default async function AdminProductsPage() {
         </div>
         <div className="flex items-center gap-3">
           {/* Google Sheets Button */}
-          <a
-            href={`https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID}/edit`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 11V9h-6V3H9v6H3v2h6v10h4V11h6zm0 4h-4v2h4v-2zm0 4h-4v2h4v-2z"/>
-            </svg>
-            Google Sheets
-          </a>
+          {GOOGLE_SHEET_ID && (
+            <a
+              href={`https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                <path d="M8 15h8v2H8zm0-4h8v2H8z"/>
+              </svg>
+              Google Sheets
+            </a>
+          )}
           {/* Add Product Button */}
           <Link
             href="/admin/products/new"
