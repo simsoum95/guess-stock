@@ -534,9 +534,11 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   };
 
   // Map according to your Google Sheet columns (Hebrew names from the sheet)
-  // Column D: קוד גם = modelRef
-  const modelRef = getValue(["קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
-  // Column G: צבע = color
+  // Column D: קוד גם = modelRef (base product code)
+  const modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
+  // Column G: קוד פריט = itemCode (specific item code with color)
+  const itemCode = getValue(["קוד פריט", "itemCode", "ItemCode"]);
+  // Column H: צבע = color
   const color = getValue(["צבע", "color", "Color", "COLOR"]);
   // Column B: תת משפחה = subcategory
   const subcategory = getValue(["תת משפחה", "תת קטגוריה", "subcategory", "Subcategory", "SUBCATEGORY"]);
