@@ -40,16 +40,52 @@ function normalizeCategory(cat: string): Category {
 }
 
 /**
- * Recursively list all files in a Storage folder with PAGINATION
- * Supabase Storage has a limit of 1000 files per request
+ * Search images for a specific modelRef using Storage API search
+ * This is MUCH faster than listing all files
+ */
+async function searchImagesForModelRef(modelRef: string): Promise<{ path: string; name: string }[]> {
+  const files: { path: string; name: string }[] = [];
+  
+  try {
+    // Search in "products" folder for files matching modelRef
+    const { data: items, error } = await supabase.storage
+      .from("guess-images")
+      .list("products", {
+        limit: 100,
+        search: modelRef // This filters by filename containing modelRef
+      });
+
+    if (error) {
+      console.warn(`[fetchProducts] Error searching for ${modelRef}:`, error.message);
+      return files;
+    }
+
+    if (items) {
+      for (const item of items) {
+        if (item.name.includes(".")) {
+          files.push({ path: `products/${item.name}`, name: item.name });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`[fetchProducts] Exception searching for ${modelRef}:`, error);
+  }
+
+  return files;
+}
+
+/**
+ * Alternative: List files with pagination (slower, used as fallback)
  */
 async function listStorageRecursive(folder: string = "", allFiles: { path: string; name: string }[] = []): Promise<{ path: string; name: string }[]> {
   const BATCH_SIZE = 1000;
   let offset = 0;
   let hasMore = true;
+  const MAX_BATCHES = 20; // Limit to prevent timeout
+  let batchCount = 0;
 
   try {
-    while (hasMore) {
+    while (hasMore && batchCount < MAX_BATCHES) {
       const { data: items, error } = await supabase.storage
         .from("guess-images")
         .list(folder, {
@@ -57,6 +93,8 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
           offset: offset,
           sortBy: { column: "name", order: "asc" }
         });
+
+      batchCount++;
 
       if (error) {
         if (error.message?.includes("not found") || error.message?.includes("404")) {
@@ -87,12 +125,10 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
         }
       }
 
-      // If we got less than BATCH_SIZE, we've reached the end
       if (items.length < BATCH_SIZE) {
         hasMore = false;
       } else {
         offset += BATCH_SIZE;
-        console.log(`[fetchProducts] Fetched ${allFiles.length} images so far from ${folder || "root"}...`);
       }
     }
   } catch (error) {
@@ -254,18 +290,32 @@ function parseImageFilename(fileName: string): { modelRef: string; color: string
 }
 
 /**
- * Fetch ALL images from Supabase Storage directly (recursively, no products table needed)
- * Images can be in any folder structure
+ * Fetch ALL images using fast SQL RPC function
  * Returns a Map with key "modelRef|color" -> { imageUrl, gallery }
  */
 async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
-    console.log("[fetchProducts] Listing all images from Supabase Storage (recursive)...");
+    console.log("[fetchProducts] Fetching all images via RPC (fast SQL)...");
     
-    // List ALL files recursively from root of bucket
-    const allFiles = await listStorageRecursive();
+    // Use the fast RPC function to get all image filenames
+    const { data: rpcData, error: rpcError } = await supabase.rpc('list_all_product_images');
+    
+    let allFiles: { path: string; name: string }[] = [];
+    
+    if (rpcError) {
+      console.warn("[fetchProducts] RPC failed, falling back to Storage API:", rpcError.message);
+      // Fallback to slower method
+      allFiles = await listStorageRecursive("products");
+    } else if (rpcData && Array.isArray(rpcData)) {
+      // Convert RPC results to file format
+      allFiles = rpcData.map((row: { filename: string }) => ({
+        path: `products/${row.filename}`,
+        name: row.filename
+      }));
+      console.log(`[fetchProducts] RPC returned ${allFiles.length} images`);
+    }
     
     if (allFiles.length === 0) {
       console.log("[fetchProducts] No images found in Supabase Storage");
