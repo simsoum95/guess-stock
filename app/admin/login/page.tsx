@@ -50,6 +50,7 @@ function LoginForm() {
   };
 
   const unauthorizedError = searchParams.get("error") === "unauthorized";
+  const inactivityLogout = searchParams.get("reason") === "inactivity";
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
@@ -64,6 +65,15 @@ function LoginForm() {
           <h1 className="text-xl font-bold text-slate-900">כניסה למערכת</h1>
           <p className="text-slate-500 text-sm mt-1">ניהול קטלוג מוצרים</p>
         </div>
+
+        {/* Inactivity Warning */}
+        {inactivityLogout && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700 text-sm text-center">
+              התנתקת אוטומטית עקב חוסר פעילות (3 דקות)
+            </p>
+          </div>
+        )}
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
