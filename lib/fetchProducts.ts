@@ -375,11 +375,39 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
   try {
     console.log("[fetchProducts] Fetching images from image_index table...");
     
-    // Try to use image_index table first (FAST!)
-    const { data: indexData, error: indexError } = await supabase
-      .from('image_index')
-      .select('model_ref, color, url, filename')
-      .limit(50000);
+    // Fetch ALL images from image_index using pagination (Supabase has row limits)
+    let allIndexData: any[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data: pageData, error: pageError } = await supabase
+        .from('image_index')
+        .select('model_ref, color, url, filename')
+        .range(offset, offset + pageSize - 1)
+        .order('id', { ascending: true });
+      
+      if (pageError) {
+        console.warn(`[fetchProducts] Error fetching page at offset ${offset}:`, pageError.message);
+        break;
+      }
+      
+      if (!pageData || pageData.length === 0) {
+        hasMore = false;
+      } else {
+        allIndexData = allIndexData.concat(pageData);
+        offset += pageSize;
+        if (pageData.length < pageSize) {
+          hasMore = false;
+        }
+      }
+    }
+    
+    console.log(`[fetchProducts] ✅ Loaded ${allIndexData.length} images from index table (with pagination)`);
+    
+    const indexData = allIndexData;
+    const indexError: any = null;
     
     let allFiles: { path: string; name: string; url?: string; modelRef?: string; color?: string }[] = [];
     
