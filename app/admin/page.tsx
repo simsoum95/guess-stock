@@ -1,9 +1,8 @@
 import { fetchProducts } from "@/lib/fetchProducts";
 import Link from "next/link";
 
-// Always fetch fresh data
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache for 30 seconds - fast navigation with relatively fresh data
+export const revalidate = 30;
 
 async function getStats() {
   try {

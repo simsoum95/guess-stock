@@ -1,9 +1,8 @@
 import { fetchProducts } from "@/lib/fetchProducts";
 import ProductsClient from "./ProductsClient";
 
-// Disable cache - always fetch fresh data from Google Sheets
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache for 60 seconds - good balance between speed and freshness
+export const revalidate = 60;
 
 export default async function ProductsPage() {
   try {

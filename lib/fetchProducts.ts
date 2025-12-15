@@ -2,6 +2,11 @@ import { supabase } from "./supabase";
 import { fetchProductsFromGoogleSheet, mapSheetRowToProduct } from "./fetchGoogleSheet";
 import type { Product, Category } from "./types";
 
+// In-memory cache for images (survives between requests on same server instance)
+let imageCache: Map<string, { imageUrl: string; gallery: string[] }> | null = null;
+let imageCacheTime: number = 0;
+const IMAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 const categoryMap: Record<string, Category> = {
   "תיק": "תיק",
   "נעל": "נעל",
@@ -294,6 +299,13 @@ function parseImageFilename(fileName: string): { modelRef: string; color: string
  * Returns a Map with key "modelRef|color" -> { imageUrl, gallery }
  */
 async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageUrl: string; gallery: string[] }>> {
+  // Check cache first
+  const now = Date.now();
+  if (imageCache && (now - imageCacheTime) < IMAGE_CACHE_TTL) {
+    console.log(`[fetchProducts] Using cached images (${imageCache.size} products, age: ${Math.round((now - imageCacheTime) / 1000)}s)`);
+    return imageCache;
+  }
+  
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
@@ -393,6 +405,11 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
     });
 
     console.log(`[fetchProducts] Mapped ${imageMap.size} products with images from Storage`);
+    
+    // Update cache
+    imageCache = imageMap;
+    imageCacheTime = Date.now();
+    console.log(`[fetchProducts] Images cached for ${IMAGE_CACHE_TTL / 1000}s`);
   } catch (error) {
     console.warn("[fetchProducts] Failed to fetch images from Supabase Storage:", error);
     // Return empty map - all products will use default images
