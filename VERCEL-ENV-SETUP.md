@@ -90,3 +90,4 @@ Une fois configuré, visitez votre site déployé :
 - Les produits devraient apparaître dans `/products`
 - Si vous voyez une erreur, vérifiez les logs Vercel
 
+

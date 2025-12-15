@@ -86,3 +86,4 @@ Après configuration, vérifiez que :
 2. Les variables d'environnement sont définies
 3. Le catalogue s'affiche correctement avec les données du Sheet
 
+

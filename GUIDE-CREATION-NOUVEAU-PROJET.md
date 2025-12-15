@@ -230,3 +230,4 @@ Une fois que Cursor a créé la structure de base :
 **IMPORTANT** : Ne copiez PAS les fichiers de l'ancien projet. Laissez Cursor créer tout depuis zéro avec le prompt complet.
 
 
+
