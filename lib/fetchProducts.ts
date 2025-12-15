@@ -652,12 +652,27 @@ export async function fetchProducts(): Promise<Product[]> {
       // Try exact match with colorCode first (most reliable)
       let images: { imageUrl: string; gallery: string[] } | undefined;
       
+      // Debug log for specific products
+      const isDebugProduct = productModelRef === "PD760221";
+      if (isDebugProduct) {
+        console.log(`[DEBUG PD760221] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
+        console.log(`[DEBUG PD760221] imageMap size: ${imageMap.size}`);
+        console.log(`[DEBUG PD760221] First 5 imageMap keys:`, Array.from(imageMap.keys()).slice(0, 5));
+      }
+      
       if (productColorCode) {
         const keyWithCode = `${productModelRef}|${productColorCode}`;
+        if (isDebugProduct) {
+          console.log(`[DEBUG PD760221] Looking for key: "${keyWithCode}"`);
+          console.log(`[DEBUG PD760221] Found in imageMap:`, imageMap.has(keyWithCode));
+        }
         images = imageMap.get(keyWithCode);
         if (images) {
           exactMatches++;
           matchedCount++;
+          if (isDebugProduct) {
+            console.log(`[DEBUG PD760221] FOUND! imageUrl:`, images.imageUrl);
+          }
         }
       }
       
