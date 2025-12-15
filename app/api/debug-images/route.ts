@@ -8,49 +8,39 @@ export async function GET(request: Request) {
   const modelRef = searchParams.get("modelRef") || "CV866522";
   
   try {
-    // Use RPC function to get all images (fast SQL query)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('list_all_product_images');
+    // Use image_index table (FAST!)
+    const { data: indexData, error: indexError } = await supabase
+      .from('image_index')
+      .select('model_ref, color, filename, url')
+      .ilike('model_ref', `%${modelRef}%`)
+      .limit(100);
     
-    let allFiles: string[] = [];
-    let method = "RPC";
-    
-    if (rpcError) {
-      method = "Storage API (fallback)";
-      // Fallback to Storage API
-      const { data: items } = await supabase.storage
-        .from("guess-images")
-        .list("products", { limit: 1000 });
-      
-      if (items) {
-        allFiles = items.filter(i => i.name.includes(".")).map(i => i.name);
-      }
-    } else if (rpcData && Array.isArray(rpcData)) {
-      allFiles = rpcData.map((row: { filename: string }) => row.filename);
+    if (indexError) {
+      return NextResponse.json({
+        method: "image_index (error)",
+        error: indexError.message,
+        modelRef,
+        totalInIndex: 0,
+        matchingFiles: 0,
+        images: []
+      });
     }
-
-    // Filter for modelRef
-    const matchingFiles = allFiles.filter(f => 
-      f.toUpperCase().includes(modelRef.toUpperCase())
-    );
-
-    // Get public URLs
-    const imagesWithUrls = matchingFiles.map(f => {
-      const { data } = supabase.storage
-        .from("guess-images")
-        .getPublicUrl(`products/${f}`);
-      return {
-        name: f,
-        url: data.publicUrl
-      };
-    });
+    
+    // Get total count
+    const { count } = await supabase
+      .from('image_index')
+      .select('*', { count: 'exact', head: true });
 
     return NextResponse.json({
-      method,
+      method: "image_index table",
       modelRef,
-      totalFilesFound: allFiles.length,
-      matchingFiles: matchingFiles.length,
-      rpcError: rpcError?.message || null,
-      images: imagesWithUrls
+      totalInIndex: count || 0,
+      matchingFiles: indexData?.length || 0,
+      images: indexData?.map(row => ({
+        name: row.filename,
+        url: row.url,
+        color: row.color
+      })) || []
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) });
