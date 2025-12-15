@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { fetchProducts } from "@/lib/fetchProducts";
 
 export const dynamic = 'force-dynamic';
 
@@ -8,65 +8,29 @@ export async function GET(request: NextRequest) {
   const modelRef = searchParams.get("modelRef") || "PD760221";
   
   try {
-    // Step 1: Get images from index for this modelRef
-    const { data: indexData, error: indexError } = await supabase
-      .from('image_index')
-      .select('model_ref, color, url, filename')
-      .ilike('model_ref', `%${modelRef}%`)
-      .limit(50);
+    console.log(`[test-product] Fetching all products...`);
+    const allProducts = await fetchProducts();
+    console.log(`[test-product] Total products: ${allProducts.length}`);
     
-    if (indexError) {
-      return NextResponse.json({ error: "Index query failed: " + indexError.message });
-    }
-    
-    // Step 2: Build imageMap like fetchProducts does
-    const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
-    const productImages = new Map<string, string[]>();
-    
-    for (const row of indexData || []) {
-      const key = `${row.model_ref}|${row.color}`;
-      if (!productImages.has(key)) {
-        productImages.set(key, []);
-      }
-      productImages.get(key)!.push(row.url);
-    }
-    
-    productImages.forEach((urls, key) => {
-      // Sort: F images first
-      const sorted = urls.sort((a, b) => {
-        const aEndsF = /_F\./i.test(a) || /-F\./i.test(a);
-        const bEndsF = /_F\./i.test(b) || /-F\./i.test(b);
-        if (aEndsF && !bEndsF) return -1;
-        if (!aEndsF && bEndsF) return 1;
-        return 0;
-      });
-      imageMap.set(key, { imageUrl: sorted[0], gallery: sorted });
-    });
-    
-    // Step 3: Test matching with colorCodes
-    const testColors = ["BLO", "LUG", "GBL", "BLACK LOGO", "LIGHT TAUPE LOGO"];
-    const matchTests: any[] = [];
-    
-    for (const color of testColors) {
-      const key1 = `${modelRef.toUpperCase()}|${color}`;
-      const found1 = imageMap.get(key1);
-      matchTests.push({
-        key: key1,
-        found: !!found1,
-        imageUrl: found1?.imageUrl || null
-      });
-    }
+    // Find products matching the modelRef
+    const matching = allProducts.filter(p => 
+      p.modelRef?.toUpperCase().includes(modelRef.toUpperCase()) ||
+      p.id?.toUpperCase().includes(modelRef.toUpperCase())
+    );
     
     return NextResponse.json({
-      modelRef,
-      imagesInIndex: indexData?.length || 0,
-      imageMapKeys: Array.from(imageMap.keys()),
-      imageMapSize: imageMap.size,
-      matchTests,
-      sampleImages: (indexData || []).slice(0, 5).map(r => ({
-        model_ref: r.model_ref,
-        color: r.color,
-        filename: r.filename
+      searchedFor: modelRef,
+      totalProducts: allProducts.length,
+      matchingCount: matching.length,
+      products: matching.map(p => ({
+        id: p.id,
+        modelRef: p.modelRef,
+        color: p.color,
+        colorCode: (p as any).colorCode || "N/A",
+        category: p.category,
+        imageUrl: p.imageUrl,
+        galleryCount: p.gallery?.length || 0,
+        hasImage: p.imageUrl && !p.imageUrl.includes("default")
       }))
     });
   } catch (error: any) {
