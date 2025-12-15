@@ -449,16 +449,16 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
 
     for (const file of allFiles) {
       // Use pre-parsed data if available (from index table)
-      let modelRef = file.modelRef;
-      let color = file.color;
+      let modelRef = file.modelRef?.toUpperCase().trim();
+      let color = file.color?.toUpperCase().trim();
       let url = file.url;
       
       // Fallback to parsing if not from index
       if (!modelRef || !color) {
         const parsed = parseImageFilename(file.name);
         if (!parsed) continue;
-        modelRef = parsed.modelRef;
-        color = parsed.color;
+        modelRef = parsed.modelRef.toUpperCase().trim();
+        color = parsed.color.toUpperCase().trim();
       }
       
       // Get URL if not from index
