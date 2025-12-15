@@ -149,9 +149,11 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
  */
 const COLOR_MAP: Record<string, string[]> = {
   // Black variants
-  "BLA": ["BLACK", "NOIR", "שחור", "BLK"],
-  "BLK": ["BLACK", "NOIR", "שחור", "BLA"],
-  "BLACK": ["BLA", "BLK"],
+  "BLA": ["BLACK", "NOIR", "שחור", "BLK", "BLO"],
+  "BLK": ["BLACK", "NOIR", "שחור", "BLA", "BLO"],
+  "BLO": ["BLACK", "NOIR", "שחור", "BLA", "BLK", "BLACKLOGO"],
+  "BLACK": ["BLA", "BLK", "BLO"],
+  "BLACKLOGO": ["BLA", "BLK", "BLO", "BLACK"],
   
   // White variants
   "WHI": ["WHITE", "BLANC", "לבן"],
@@ -230,7 +232,10 @@ const COLOR_MAP: Record<string, string[]> = {
   "LIS": ["LIGHT", "LISO"],
   "NRC": ["NATURAL ROSE COGNAC", "ROSECOGNAC"],
   "NTB": ["NATURAL TAN BROWN", "TANBROWN"],
-  "LUG": ["LUGGAGE", "LUGGAGE BROWN", "LIGHT TAUPE"],
+  "LUG": ["LUGGAGE", "LUGGAGE BROWN", "LIGHT TAUPE", "LIGHTTAUPE", "LIGHTTAUPELOGO", "TAUPE"],
+  "LIGHTTAUPE": ["LUG", "LUGGAGE", "TAUPE"],
+  "LIGHTTAUPELOGO": ["LUG", "LUGGAGE", "TAUPE", "LIGHTTAUPE"],
+  "TAUPE": ["LUG", "LIGHTTAUPE"],
   "LOGO": ["LOGO", "WITH LOGO"],
 };
 
@@ -641,33 +646,63 @@ export async function fetchProducts(): Promise<Product[]> {
     const products: Product[] = productsWithData.map((productData) => {
       const productModelRef = productData.modelRef.toUpperCase().trim();
       const productColor = productData.color.toUpperCase().trim();
+      // Use colorCode from itemCode (e.g., "BLO" from "PD760221-BLO-OS") - more reliable for matching
+      const productColorCode = (productData as any).colorCode?.toUpperCase().trim() || "";
       
-      // Try exact match first
-      let key = `${productModelRef}|${productColor}`;
-      let images = imageMap.get(key);
+      // Try exact match with colorCode first (most reliable)
+      let images: { imageUrl: string; gallery: string[] } | undefined;
       
-      if (images) {
-        exactMatches++;
-        matchedCount++;
-      } else {
-        // Look up by modelRef in index
+      if (productColorCode) {
+        const keyWithCode = `${productModelRef}|${productColorCode}`;
+        images = imageMap.get(keyWithCode);
+        if (images) {
+          exactMatches++;
+          matchedCount++;
+        }
+      }
+      
+      // Try exact match with full color name
+      if (!images) {
+        const key = `${productModelRef}|${productColor}`;
+        images = imageMap.get(key);
+        if (images) {
+          exactMatches++;
+          matchedCount++;
+        }
+      }
+      
+      // Look up by modelRef in index and try color matching
+      if (!images) {
         const modelRefImages = modelRefIndex.get(productModelRef);
         
         if (modelRefImages && modelRefImages.length > 0) {
-          // Try to match by color intelligently
-          for (const item of modelRefImages) {
-            if (matchesColor(item.color, productColor)) {
-              images = item.images;
-              colorMatches++;
-              matchedCount++;
-              break;
+          // First try with colorCode (e.g., "BLO")
+          if (productColorCode) {
+            for (const item of modelRefImages) {
+              if (item.color === productColorCode || matchesColor(item.color, productColorCode)) {
+                images = item.images;
+                colorMatches++;
+                matchedCount++;
+                break;
+              }
+            }
+          }
+          
+          // Then try with full color name
+          if (!images) {
+            for (const item of modelRefImages) {
+              if (matchesColor(item.color, productColor)) {
+                images = item.images;
+                colorMatches++;
+                matchedCount++;
+                break;
+              }
             }
           }
           
           // If no color match, do NOT use a wrong image
-          // Products with wrong color will show default image
           if (!images) {
-            modelOnlyMatches++; // Track as "no color match found"
+            modelOnlyMatches++;
           }
         }
       }

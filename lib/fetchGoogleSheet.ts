@@ -507,6 +507,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   gender: string;
   supplier: string;
   color: string;
+  colorCode: string; // Color abbreviation from itemCode for image matching
   priceRetail: number;
   priceWholesale: number;
   stockQuantity: number;
@@ -572,6 +573,17 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   // Use itemCode if available, otherwise use modelRef for the ID
   const uniqueId = itemCode || `${modelRef}-${color}-${index}`;
   
+  // Extract color code from itemCode (e.g., "PD760221-BLO-OS" -> "BLO")
+  // This is more reliable for image matching than the full color name
+  let colorCode = "";
+  if (itemCode) {
+    const parts = itemCode.split("-");
+    if (parts.length >= 2) {
+      // The color code is usually the second part (after modelRef)
+      colorCode = parts[1].toUpperCase();
+    }
+  }
+  
   return {
     id: uniqueId,
     collection: getValue(["קולקציה", "collection", "Collection", "COLLECTION"]),
@@ -582,6 +594,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
     gender: getValue(["מגדר", "gender", "Gender", "GENDER"]),
     supplier: getValue(["ספק", "supplier", "Supplier", "SUPPLIER"]),
     color: color,
+    colorCode: colorCode, // Abbreviation from itemCode for image matching
     // מחיר כולל מע"מ בסיס = priceRetail (column I in תיקים sheet)
     priceRetail: getNumber(["מחיר כולל מע\"מ בסיס", "מחיר כולל מע\"מ בסיכ", "מחיר קמעונאי", "קמעונאי", "priceRetail", "PriceRetail"]),
     // סיטונאי = priceWholesale (column J)
