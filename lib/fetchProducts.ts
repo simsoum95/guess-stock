@@ -309,25 +309,55 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
-    console.log("[fetchProducts] Fetching all images via RPC (fast SQL)...");
+    console.log("[fetchProducts] Fetching ALL images with pagination...");
     
-    // Use the fast RPC function to get all image filenames
-    const { data: rpcData, error: rpcError } = await supabase.rpc('list_all_product_images');
+    // Use paginated Storage API to get ALL files (no RPC limit issues)
+    const allFiles: { path: string; name: string }[] = [];
+    const BATCH_SIZE = 1000;
+    let offset = 0;
+    let hasMore = true;
+    let batchCount = 0;
+    const MAX_BATCHES = 25; // Max 25,000 images
     
-    let allFiles: { path: string; name: string }[] = [];
-    
-    if (rpcError) {
-      console.warn("[fetchProducts] RPC failed, falling back to Storage API:", rpcError.message);
-      // Fallback to slower method
-      allFiles = await listStorageRecursive("products");
-    } else if (rpcData && Array.isArray(rpcData)) {
-      // Convert RPC results to file format
-      allFiles = rpcData.map((row: { filename: string }) => ({
-        path: `products/${row.filename}`,
-        name: row.filename
-      }));
-      console.log(`[fetchProducts] RPC returned ${allFiles.length} images`);
+    while (hasMore && batchCount < MAX_BATCHES) {
+      const { data: items, error } = await supabase.storage
+        .from("guess-images")
+        .list("products", {
+          limit: BATCH_SIZE,
+          offset: offset,
+          sortBy: { column: "name", order: "asc" }
+        });
+      
+      batchCount++;
+      
+      if (error) {
+        console.warn(`[fetchProducts] Storage list error at offset ${offset}:`, error.message);
+        break;
+      }
+      
+      if (!items || items.length === 0) {
+        hasMore = false;
+        break;
+      }
+      
+      for (const item of items) {
+        if (item.name.includes(".")) {
+          allFiles.push({ path: `products/${item.name}`, name: item.name });
+        }
+      }
+      
+      if (items.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        offset += BATCH_SIZE;
+      }
+      
+      if (batchCount % 5 === 0) {
+        console.log(`[fetchProducts] Loaded ${allFiles.length} images (batch ${batchCount})...`);
+      }
     }
+    
+    console.log(`[fetchProducts] ✅ Loaded ${allFiles.length} total images from Storage`);
     
     if (allFiles.length === 0) {
       console.log("[fetchProducts] No images found in Supabase Storage");
