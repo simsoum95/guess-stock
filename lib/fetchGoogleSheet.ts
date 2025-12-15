@@ -551,7 +551,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   // תיקים (Bags) category:
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות", "קלאץ"
+    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק כתף", "תיק עסקים"
   ];
   
   // נעליים (Shoes) category:
