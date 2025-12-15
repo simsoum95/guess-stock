@@ -309,84 +309,111 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
   const imageMap = new Map<string, { imageUrl: string; gallery: string[] }>();
   
   try {
-    console.log("[fetchProducts] Fetching ALL images with pagination...");
+    console.log("[fetchProducts] Fetching images from image_index table...");
     
-    // Use paginated Storage API to get ALL files (no RPC limit issues)
-    const allFiles: { path: string; name: string }[] = [];
-    const BATCH_SIZE = 1000;
-    let offset = 0;
-    let hasMore = true;
-    let batchCount = 0;
-    const MAX_BATCHES = 25; // Max 25,000 images
+    // Try to use image_index table first (FAST!)
+    const { data: indexData, error: indexError } = await supabase
+      .from('image_index')
+      .select('model_ref, color, url, filename')
+      .limit(50000);
     
-    while (hasMore && batchCount < MAX_BATCHES) {
-      const { data: items, error } = await supabase.storage
-        .from("guess-images")
-        .list("products", {
-          limit: BATCH_SIZE,
-          offset: offset,
-          sortBy: { column: "name", order: "asc" }
-        });
+    let allFiles: { path: string; name: string; url?: string; modelRef?: string; color?: string }[] = [];
+    
+    if (indexError || !indexData || indexData.length === 0) {
+      console.warn("[fetchProducts] image_index table empty or error, falling back to Storage API...");
+      console.warn("[fetchProducts] Error:", indexError?.message);
       
-      batchCount++;
+      // Fallback: paginated Storage API (slower)
+      const BATCH_SIZE = 1000;
+      let offset = 0;
+      let hasMore = true;
+      let batchCount = 0;
+      const MAX_BATCHES = 20;
       
-      if (error) {
-        console.warn(`[fetchProducts] Storage list error at offset ${offset}:`, error.message);
-        break;
-      }
-      
-      if (!items || items.length === 0) {
-        hasMore = false;
-        break;
-      }
-      
-      for (const item of items) {
-        if (item.name.includes(".")) {
-          allFiles.push({ path: `products/${item.name}`, name: item.name });
+      while (hasMore && batchCount < MAX_BATCHES) {
+        const { data: items, error } = await supabase.storage
+          .from("guess-images")
+          .list("products", {
+            limit: BATCH_SIZE,
+            offset: offset,
+            sortBy: { column: "name", order: "asc" }
+          });
+        
+        batchCount++;
+        
+        if (error || !items || items.length === 0) {
+          hasMore = false;
+          break;
+        }
+        
+        for (const item of items) {
+          if (item.name.includes(".")) {
+            allFiles.push({ path: `products/${item.name}`, name: item.name });
+          }
+        }
+        
+        if (items.length < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          offset += BATCH_SIZE;
         }
       }
       
-      if (items.length < BATCH_SIZE) {
-        hasMore = false;
-      } else {
-        offset += BATCH_SIZE;
-      }
+      console.log(`[fetchProducts] Loaded ${allFiles.length} images from Storage (fallback)`);
+    } else {
+      // Use pre-indexed data (FAST!)
+      console.log(`[fetchProducts] ✅ Loaded ${indexData.length} images from index table (instant!)`);
       
-      if (batchCount % 5 === 0) {
-        console.log(`[fetchProducts] Loaded ${allFiles.length} images (batch ${batchCount})...`);
-      }
+      allFiles = indexData.map((row: any) => ({
+        path: `products/${row.filename}`,
+        name: row.filename,
+        url: row.url,
+        modelRef: row.model_ref,
+        color: row.color
+      }));
     }
     
-    console.log(`[fetchProducts] ✅ Loaded ${allFiles.length} total images from Storage`);
-    
     if (allFiles.length === 0) {
-      console.log("[fetchProducts] No images found in Supabase Storage");
+      console.log("[fetchProducts] No images found");
       return imageMap;
     }
 
-    console.log(`[fetchProducts] Found ${allFiles.length} files in Storage`);
+    console.log(`[fetchProducts] Processing ${allFiles.length} files...`);
 
     // Group images by product (modelRef + color)
     const productImages = new Map<string, string[]>();
 
     for (const file of allFiles) {
-      const parsed = parseImageFilename(file.name);
-      if (!parsed) continue;
+      // Use pre-parsed data if available (from index table)
+      let modelRef = file.modelRef;
+      let color = file.color;
+      let url = file.url;
+      
+      // Fallback to parsing if not from index
+      if (!modelRef || !color) {
+        const parsed = parseImageFilename(file.name);
+        if (!parsed) continue;
+        modelRef = parsed.modelRef;
+        color = parsed.color;
+      }
+      
+      // Get URL if not from index
+      if (!url) {
+        const { data: urlData } = supabase.storage
+          .from("guess-images")
+          .getPublicUrl(file.path);
+        url = urlData?.publicUrl;
+      }
 
-      const key = `${parsed.modelRef}|${parsed.color}`;
+      if (!url) continue;
+
+      const key = `${modelRef}|${color}`;
 
       if (!productImages.has(key)) {
         productImages.set(key, []);
       }
 
-      // Get public URL for this file (also store the filename for sorting)
-      const { data: urlData } = supabase.storage
-        .from("guess-images")
-        .getPublicUrl(file.path);
-
-      if (urlData?.publicUrl) {
-        productImages.get(key)!.push(urlData.publicUrl);
-      }
+      productImages.get(key)!.push(url);
     }
 
     // Build final map with first image as imageUrl and all as gallery
