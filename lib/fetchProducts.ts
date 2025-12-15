@@ -522,22 +522,19 @@ export async function fetchProducts(): Promise<Product[]> {
         
         if (modelRefImages && modelRefImages.length > 0) {
           // Try to match by color intelligently
-          let foundMatch = false;
           for (const item of modelRefImages) {
             if (matchesColor(item.color, productColor)) {
               images = item.images;
               colorMatches++;
               matchedCount++;
-              foundMatch = true;
               break;
             }
           }
           
-          // If no color match, use first image for this modelRef
-          if (!foundMatch && modelRefImages.length > 0) {
-            images = modelRefImages[0].images;
-            modelOnlyMatches++;
-            matchedCount++;
+          // If no color match, do NOT use a wrong image
+          // Products with wrong color will show default image
+          if (!images) {
+            modelOnlyMatches++; // Track as "no color match found"
           }
         }
       }
