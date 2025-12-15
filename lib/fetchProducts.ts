@@ -145,34 +145,93 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
 
 /**
  * Color mapping: abbreviations to full color names
+ * Extended with all observed patterns from image filenames
  */
 const COLOR_MAP: Record<string, string[]> = {
-  "BLA": ["BLACK", "NOIR", "שחור"],
-  "BLK": ["BLACK", "NOIR", "שחור"],
-  "WHI": ["WHITE", "BLANC", "לבן", "OFFWHITE", "OFF WHITE"],
-  "WHT": ["WHITE", "BLANC", "לבן", "OFFWHITE", "OFF WHITE"],
-  "OFF": ["OFFWHITE", "OFF WHITE", "OFF-WHITE", "CREAM", "IVORY"],
-  "NAD": ["NATURAL", "NATUREL", "טבעי"],
-  "NAT": ["NATURAL", "NATUREL", "טבעי"],
+  // Black variants
+  "BLA": ["BLACK", "NOIR", "שחור", "BLK"],
+  "BLK": ["BLACK", "NOIR", "שחור", "BLA"],
+  "BLACK": ["BLA", "BLK"],
+  
+  // White variants
+  "WHI": ["WHITE", "BLANC", "לבן"],
+  "WHT": ["WHITE", "BLANC", "לבן"],
+  "WHITE": ["WHI", "WHT"],
+  
+  // Off-white / Cream variants
+  "OFF": ["OFFWHITE", "OFF WHITE", "OFF-WHITE", "CREAM", "IVORY", "NATURALOFFWHITE"],
+  "OFFWHITE": ["OFF", "CREAM", "IVORY"],
+  "CREAM": ["OFF", "OFFWHITE", "CRE"],
+  
+  // Natural variants (common in bags)
+  "NAD": ["NATURAL", "NATUREL", "טבעי", "NAT"],
+  "NAT": ["NATURAL", "NATUREL", "טבעי", "NAD"],
+  "NATURAL": ["NAD", "NAT"],
+  "NATURALBLACK": ["NAD", "NAT", "NATBLACK"],
+  "NATURALCOGNAC": ["NAD", "NAT", "NATCOGNAC", "COG"],
+  "NATURALOFFWHITE": ["NAD", "NAT", "OFF", "OFFWHITE"],
+  
+  // Brown variants
   "BRO": ["BROWN", "BRUN", "חום"],
+  "BROWN": ["BRO"],
   "TAN": ["TAN", "BEIGE", "בז'"],
-  "RED": ["RED", "ROUGE", "אדום"],
+  "BEI": ["BEIGE", "TAN"],
+  "BEIGE": ["BEI", "TAN"],
+  
+  // Cognac (leather color)
+  "COG": ["COGNAC", "COGNAC BROWN", "קוניאק"],
+  "COGNAC": ["COG"],
+  
+  // Blue variants
   "BLU": ["BLUE", "BLEU", "כחול"],
+  "BLUE": ["BLU"],
+  "NAV": ["NAVY", "NAVY BLUE", "כחול כהה"],
+  "NAVY": ["NAV"],
+  
+  // Green variants
   "GRE": ["GREEN", "VERT", "ירוק"],
-  "PUR": ["PURPLE", "VIOLET", "סגול"],
+  "GREEN": ["GRE"],
+  
+  // Red/Pink variants
+  "RED": ["RED", "ROUGE", "אדום"],
   "PIN": ["PINK", "ROSE", "ורוד"],
+  "PINK": ["PIN"],
+  "ROS": ["ROSE", "PINK"],
+  
+  // Yellow/Gold variants
   "YEL": ["YELLOW", "JAUNE", "צהוב"],
+  "YELLOW": ["YEL"],
+  "GOL": ["GOLD", "OR", "זהב"],
+  "GOLD": ["GOL"],
+  
+  // Gray/Silver variants
   "GRA": ["GRAY", "GREY", "GRIS", "אפור"],
   "GRY": ["GRAY", "GREY", "GRIS", "אפור"],
-  "IVO": ["IVORY", "IVOIRE", "שנהב"],
-  "NAV": ["NAVY", "NAVY BLUE", "כחול כהה"],
-  "ORA": ["ORANGE", "ORANGE", "כתום"],
-  "CAM": ["CAMEL", "CHAMEAU", "גמל"],
-  "COG": ["COGNAC", "COGNAC BROWN", "קוניאק"],
-  "GOL": ["GOLD", "OR", "זהב"],
+  "GRAY": ["GRA", "GRY"],
+  "GREY": ["GRA", "GRY"],
   "SIL": ["SILVER", "ARGENT", "כסף"],
+  "SILVER": ["SIL"],
   "DGR": ["DARK GRAY", "GRIS FONCÉ", "אפור כהה"],
   "LGR": ["LIGHT GRAY", "GRIS CLAIR", "אפור בהיר"],
+  
+  // Purple variants
+  "PUR": ["PURPLE", "VIOLET", "סגול"],
+  "PURPLE": ["PUR"],
+  
+  // Orange variants
+  "ORA": ["ORANGE", "כתום"],
+  "ORANGE": ["ORA"],
+  
+  // Other common colors
+  "IVO": ["IVORY", "IVOIRE", "שנהב", "OFF"],
+  "IVORY": ["IVO", "OFF"],
+  "CAM": ["CAMEL", "CHAMEAU", "גמל"],
+  "CAMEL": ["CAM"],
+  "LIS": ["LIGHT", "LISO"],
+  "NRC": ["NATURAL ROSE COGNAC", "ROSECOGNAC"],
+  "NTB": ["NATURAL TAN BROWN", "TANBROWN"],
+  "LUG": ["LUGGAGE", "LUGGAGE BROWN", "LIGHT TAUPE"],
+  "LOGO": ["LOGO", "WITH LOGO"],
 };
 
 /**
