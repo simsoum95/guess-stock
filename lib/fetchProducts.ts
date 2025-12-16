@@ -224,11 +224,6 @@ const COLOR_MAP: Record<string, string[]> = {
   "ORA": ["ORANGE", "כתום"],
   "ORANGE": ["ORA"],
   
-  // Off-white variants
-  "OFF": ["OFFWHITE", "OFF WHITE", "CREAM", "אוף וויט"],
-  "OFFWHITE": ["OFF", "OFFWHITE"],
-  "OFFWHITELOGO": ["OFF", "OFFWHITE"],
-  
   // Other common colors
   "IVO": ["IVORY", "IVOIRE", "שנהב"],
   "IVORY": ["IVO"],
@@ -645,33 +640,39 @@ export async function fetchProducts(): Promise<Product[]> {
       // Debug log for specific products
       const isDebugProduct = productModelRef === "PD760221" || productModelRef === "CV866522";
       if (isDebugProduct) {
-        console.log(`[DEBUG ${productModelRef}] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
-        console.log(`[DEBUG ${productModelRef}] imageMap size: ${imageMap.size}`);
+        console.log(`[DEBUG ${productModelRef}-${productColor}] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
       }
       
+      // Try exact match with colorCode first (most reliable)
       if (productColorCode) {
         const keyWithCode = `${productModelRef}|${productColorCode}`;
         if (isDebugProduct) {
-          console.log(`[DEBUG PD760221] Looking for key: "${keyWithCode}"`);
-          console.log(`[DEBUG PD760221] Found in imageMap:`, imageMap.has(keyWithCode));
+          console.log(`[DEBUG ${productModelRef}-${productColor}] Looking for exact key: "${keyWithCode}"`);
         }
         images = imageMap.get(keyWithCode);
         if (images) {
           exactMatches++;
           matchedCount++;
           if (isDebugProduct) {
-            console.log(`[DEBUG PD760221] FOUND! imageUrl:`, images.imageUrl);
+            console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ FOUND via colorCode exact match!`);
           }
         }
       }
       
-      // Try exact match with full color name
+      // Try exact match with full color name (normalized)
       if (!images) {
-        const key = `${productModelRef}|${productColor}`;
+        const normalizedColor = productColor.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+        const key = `${productModelRef}|${normalizedColor}`;
+        if (isDebugProduct) {
+          console.log(`[DEBUG ${productModelRef}-${productColor}] Looking for normalized key: "${key}"`);
+        }
         images = imageMap.get(key);
         if (images) {
           exactMatches++;
           matchedCount++;
+          if (isDebugProduct) {
+            console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ FOUND via normalized color exact match!`);
+          }
         }
       }
       
@@ -687,20 +688,24 @@ export async function fetchProducts(): Promise<Product[]> {
         }
         
         if (modelRefImages && modelRefImages.length > 0) {
-          // First try with colorCode (e.g., "BLO")
+          if (isDebugProduct) {
+            console.log(`[DEBUG ${productModelRef}-${productColor}] Available image colors:`, modelRefImages.map(i => i.color));
+          }
+          
+          // First try with colorCode (e.g., "BLO", "OFF", "COG")
           if (productColorCode) {
             for (const item of modelRefImages) {
               const directMatch = item.color === productColorCode;
               const colorMapMatch = matchesColor(item.color, productColorCode);
               if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}] Testing "${item.color}" vs "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
+                console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" vs productColorCode "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
               }
               if (directMatch || colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
                 if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}] MATCHED via colorCode!`);
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via colorCode! Using image:`, item.images.imageUrl);
                 }
                 break;
               }
@@ -710,26 +715,27 @@ export async function fetchProducts(): Promise<Product[]> {
           // Then try with full color name
           if (!images) {
             for (const item of modelRefImages) {
+              const directMatch = item.color === productColor;
               const colorMapMatch = matchesColor(item.color, productColor);
               if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}] Testing "${item.color}" vs "${productColor}": colorMap=${colorMapMatch}`);
+                console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" vs productColor "${productColor}": direct=${directMatch}, colorMap=${colorMapMatch}`);
               }
-              if (colorMapMatch) {
+              if (directMatch || colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
                 if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}] MATCHED via productColor!`);
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via productColor! Using image:`, item.images.imageUrl);
                 }
                 break;
               }
             }
           }
           
-          // If no color match, do NOT use a wrong image
+          // STRICT: If no color match, do NOT use a wrong image - use default
           if (!images) {
             if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}] NO MATCH - will use default image`);
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH - will use default image (NOT using wrong color image)`);
             }
             modelOnlyMatches++;
           }
