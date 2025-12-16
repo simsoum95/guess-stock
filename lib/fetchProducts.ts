@@ -751,12 +751,19 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
-          // STRICT: If no color match, do NOT use a wrong image - use default
-          if (!images) {
-            if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH - will use default image (NOT using wrong color image)`);
-            }
+          // Fallback: If no color match found but images exist for this modelRef,
+          // use the first image as fallback (better than no image at all)
+          // This restores images for shoes/categories where color matching might be imperfect
+          if (!images && modelRefImages.length > 0) {
+            images = modelRefImages[0].images;
             modelOnlyMatches++;
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH - using first available image as fallback:`, modelRefImages[0].images.imageUrl);
+            }
+          } else if (!images) {
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
+            }
           }
         }
       }
