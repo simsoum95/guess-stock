@@ -773,9 +773,10 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
-          // Smart fallback: Only use fallback if there's truly only ONE unique color available
-          // This prevents wrong color display for multi-color products (like CV866522)
-          // but allows images for single-color products (like many shoes)
+          // Smart fallback: Only use fallback if:
+          // 1. There's only ONE unique color available AND
+          // 2. The product's colorCode (if exists) doesn't indicate a different specific color
+          // This prevents CV866522-COG from using CV866522-OFFWHITE images
           if (!images && modelRefImages.length > 0) {
             // Get unique colors (normalized to avoid duplicates like "OFF" vs "OFFWHITE" counting as 2)
             const uniqueColors = new Set<string>();
@@ -784,15 +785,45 @@ export async function fetchProducts(): Promise<Product[]> {
               uniqueColors.add(normalized);
             }
             
-            if (uniqueColors.size === 1) {
-              // Only ONE unique color available - safe to use as fallback (common for shoes)
+            const singleColor = uniqueColors.size === 1 ? Array.from(uniqueColors)[0] : null;
+            
+            // Check if product has a specific colorCode that differs from available color
+            let canUseFallback = false;
+            if (singleColor) {
+              if (productColorCode) {
+                // Product has specific colorCode (e.g., "COG", "BLA", "OFF")
+                // Only use fallback if this colorCode could match the available color
+                const colorCodeNorm = productColorCode.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+                // Check if colorCode matches available color via matchesColor
+                const availableColorItem = modelRefImages.find(item => {
+                  const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+                  return normalized === singleColor;
+                });
+                if (availableColorItem && matchesColor(availableColorItem.color, productColorCode)) {
+                  // colorCode matches available color (e.g., "OFF" matches "OFFWHITE")
+                  canUseFallback = true;
+                } else {
+                  // colorCode is different from available color (e.g., "COG" doesn't match "OFFWHITE")
+                  canUseFallback = false;
+                  if (isDebugProduct) {
+                    console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ colorCode "${productColorCode}" (normalized: "${colorCodeNorm}") doesn't match available color "${singleColor}" - NOT using fallback`);
+                  }
+                }
+              } else {
+                // No colorCode, safe to use fallback for single-color products (like shoes)
+                canUseFallback = true;
+              }
+            }
+            
+            if (canUseFallback && singleColor) {
+              // Only ONE unique color available and colorCode matches (or no colorCode) - safe to use as fallback
               images = modelRefImages[0].images;
               modelOnlyMatches++;
               if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 unique color available (${Array.from(uniqueColors)[0]}) - using as fallback`);
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 unique color available (${singleColor}) - using as fallback`);
               }
             } else {
-              // Multiple unique colors available - don't use fallback (would show wrong color like CV866522)
+              // Multiple colors or colorCode mismatch - don't use fallback
               if (isDebugProduct) {
                 console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${uniqueColors.size} unique colors available (${Array.from(uniqueColors).join(", ")}) - NOT using fallback`);
               }
