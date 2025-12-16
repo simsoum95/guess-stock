@@ -262,24 +262,33 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Normalized exact match
   if (imgNormalized === prodNormalized) return true;
   
-  // STRICT COLOR_MAP check: only if one is exactly in the other's equivalents
+  // Check if one contains the other (e.g., "OFF" in "OFFWHITE")
+  if (imgNormalized.length > 0 && prodNormalized.length > 0) {
+    if (imgNormalized.includes(prodNormalized) || prodNormalized.includes(imgNormalized)) {
+      return true;
+    }
+  }
+  
+  // COLOR_MAP check: check if colors are equivalent via COLOR_MAP
   const isColorEquivalent = (color1: string, color2: string): boolean => {
+    // Direct COLOR_MAP lookup
     const mappedColors = COLOR_MAP[color1];
-    if (!mappedColors) return false;
-    
-    // Check if color2 is exactly in the mapped colors (after normalization)
-    for (const mapped of mappedColors) {
-      const mappedNorm = cleanColor(mapped);
-      if (mappedNorm === color2) return true;
+    if (mappedColors) {
+      for (const mapped of mappedColors) {
+        const mappedNorm = cleanColor(mapped);
+        if (mappedNorm === color2 || color2.includes(mappedNorm) || mappedNorm.includes(color2)) {
+          return true;
+        }
+      }
     }
     return false;
   };
   
-  // Try both directions
+  // Try both directions with COLOR_MAP
   if (isColorEquivalent(imgNormalized, prodNormalized)) return true;
   if (isColorEquivalent(prodNormalized, imgNormalized)) return true;
   
-  // No match found - return false (STRICT)
+  // No match found - return false
   return false;
 }
 
@@ -710,6 +719,7 @@ export async function fetchProducts(): Promise<Product[]> {
           }
           
           // First try with colorCode (e.g., "BLO", "OFF", "COG")
+          // IMPORTANT: Only match if colors truly match - don't use wrong color
           if (productColorCode) {
             for (const item of modelRefImages) {
               const directMatch = item.color === productColorCode;
@@ -717,14 +727,15 @@ export async function fetchProducts(): Promise<Product[]> {
               if (isDebugProduct) {
                 console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" vs productColorCode "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
               }
+              // Only use this image if it truly matches
               if (directMatch || colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
                 if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via colorCode! Using image:`, item.images.imageUrl);
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via colorCode "${productColorCode}"! Using image for color "${item.color}":`, item.images.imageUrl);
                 }
-                break;
+                break; // Stop searching once we found a match
               }
             }
           }
@@ -739,14 +750,15 @@ export async function fetchProducts(): Promise<Product[]> {
               if (isDebugProduct) {
                 console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" (normalized: "${normalizedItemColor}") vs productColor "${productColor}" (normalized: "${normalizedProductColor}"): direct=${directMatch}, colorMap=${colorMapMatch}`);
               }
+              // Only use this image if it truly matches
               if (directMatch || colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
                 if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via productColor! Using image:`, item.images.imageUrl);
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via productColor "${productColor}"! Using image for color "${item.color}":`, item.images.imageUrl);
                 }
-                break;
+                break; // Stop searching once we found a match
               }
             }
           }
