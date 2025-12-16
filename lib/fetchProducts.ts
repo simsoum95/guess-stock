@@ -773,11 +773,33 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
-          // STRICT: Never use fallback - if no color match, don't show image (better than wrong color)
-          // For CV866522, if product has color "COG" but only "OFFWHITE" images exist, show no image
-          if (!images) {
+          // Smart fallback: Only use fallback if there's truly only ONE unique color available
+          // This prevents wrong color display for multi-color products (like CV866522)
+          // but allows images for single-color products (like many shoes)
+          if (!images && modelRefImages.length > 0) {
+            // Get unique colors (normalized to avoid duplicates like "OFF" vs "OFFWHITE" counting as 2)
+            const uniqueColors = new Set<string>();
+            for (const item of modelRefImages) {
+              const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+              uniqueColors.add(normalized);
+            }
+            
+            if (uniqueColors.size === 1) {
+              // Only ONE unique color available - safe to use as fallback (common for shoes)
+              images = modelRefImages[0].images;
+              modelOnlyMatches++;
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 unique color available (${Array.from(uniqueColors)[0]}) - using as fallback`);
+              }
+            } else {
+              // Multiple unique colors available - don't use fallback (would show wrong color like CV866522)
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${uniqueColors.size} unique colors available (${Array.from(uniqueColors).join(", ")}) - NOT using fallback`);
+              }
+            }
+          } else if (!images) {
             if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH found - NOT using fallback (would show wrong color)`);
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
             }
           }
         }
