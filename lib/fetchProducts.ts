@@ -224,9 +224,14 @@ const COLOR_MAP: Record<string, string[]> = {
   "ORA": ["ORANGE", "כתום"],
   "ORANGE": ["ORA"],
   
+  // Off-white variants
+  "OFF": ["OFFWHITE", "OFF WHITE", "CREAM", "אוף וויט"],
+  "OFFWHITE": ["OFF", "OFFWHITE"],
+  "OFFWHITELOGO": ["OFF", "OFFWHITE"],
+  
   // Other common colors
-  "IVO": ["IVORY", "IVOIRE", "שנהב", "OFF"],
-  "IVORY": ["IVO", "OFF"],
+  "IVO": ["IVORY", "IVOIRE", "שנהב"],
+  "IVORY": ["IVO"],
   "CAM": ["CAMEL", "CHAMEAU", "גמל"],
   "CAMEL": ["CAM"],
   "LIS": ["LIGHT", "LISO"],
@@ -261,13 +266,8 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   
   if (imgNormalized === prodNormalized) return true;
   
-  // Check if one contains the other
-  if (imgNormalized.includes(prodNormalized) && prodNormalized.length >= 3) return true;
-  if (prodNormalized.includes(imgNormalized) && imgNormalized.length >= 3) return true;
-  
-  // Image color starts with product color or vice versa (at least 3 chars)
-  if (imgNormalized.length >= 3 && prodNormalized.startsWith(imgNormalized)) return true;
-  if (prodNormalized.length >= 3 && imgNormalized.startsWith(prodNormalized)) return true;
+  // STRICT: Only check COLOR_MAP for abbreviation matches
+  // DO NOT use "contains" logic - it's too permissive and causes wrong matches
   
   // Check COLOR_MAP with both normalized versions
   const tryColorMap = (abbrev: string, fullColor: string) => {
