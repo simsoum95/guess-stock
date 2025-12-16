@@ -773,24 +773,11 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
-          // Fallback: Only use first image if there's ONLY ONE color available for this modelRef
-          // If multiple colors exist, don't use fallback (would show wrong color)
-          // This prevents CV866522-OFF from showing CV866522-COG image when multiple colors exist
-          if (!images && modelRefImages.length === 1) {
-            // Only one color option available, safe to use as fallback
-            images = modelRefImages[0].images;
-            modelOnlyMatches++;
+          // STRICT: Never use fallback - if no color match, don't show image (better than wrong color)
+          // For CV866522, if product has color "COG" but only "OFFWHITE" images exist, show no image
+          if (!images) {
             if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 image available - using as fallback:`, modelRefImages[0].images.imageUrl);
-            }
-          } else if (!images && modelRefImages.length > 1) {
-            // Multiple colors available but none matched - don't use fallback (would be wrong color)
-            if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${modelRefImages.length} colors available - NOT using fallback (would show wrong color)`);
-            }
-          } else if (!images) {
-            if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH found - NOT using fallback (would show wrong color)`);
             }
           }
         }
