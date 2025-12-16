@@ -282,11 +282,18 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   if (isColorEquivalent(imgNormalized, prodNormalized)) return true;
   if (isColorEquivalent(prodNormalized, imgNormalized)) return true;
   
-  // Last resort: Check if one contains the other, but only for short codes
-  // (e.g., "OFF" in "OFFWHITE" is OK, but "COG" in "COGNAC" should use COLOR_MAP)
-  // Only do this if both are 3-4 characters (abbreviations)
-  if (imgNormalized.length <= 4 && prodNormalized.length <= 4) {
-    if (imgNormalized.includes(prodNormalized) || prodNormalized.includes(imgNormalized)) {
+  // Last resort: Check if a short color code (3-4 chars) is contained in a longer color name
+  // (e.g., "OFF" in "OFFWHITE" is OK, "COG" in "COGNAC" is OK)
+  // This handles cases where image has full name "OFFWHITE" but product has abbreviation "OFF"
+  if (imgNormalized.length <= 4 && prodNormalized.length > imgNormalized.length) {
+    // Image color is short abbreviation, product color is longer - check if abbreviation is in longer name
+    if (prodNormalized.includes(imgNormalized)) {
+      return true;
+    }
+  }
+  if (prodNormalized.length <= 4 && imgNormalized.length > prodNormalized.length) {
+    // Product color is short abbreviation, image color is longer - check if abbreviation is in longer name
+    if (imgNormalized.includes(prodNormalized)) {
       return true;
     }
   }
