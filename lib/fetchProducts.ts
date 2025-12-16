@@ -751,14 +751,20 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
-          // Fallback: If no color match found but images exist for this modelRef,
-          // use the first image as fallback (better than no image at all)
-          // This restores images for shoes/categories where color matching might be imperfect
-          if (!images && modelRefImages.length > 0) {
+          // Fallback: Only use first image if there's ONLY ONE color available for this modelRef
+          // If multiple colors exist, don't use fallback (would show wrong color)
+          // This prevents CV866522-OFF from showing CV866522-COG image when multiple colors exist
+          if (!images && modelRefImages.length === 1) {
+            // Only one color option available, safe to use as fallback
             images = modelRefImages[0].images;
             modelOnlyMatches++;
             if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH - using first available image as fallback:`, modelRefImages[0].images.imageUrl);
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 image available - using as fallback:`, modelRefImages[0].images.imageUrl);
+            }
+          } else if (!images && modelRefImages.length > 1) {
+            // Multiple colors available but none matched - don't use fallback (would be wrong color)
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${modelRefImages.length} colors available - NOT using fallback (would show wrong color)`);
             }
           } else if (!images) {
             if (isDebugProduct) {
