@@ -643,11 +643,10 @@ export async function fetchProducts(): Promise<Product[]> {
       let images: { imageUrl: string; gallery: string[] } | undefined;
       
       // Debug log for specific products
-      const isDebugProduct = productModelRef === "PD760221";
+      const isDebugProduct = productModelRef === "PD760221" || productModelRef === "CV866522";
       if (isDebugProduct) {
-        console.log(`[DEBUG PD760221] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
-        console.log(`[DEBUG PD760221] imageMap size: ${imageMap.size}`);
-        console.log(`[DEBUG PD760221] First 5 imageMap keys:`, Array.from(imageMap.keys()).slice(0, 5));
+        console.log(`[DEBUG ${productModelRef}] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
+        console.log(`[DEBUG ${productModelRef}] imageMap size: ${imageMap.size}`);
       }
       
       if (productColorCode) {
@@ -680,14 +679,29 @@ export async function fetchProducts(): Promise<Product[]> {
       if (!images) {
         const modelRefImages = modelRefIndex.get(productModelRef);
         
+        if (isDebugProduct) {
+          console.log(`[DEBUG ${productModelRef}] modelRefImages count: ${modelRefImages?.length || 0}`);
+          if (modelRefImages) {
+            console.log(`[DEBUG ${productModelRef}] Available colors:`, modelRefImages.map(i => i.color));
+          }
+        }
+        
         if (modelRefImages && modelRefImages.length > 0) {
           // First try with colorCode (e.g., "BLO")
           if (productColorCode) {
             for (const item of modelRefImages) {
-              if (item.color === productColorCode || matchesColor(item.color, productColorCode)) {
+              const directMatch = item.color === productColorCode;
+              const colorMapMatch = matchesColor(item.color, productColorCode);
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}] Testing "${item.color}" vs "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
+              }
+              if (directMatch || colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
+                if (isDebugProduct) {
+                  console.log(`[DEBUG ${productModelRef}] MATCHED via colorCode!`);
+                }
                 break;
               }
             }
@@ -696,10 +710,17 @@ export async function fetchProducts(): Promise<Product[]> {
           // Then try with full color name
           if (!images) {
             for (const item of modelRefImages) {
-              if (matchesColor(item.color, productColor)) {
+              const colorMapMatch = matchesColor(item.color, productColor);
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}] Testing "${item.color}" vs "${productColor}": colorMap=${colorMapMatch}`);
+              }
+              if (colorMapMatch) {
                 images = item.images;
                 colorMatches++;
                 matchedCount++;
+                if (isDebugProduct) {
+                  console.log(`[DEBUG ${productModelRef}] MATCHED via productColor!`);
+                }
                 break;
               }
             }
@@ -707,6 +728,9 @@ export async function fetchProducts(): Promise<Product[]> {
           
           // If no color match, do NOT use a wrong image
           if (!images) {
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}] NO MATCH - will use default image`);
+            }
             modelOnlyMatches++;
           }
         }
