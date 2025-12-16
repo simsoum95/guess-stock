@@ -262,21 +262,15 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Normalized exact match
   if (imgNormalized === prodNormalized) return true;
   
-  // Check if one contains the other (e.g., "OFF" in "OFFWHITE")
-  if (imgNormalized.length > 0 && prodNormalized.length > 0) {
-    if (imgNormalized.includes(prodNormalized) || prodNormalized.includes(imgNormalized)) {
-      return true;
-    }
-  }
-  
-  // COLOR_MAP check: check if colors are equivalent via COLOR_MAP
+  // COLOR_MAP check: check if colors are equivalent via COLOR_MAP (STRICT)
   const isColorEquivalent = (color1: string, color2: string): boolean => {
     // Direct COLOR_MAP lookup
     const mappedColors = COLOR_MAP[color1];
     if (mappedColors) {
       for (const mapped of mappedColors) {
         const mappedNorm = cleanColor(mapped);
-        if (mappedNorm === color2 || color2.includes(mappedNorm) || mappedNorm.includes(color2)) {
+        // Only exact match via COLOR_MAP (no partial matching)
+        if (mappedNorm === color2) {
           return true;
         }
       }
@@ -287,6 +281,15 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Try both directions with COLOR_MAP
   if (isColorEquivalent(imgNormalized, prodNormalized)) return true;
   if (isColorEquivalent(prodNormalized, imgNormalized)) return true;
+  
+  // Last resort: Check if one contains the other, but only for short codes
+  // (e.g., "OFF" in "OFFWHITE" is OK, but "COG" in "COGNAC" should use COLOR_MAP)
+  // Only do this if both are 3-4 characters (abbreviations)
+  if (imgNormalized.length <= 4 && prodNormalized.length <= 4) {
+    if (imgNormalized.includes(prodNormalized) || prodNormalized.includes(imgNormalized)) {
+      return true;
+    }
+  }
   
   // No match found - return false
   return false;
