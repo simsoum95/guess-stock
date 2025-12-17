@@ -7,7 +7,7 @@ export const revalidate = 30;
 export default async function ProductsPage() {
   try {
     const products = await fetchProducts();
-    return <ProductsClient products={products} />;
+  return <ProductsClient products={products} />;
   } catch (error) {
     console.error("[ProductsPage] Error:", error);
     return (
