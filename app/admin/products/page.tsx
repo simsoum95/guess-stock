@@ -4,8 +4,8 @@ import Link from "next/link";
 
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-// Cache for 30 seconds - fast navigation with relatively fresh data
-export const revalidate = 30;
+// Cache for 2 minutes - faster navigation, data refreshed every 2 min
+export const revalidate = 120;
 
 async function getProducts() {
   try {

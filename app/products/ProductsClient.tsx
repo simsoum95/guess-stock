@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, memo } from "react";
+import { useMemo, useState, memo, useEffect } from "react";
 import type { Product } from "@/lib/types";
 import Image from "next/image";
 
@@ -235,6 +235,36 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   
   const hasMultipleImages = allImages.length > 1;
   const currentImage = allImages[currentImageIndex] || product.imageUrl || "/images/default.png";
+  
+  // Preload next/previous images for instant carousel switching
+  useEffect(() => {
+    if (hasMultipleImages && typeof document !== 'undefined') {
+      const nextImageUrl = allImages[(currentImageIndex + 1) % allImages.length];
+      const prevImageUrl = allImages[(currentImageIndex - 1 + allImages.length) % allImages.length];
+      
+      // Preload next image
+      if (nextImageUrl) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'image';
+        link.href = nextImageUrl;
+        if (!document.querySelector(`link[href="${nextImageUrl}"]`)) {
+          document.head.appendChild(link);
+        }
+      }
+      
+      // Preload previous image
+      if (prevImageUrl && prevImageUrl !== nextImageUrl) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'image';
+        link.href = prevImageUrl;
+        if (!document.querySelector(`link[href="${prevImageUrl}"]`)) {
+          document.head.appendChild(link);
+        }
+      }
+    }
+  }, [currentImageIndex, allImages, hasMultipleImages]);
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();

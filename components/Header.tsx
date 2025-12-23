@@ -10,12 +10,14 @@ export function Header() {
           <Link 
             href="/" 
             className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
+            prefetch={true}
           >
             דף הבית
           </Link>
           <Link 
             href="/products" 
             className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
+            prefetch={true}
           >
             קטלוג
           </Link>

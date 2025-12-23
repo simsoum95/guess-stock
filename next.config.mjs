@@ -4,7 +4,7 @@ const nextConfig = {
   
   images: {
     // Optimize images for faster loading
-    minimumCacheTTL: 3600, // Cache images for 1 hour
+    minimumCacheTTL: 86400, // Cache images for 24 hours (much faster)
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],

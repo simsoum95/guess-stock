@@ -1,8 +1,8 @@
 import { fetchProducts } from "@/lib/fetchProducts";
 import ProductsClient from "./ProductsClient";
 
-// Cache for 60 seconds - good balance between speed and freshness
-export const revalidate = 30;
+// Cache for 5 minutes - much faster page loads, data refreshed every 5 min
+export const revalidate = 300;
 
 export default async function ProductsPage() {
   try {

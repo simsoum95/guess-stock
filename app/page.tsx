@@ -57,6 +57,7 @@ export default function HomePage() {
           <Link 
             href="/products" 
             className="btn-luxury"
+            prefetch={true}
           >
             למעבר לקטלוג
           </Link>
