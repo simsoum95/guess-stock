@@ -285,7 +285,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
           alt={product.productName || ""}
           loading={priority ? "eager" : "lazy"}
           decoding={priority ? "sync" : "async"}
-          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className={`h-full w-full ${product.category === "נעל" ? "object-contain" : "object-cover group-hover:scale-105"} transition-transform duration-300`}
+          style={product.category === "נעל" ? { padding: "2rem" } : undefined}
           onError={(e) => {
             (e.target as HTMLImageElement).src = "/images/default.png";
           }}
