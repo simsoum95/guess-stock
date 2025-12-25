@@ -251,7 +251,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         console.log(`[fetchGoogleSheet] ✅ Discovered sheet names: ${sheetNames.join(", ")}`);
       } else {
         // Fallback to common Hebrew names
-        sheetNames = ["ביגוד", "תיקים", "גיליון2"];
+        sheetNames = ["ביגוד", "תיקים", "נעליים"];
         console.log("[fetchGoogleSheet] Using fallback Hebrew sheet names");
       }
     }
@@ -552,21 +552,28 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   // תיקים (Bags) category:
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק כתף", "תיק עסקים"
+    "תיק ערב", "מחזיק מפתחות", "תיק יד", "תיק כתף", "תיק עסקים"
   ];
   
   // נעליים (Shoes) category:
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים"
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
   ];
   
-  // ביגוד (Clothes) category: everything else
+  // ביגוד (Clothes) category:
+  const clothesSubcategories = [
+    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
+  ];
+  
+  // Determine category based on subcategory
   let category = "ביגוד"; // Default
   
   if (bagSubcategories.some(sub => subcategory.includes(sub))) {
     category = "תיק";
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
     category = "נעל";
+  } else if (clothesSubcategories.some(sub => subcategory.includes(sub))) {
+    category = "ביגוד";
   }
   // else: stays as "ביגוד" (already set as default)
   

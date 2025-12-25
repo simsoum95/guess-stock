@@ -22,12 +22,17 @@ function normalizeCategory(cat: string): Category {
   // תיקים (Bags) subcategories
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק כתף", "תיק עסקים"
+    "תיק ערב", "מחזיק מפתחות", "תיק יד", "תיק כתף", "תיק עסקים"
   ];
   
   // נעליים (Shoes) subcategories
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים"
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
+  ];
+  
+  // ביגוד (Clothes) subcategories
+  const clothesSubcategories = [
+    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
   ];
   
   // Check if it's a bag subcategory
@@ -38,6 +43,11 @@ function normalizeCategory(cat: string): Category {
   // Check if it's a shoes subcategory
   if (shoesSubcategories.some(sub => cat.includes(sub))) {
     return "נעל";
+  }
+  
+  // Check if it's a clothes subcategory
+  if (clothesSubcategories.some(sub => cat.includes(sub))) {
+    return "ביגוד";
   }
   
   // Default: ביגוד (Clothes)

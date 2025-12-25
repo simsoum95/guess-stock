@@ -141,12 +141,16 @@ async function findActualSheetName(accessToken: string, targetName: string): Pro
 function getTargetSheetName(subcategory: string): string {
   const bagSubcategories = [
     "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
-    "תיק ערב", "מחזיק מפתחות", "קלאץ", "תיק יד", "תיק", "תיקים"
+    "תיק ערב", "מחזיק מפתחות", "תיק יד", "תיק", "תיקים"
   ];
   
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "סנדלים", "מגפיים", "נעליים",
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים", "נעליים",
     "נעל", "נעלים" // Singular and common variations
+  ];
+  
+  const clothesSubcategories = [
+    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
   ];
 
   const subLower = subcategory.toLowerCase();
@@ -154,7 +158,7 @@ function getTargetSheetName(subcategory: string): string {
   if (bagSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
     return "תיקים";
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
-    return "גיליון2"; // Shoes sheet is named "גיליון2"
+    return "נעליים"; // Shoes sheet is named "נעליים"
   }
   return "ביגוד";
 }

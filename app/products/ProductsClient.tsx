@@ -7,14 +7,53 @@ import Image from "next/image";
 type CategoryFilter = "all" | "תיק" | "נעל" | "ביגוד";
 type StockFilter = "all" | "in" | "out";
 
+// Sous-catégories par catégorie principale
+const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
+  all: [],
+  "תיק": ["ארנקים", "מזוודות", "מחזיק מפתחות", "תיק גב", "תיק נסיעות", "תיק נשיאה", "תיק ערב", "תיק צד"],
+  "נעל": ["כפכפים", "נעליים שטוחו", "סניקרס", "נעלי עקב", "מגפיים"],
+  "ביגוד": ["טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"]
+};
+
 export default function ProductsClient({ products }: { products: Product[] }) {
   const [category, setCategory] = useState<CategoryFilter>("all");
+  const [subcategory, setSubcategory] = useState<string>("all");
   const [stock, setStock] = useState<StockFilter>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  
+  // Reset subcategory when category changes
+  const handleCategoryChange = (newCategory: CategoryFilter) => {
+    setCategory(newCategory);
+    setSubcategory("all");
+  };
+  
+  // Get available subcategories for current category (only those that exist in products)
+  const availableSubcategories = useMemo(() => {
+    if (category === "all") {
+      // Get all unique subcategories from products
+      const allSubcats = new Set<string>();
+      products.forEach(p => {
+        if (p.subcategory) allSubcats.add(p.subcategory);
+      });
+      return Array.from(allSubcats).sort();
+    }
+    // Get subcategories that both exist in SUBcategoriesByCategory AND in products
+    const categorySubcats = SUBcategoriesByCategory[category] || [];
+    const productSubcats = new Set<string>();
+    products
+      .filter(p => p.category === category && p.subcategory)
+      .forEach(p => productSubcats.add(p.subcategory));
+    
+    // Return intersection: subcategories in both lists, sorted
+    return categorySubcats.filter(subcat => productSubcats.has(subcat)).sort();
+  }, [category, products]);
 
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
       if (category !== "all" && product.category !== category) return false;
+      
+      // Filter by subcategory
+      if (subcategory !== "all" && product.subcategory !== subcategory) return false;
 
       const stockOk =
         stock === "all" ||
@@ -42,7 +81,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       if (!aHasImage && bHasImage) return 1;
       return 0;
     });
-  }, [products, category, stock, searchQuery]);
+  }, [products, category, subcategory, stock, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
@@ -69,33 +108,53 @@ export default function ProductsClient({ products }: { products: Product[] }) {
         </div>
 
         {/* Filter Controls */}
-        <div className="mb-24 flex flex-wrap items-center gap-12 border-b border-luxury-grey/20 pb-8">
-          <div className="flex items-center gap-10">
+        <div className="mb-24 space-y-8 border-b border-luxury-grey/20 pb-8">
+          {/* Main Category Filters */}
+          <div className="flex flex-wrap items-center gap-10">
             <FilterControl
               label="כל הקטגוריות"
               active={category === "all"}
-              onClick={() => setCategory("all")}
+              onClick={() => handleCategoryChange("all")}
             />
             <FilterControl
               label="תיקים"
               active={category === "תיק"}
-              onClick={() => setCategory("תיק")}
+              onClick={() => handleCategoryChange("תיק")}
             />
             <FilterControl
               label="נעליים"
               active={category === "נעל"}
-              onClick={() => setCategory("נעל")}
+              onClick={() => handleCategoryChange("נעל")}
             />
             <FilterControl
               label="בגדים"
               active={category === "ביגוד"}
-              onClick={() => setCategory("ביגוד")}
+              onClick={() => handleCategoryChange("ביגוד")}
             />
           </div>
           
-          <div className="h-8 w-px bg-luxury-grey/20" />
+          {/* Subcategory Filters - Only show if a category is selected */}
+          {category !== "all" && availableSubcategories.length > 0 && (
+            <div className="flex flex-wrap items-center gap-6">
+              <FilterControl
+                label="כל התת-קטגוריות"
+                active={subcategory === "all"}
+                onClick={() => setSubcategory("all")}
+              />
+              {availableSubcategories.map((subcat) => (
+                <FilterControl
+                  key={subcat}
+                  label={subcat}
+                  active={subcategory === subcat}
+                  onClick={() => setSubcategory(subcat)}
+                />
+              ))}
+            </div>
+          )}
           
-          <div className="flex items-center gap-10">
+          {/* Stock Filters */}
+          <div className="flex items-center gap-6">
+            <div className="h-8 w-px bg-luxury-grey/20" />
             <FilterControl
               label="הכל"
               active={stock === "all"}
