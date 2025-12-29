@@ -5,7 +5,6 @@ import type { Product } from "@/lib/types";
 import Image from "next/image";
 
 type CategoryFilter = "all" | "תיק" | "נעל";
-type StockFilter = "all" | "in" | "out";
 
 // Sous-catégories par catégorie principale
 const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
@@ -17,7 +16,6 @@ const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
 export default function ProductsClient({ products }: { products: Product[] }) {
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [subcategory, setSubcategory] = useState<string>("all");
-  const [stock, setStock] = useState<StockFilter>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
   // Reset subcategory when category changes
@@ -54,12 +52,6 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       // Filter by subcategory
       if (subcategory !== "all" && product.subcategory !== subcategory) return false;
 
-      const stockOk =
-        stock === "all" ||
-        (stock === "in" && product.stockQuantity > 0) ||
-        (stock === "out" && product.stockQuantity === 0);
-      if (!stockOk) return false;
-
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const matchesId = product.id.toLowerCase().includes(query);
@@ -80,7 +72,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       if (!aHasImage && bHasImage) return 1;
       return 0;
     });
-  }, [products, category, subcategory, stock, searchQuery]);
+  }, [products, category, subcategory, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
@@ -145,26 +137,6 @@ export default function ProductsClient({ products }: { products: Product[] }) {
               ))}
             </div>
           )}
-          
-          {/* Stock Filters */}
-          <div className="flex items-center gap-6">
-            <div className="h-8 w-px bg-luxury-grey/20" />
-            <FilterControl
-              label="הכל"
-              active={stock === "all"}
-              onClick={() => setStock("all")}
-            />
-            <FilterControl
-              label="במלאי"
-              active={stock === "in"}
-              onClick={() => setStock("in")}
-            />
-            <FilterControl
-              label="חסר במלאי"
-              active={stock === "out"}
-              onClick={() => setStock("out")}
-            />
-          </div>
         </div>
 
         {/* Product Grid */}
