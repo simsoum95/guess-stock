@@ -316,42 +316,33 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               return false; // Skip completely empty rows
             }
             
-            // Check for modelRef - Column D: "קוד גם" (base product code)
-            // Also check for itemCode - Column G: "קוד פריט" (specific item code)
-            const modelRef = (
-              row["קוד גם"] || 
-              row["מגז-קוד גם"] || 
-              row["קוד דגם"] || 
-              row["modelRef"] || 
-              ""
-            ).toString().trim();
-            
+            // Check for itemCode - Column G: "קוד פריט" (specific item code with format: modelRef-color-code)
+            // This is now the PRIMARY source - column D is no longer needed
             const itemCode = (
               row["קוד פריט"] || 
               row["itemCode"] || 
               ""
             ).toString().trim();
             
-            // Accept row if it has EITHER modelRef OR itemCode (both exist in your sheet!)
-            const hasIdentifier = modelRef.length > 0 || itemCode.length > 0;
-            const hasModelRef = modelRef.length > 0;
+            // Extract modelRef from itemCode (first part before dash)
+            // Format: "PD760221-BLO-OS" -> modelRef = "PD760221"
+            let modelRef = "";
+            if (itemCode) {
+              const parts = itemCode.split("-");
+              modelRef = parts[0] || itemCode;
+            }
+            
+            // Accept row ONLY if it has itemCode (column G is required)
+            const hasIdentifier = itemCode.length > 0;
             
             if (hasData && !hasIdentifier) {
               if (idx < 10) {
-                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no modelRef or itemCode. Keys:`, Object.keys(row).slice(0, 5));
+                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no itemCode (column G). Keys:`, Object.keys(row).slice(0, 5));
               }
             }
             
-            // DEBUG MODE: Accept ALL rows with data (temporarily to see what we get)
-            // Normally: return hasData && hasIdentifier;
-            // But for debugging, accept everything with data
-            if (hasData && !hasIdentifier) {
-              if (idx < 5) {
-                console.warn(`[fetchGoogleSheet] DEBUG: Row ${idx} has data but no modelRef/itemCode. Keeping it anyway for debugging.`);
-                console.warn(`[fetchGoogleSheet] Row ${idx} keys:`, Object.keys(row));
-              }
-            }
-            return hasData; // Accept ALL rows with data for now
+            // Accept row if it has data AND itemCode (column G is required)
+            return hasData && hasIdentifier;
           });
           
         console.log(`[fetchGoogleSheet] After filtering: ${validRows.length} valid product rows from "${sheetName}" (filtered out ${rows.length - validRows.length} rows)`);
@@ -370,9 +361,9 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               const str = String(val || "").trim();
               return str.length > 0;
             });
-            const modelRef = (row["קוד גם"] || row["מגז-קוד גם"] || row["קוד דגם"] || "").toString().trim();
             const itemCode = (row["קוד פריט"] || "").toString().trim();
-            console.error(`[fetchGoogleSheet] Test row ${idx}: firstValue="${firstValue}", hasData=${hasData}, modelRef="${modelRef}", itemCode="${itemCode}"`);
+            const modelRef = itemCode ? itemCode.split("-")[0] : "";
+            console.error(`[fetchGoogleSheet] Test row ${idx}: firstValue="${firstValue}", hasData=${hasData}, itemCode="${itemCode}", modelRef="${modelRef}"`);
             console.error(`[fetchGoogleSheet] Test row ${idx} all values:`, Object.entries(row).map(([k, v]) => `${k}="${String(v).substring(0, 30)}"`).join(", "));
           });
           console.error(`[fetchGoogleSheet] ===== DEBUG INFO END =====`);
@@ -398,9 +389,9 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       console.log(`[fetchGoogleSheet] Sample rows (first 5):`, allRows.slice(0, 5).map((row, idx) => ({
         index: idx + 1,
         subcategory: row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "",
-        modelRef: row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "",
-        color: row["צבע"] || row["color"] || "",
         itemCode: row["קוד פריט"] || row["itemCode"] || "",
+        modelRef: (row["קוד פריט"] || row["itemCode"] || "").split("-")[0] || "",
+        color: row["צבע"] || row["color"] || "",
       })));
     }
     
@@ -425,39 +416,22 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     const skippedRows: Array<{index: number; reason: string; row: any}> = [];
     
     allRows.forEach((row, index) => {
-      const modelRef = (row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
-      const color = (row["צבע"] || row["color"] || "").toString().trim();
       const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
+      const color = (row["צבע"] || row["color"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       
-      // Skip rows that are completely empty (no modelRef)
-      // NOTE: "קוד פריט" doesn't exist in your Google Sheet, so we only check modelRef
-      if (!modelRef) {
-        skippedRows.push({ index: index + 1, reason: "No modelRef", row: { modelRef, color } });
+      // Skip rows that don't have itemCode (column G is required)
+      if (!itemCode) {
+        skippedRows.push({ index: index + 1, reason: "No itemCode (column G)", row: { itemCode, color } });
         return;
       }
       
-      // CRITICAL: Always include row index in key to ensure ALL rows are kept as unique products
-      // Even if two rows have same modelRef+color, they are different products (different rows)
-      // Your Google Sheet doesn't have "קוד פריט", so each row = one unique product
-      let key: string;
-      if (itemCode) {
-        // If itemCode exists (unlikely), use it but still add row index for safety
-        key = `${itemCode}|ROW${index}`.toUpperCase().trim();
-      } else if (modelRef && color) {
-        // Use modelRef + color + row index - ALWAYS include row index to keep all products
-        if (size) {
-          key = `${modelRef}|${color}|${size}|ROW${index}`.toUpperCase();
-        } else {
-          key = `${modelRef}|${color}|ROW${index}`.toUpperCase();
-        }
-      } else if (modelRef) {
-        // Only modelRef, use row index
-        key = `${modelRef}|ROW${index}`.toUpperCase();
-      } else {
-        // Last resort: just row index to ensure all rows are kept
-        key = `ROW${index}`.toUpperCase();
-      }
+      // Extract modelRef from itemCode (first part before dash)
+      const modelRef = itemCode.split("-")[0] || itemCode;
+      
+      // Use itemCode as the unique key (it's already unique per product)
+      // Format: "PD760221-BLO-OS" is unique per product
+      const key = itemCode.toUpperCase().trim();
       
       if (!uniqueRows.has(key)) {
         uniqueRows.set(key, row);
@@ -467,8 +441,8 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         duplicateCount.set(key, count + 1);
         skippedRows.push({ 
           index: index + 1, 
-          reason: `Duplicate key: ${key}`, 
-          row: { modelRef, color, itemCode, key } 
+          reason: `Duplicate itemCode: ${key}`, 
+          row: { itemCode, modelRef, color, key } 
         });
         console.warn(`[fetchGoogleSheet] Duplicate found (row ${index + 1}): ${key} - keeping first occurrence`);
       }
@@ -539,10 +513,18 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   };
 
   // Map according to your Google Sheet columns (Hebrew names from the sheet)
-  // Column D: קוד גם = modelRef (base product code)
-  const modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
-  // Column G: קוד פריט = itemCode (specific item code with color)
+  // Column G: קוד פריט = itemCode (specific item code with format: modelRef-color-code)
+  // This is now the PRIMARY source - we extract modelRef from itemCode
   const itemCode = getValue(["קוד פריט", "itemCode", "ItemCode"]);
+  
+  // Extract modelRef from itemCode (first part before dash)
+  // Format: "PD760221-BLO-OS" -> modelRef = "PD760221"
+  let modelRef = "";
+  if (itemCode) {
+    const parts = itemCode.split("-");
+    modelRef = parts[0] || itemCode;
+  }
+  
   // Column H: צבע = color
   const color = getValue(["צבע", "color", "Color", "COLOR"]);
   // Column B: תת משפחה = subcategory
@@ -570,7 +552,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   }
   // else: stays as "תיק" (default to bags)
   
-  // Use itemCode if available, otherwise use modelRef for the ID
+  // Use itemCode as the unique ID (it's already unique per product)
   const uniqueId = itemCode || `${modelRef}-${color}-${index}`;
   
   // Extract color code from itemCode (e.g., "PD760221-BLO-OS" -> "BLO")
