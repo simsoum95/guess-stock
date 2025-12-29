@@ -424,18 +424,40 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       const color = (row["צבע"] || row["color"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       
-      // Skip rows that don't have itemCode (column G is required)
-      if (!itemCode) {
-        skippedRows.push({ index: index + 1, reason: "No itemCode (column G)", row: { itemCode, color } });
+      // Determine if it's a bag or shoe based on subcategory
+      const bagSubcategories = [
+        "ארנקים", "ארנק", "תיק צד", "תיק נשיאה", "מזוודות", "תיק גב", "תיק נסיעות", 
+        "תיק ערב", "מחזיק מפתחות", "תיק יד", "תיק כתף", "תיק עסקים"
+      ];
+      const isBag = bagSubcategories.some(sub => subcategory.includes(sub));
+      
+      // For bags: itemCode is required. For shoes: modelRef (column D) is required
+      if (isBag && !itemCode) {
+        skippedRows.push({ index: index + 1, reason: "Bag without itemCode (column G)", row: { itemCode, modelRef, color } });
+        return;
+      }
+      if (!isBag && !modelRef) {
+        skippedRows.push({ index: index + 1, reason: "Shoe without modelRef (column D)", row: { itemCode, modelRef, color } });
         return;
       }
       
-      // Extract modelRef from itemCode (first part before dash)
-      const modelRef = itemCode.split("-")[0] || itemCode;
-      
-      // Use itemCode as the unique key (it's already unique per product)
-      // Format: "PD760221-BLO-OS" is unique per product
-      const key = itemCode.toUpperCase().trim();
+      // Generate unique key:
+      // - For bags: use itemCode (already unique)
+      // - For shoes: use modelRef + color + row index (as before)
+      let key: string;
+      if (isBag && itemCode) {
+        key = itemCode.toUpperCase().trim();
+      } else if (modelRef && color) {
+        if (size) {
+          key = `${modelRef}|${color}|${size}|ROW${index}`.toUpperCase();
+        } else {
+          key = `${modelRef}|${color}|ROW${index}`.toUpperCase();
+        }
+      } else if (modelRef) {
+        key = `${modelRef}|ROW${index}`.toUpperCase();
+      } else {
+        key = `ROW${index}`.toUpperCase();
+      }
       
       if (!uniqueRows.has(key)) {
         uniqueRows.set(key, row);
