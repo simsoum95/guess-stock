@@ -316,24 +316,25 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               return false; // Skip completely empty rows
             }
             
-            // Check for itemCode - Column G: "קוד פריט" (specific item code with format: modelRef-color-code)
-            // This is now the PRIMARY source - column D is no longer needed
+            // Check for itemCode - Column G: "קוד פריט" (specific item code)
             const itemCode = (
               row["קוד פריט"] || 
               row["itemCode"] || 
               ""
             ).toString().trim();
             
-            // Extract modelRef from itemCode (first part before dash)
-            // Format: "PD760221-BLO-OS" -> modelRef = "PD760221"
-            let modelRef = "";
-            if (itemCode) {
-              const parts = itemCode.split("-");
-              modelRef = parts[0] || itemCode;
-            }
+            // Check for modelRef - Column D: "קוד גם" (for shoes)
+            const modelRef = (
+              row["קוד גם"] || 
+              row["מגז-קוד גם"] || 
+              row["קוד דגם"] || 
+              row["modelRef"] || 
+              ""
+            ).toString().trim();
             
-            // Accept row ONLY if it has itemCode (column G is required)
-            const hasIdentifier = itemCode.length > 0;
+            // Accept row if it has itemCode (for bags) OR modelRef (for shoes)
+            // Bags need itemCode, shoes need modelRef (column D)
+            const hasIdentifier = itemCode.length > 0 || modelRef.length > 0;
             
             if (hasData && !hasIdentifier) {
               if (idx < 10) {
@@ -444,7 +445,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         duplicateCount.set(key, count + 1);
         skippedRows.push({ 
           index: index + 1, 
-          reason: `Duplicate itemCode: ${key}`, 
+          reason: `Duplicate key: ${key}`, 
           row: { itemCode, modelRef, color, key } 
         });
         console.warn(`[fetchGoogleSheet] Duplicate found (row ${index + 1}): ${key} - keeping first occurrence`);
@@ -517,17 +518,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
 
   // Map according to your Google Sheet columns (Hebrew names from the sheet)
   // Column G: קוד פריט = itemCode (specific item code with format: modelRef-color-code)
-  // This is now the PRIMARY source - we extract modelRef from itemCode
   const itemCode = getValue(["קוד פריט", "itemCode", "ItemCode"]);
-  
-  // Extract modelRef from itemCode (first part before dash)
-  // Format: "PD760221-BLO-OS" -> modelRef = "PD760221"
-  let modelRef = "";
-  if (itemCode) {
-    const parts = itemCode.split("-");
-    modelRef = parts[0] || itemCode;
-  }
-  
   // Column H: צבע = color
   const color = getValue(["צבע", "color", "Color", "COLOR"]);
   // Column B: תת משפחה = subcategory
@@ -547,13 +538,28 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   
   // Determine category based on subcategory
   let category = "תיק"; // Default (bags)
+  const isBag = bagSubcategories.some(sub => subcategory.includes(sub));
+  const isShoe = shoesSubcategories.some(sub => subcategory.includes(sub));
   
-  if (bagSubcategories.some(sub => subcategory.includes(sub))) {
+  if (isBag) {
     category = "תיק";
-  } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
+  } else if (isShoe) {
     category = "נעל";
   }
   // else: stays as "תיק" (default to bags)
+  
+  // Extract modelRef based on product type:
+  // - For BAGS: extract from itemCode (column G) - format: "PD760221-BLO-OS" -> "PD760221"
+  // - For SHOES: read from column D (קוד גם) - as before
+  let modelRef = "";
+  if (isBag && itemCode) {
+    // Bags: extract modelRef from itemCode
+    const parts = itemCode.split("-");
+    modelRef = parts[0] || itemCode;
+  } else {
+    // Shoes: read modelRef from column D (קוד גם) - as before
+    modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
+  }
   
   // Use itemCode as the unique ID (it's already unique per product)
   const uniqueId = itemCode || `${modelRef}-${color}-${index}`;
