@@ -390,7 +390,10 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         index: idx + 1,
         subcategory: row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "",
         itemCode: row["קוד פריט"] || row["itemCode"] || "",
-        modelRef: (row["קוד פריט"] || row["itemCode"] || "").split("-")[0] || "",
+        modelRef: (() => {
+          const ic = String(row["קוד פריט"] || row["itemCode"] || "");
+          return ic ? ic.split("-")[0] : "";
+        })(),
         color: row["צבע"] || row["color"] || "",
       })));
     }
