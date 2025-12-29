@@ -363,7 +363,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
               return str.length > 0;
             });
             const itemCode = (row["קוד פריט"] || "").toString().trim();
-            const modelRef = itemCode ? itemCode.split("-")[0] : "";
+            const modelRef = (row["קוד גם"] || row["מגז-קוד גם"] || row["קוד דגם"] || "").toString().trim();
             console.error(`[fetchGoogleSheet] Test row ${idx}: firstValue="${firstValue}", hasData=${hasData}, itemCode="${itemCode}", modelRef="${modelRef}"`);
             console.error(`[fetchGoogleSheet] Test row ${idx} all values:`, Object.entries(row).map(([k, v]) => `${k}="${String(v).substring(0, 30)}"`).join(", "));
           });
