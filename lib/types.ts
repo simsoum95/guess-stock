@@ -1,4 +1,4 @@
-export type Category = "תיק" | "נעל" | "ביגוד";
+export type Category = "תיק" | "נעל";
 
 export interface Product {
   id: string;

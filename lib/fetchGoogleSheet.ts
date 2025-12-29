@@ -42,7 +42,7 @@ async function getAllSheetNames(): Promise<string[]> {
 
   // Fallback: try common names including "final test"
   console.warn("[fetchGoogleSheet] Could not fetch sheet names, trying common names");
-  return ["final test", "Sheet1", "ביגוד", "תיקים", "נעליים", "גיליון2", "גיליון1"];
+  return ["final test", "Sheet1", "תיקים", "נעליים", "גיליון2", "גיליון1"];
 }
 
 /**
@@ -251,7 +251,7 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         console.log(`[fetchGoogleSheet] ✅ Discovered sheet names: ${sheetNames.join(", ")}`);
       } else {
         // Fallback to common Hebrew names
-        sheetNames = ["ביגוד", "תיקים", "נעליים"];
+        sheetNames = ["תיקים", "נעליים"];
         console.log("[fetchGoogleSheet] Using fallback Hebrew sheet names");
       }
     }
@@ -560,22 +560,15 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
     "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
   ];
   
-  // ביגוד (Clothes) category:
-  const clothesSubcategories = [
-    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
-  ];
-  
   // Determine category based on subcategory
-  let category = "ביגוד"; // Default
+  let category = "תיק"; // Default (bags)
   
   if (bagSubcategories.some(sub => subcategory.includes(sub))) {
     category = "תיק";
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub))) {
     category = "נעל";
-  } else if (clothesSubcategories.some(sub => subcategory.includes(sub))) {
-    category = "ביגוד";
   }
-  // else: stays as "ביגוד" (already set as default)
+  // else: stays as "תיק" (default to bags)
   
   // Use itemCode if available, otherwise use modelRef for the ID
   const uniqueId = itemCode || `${modelRef}-${color}-${index}`;

@@ -149,10 +149,6 @@ function getTargetSheetName(subcategory: string): string {
     "נעל", "נעלים" // Singular and common variations
   ];
   
-  const clothesSubcategories = [
-    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
-  ];
-
   const subLower = subcategory.toLowerCase();
   
   if (bagSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
@@ -160,7 +156,7 @@ function getTargetSheetName(subcategory: string): string {
   } else if (shoesSubcategories.some(sub => subcategory.includes(sub) || subLower.includes(sub))) {
     return "נעליים"; // Shoes sheet is named "נעליים"
   }
-  return "ביגוד";
+  return "תיקים"; // Default to bags
 }
 
 /**
@@ -264,7 +260,7 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
     const accessToken = await getAccessToken();
     
     // Get the target sheet name based on subcategory
-    const targetSheetBase = product.subcategory ? getTargetSheetName(product.subcategory) : "ביגוד";
+    const targetSheetBase = product.subcategory ? getTargetSheetName(product.subcategory) : "תיקים";
     
     // Find the actual sheet name (handles spaces, etc.)
     const targetSheet = await findActualSheetName(accessToken, targetSheetBase);

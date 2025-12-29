@@ -10,7 +10,6 @@ const IMAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - faster performance
 const categoryMap: Record<string, Category> = {
   "תיק": "תיק",
   "נעל": "נעל",
-  "ביגוד": "ביגוד"
 };
 
 function normalizeCategory(cat: string): Category {
@@ -30,11 +29,6 @@ function normalizeCategory(cat: string): Category {
     "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
   ];
   
-  // ביגוד (Clothes) subcategories
-  const clothesSubcategories = [
-    "טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"
-  ];
-  
   // Check if it's a bag subcategory
   if (bagSubcategories.some(sub => cat.includes(sub))) {
     return "תיק";
@@ -45,13 +39,8 @@ function normalizeCategory(cat: string): Category {
     return "נעל";
   }
   
-  // Check if it's a clothes subcategory
-  if (clothesSubcategories.some(sub => cat.includes(sub))) {
-    return "ביגוד";
-  }
-  
-  // Default: ביגוד (Clothes)
-  return "ביגוד";
+  // Default: תיק (Bags)
+  return "תיק";
 }
 
 /**
@@ -868,7 +857,6 @@ export async function fetchProducts(): Promise<Product[]> {
     console.log(`[fetchProducts] Category distribution:`);
     console.log(`  - תיק (Bags): ${categoryStats["תיק"]} products`);
     console.log(`  - נעל (Shoes): ${categoryStats["נעל"]} products`);
-    console.log(`  - ביגוד (Clothes): ${categoryStats["ביגוד"]} products`);
     console.log(`[fetchProducts] Total products by subcategory (top 10):`);
     const sortedSubcats = Array.from(subcategoryMap.entries())
       .sort((a, b) => b[1] - a[1])

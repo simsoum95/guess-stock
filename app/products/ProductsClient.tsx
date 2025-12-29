@@ -4,15 +4,14 @@ import { useMemo, useState, memo, useEffect } from "react";
 import type { Product } from "@/lib/types";
 import Image from "next/image";
 
-type CategoryFilter = "all" | "תיק" | "נעל" | "ביגוד";
+type CategoryFilter = "all" | "תיק" | "נעל";
 type StockFilter = "all" | "in" | "out";
 
 // Sous-catégories par catégorie principale
 const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
   all: [],
   "תיק": ["ארנקים", "מזוודות", "מחזיק מפתחות", "תיק גב", "תיק נסיעות", "תיק נשיאה", "תיק ערב", "תיק צד"],
-  "נעל": ["כפכפים", "נעליים שטוחו", "סניקרס", "נעלי עקב", "מגפיים"],
-  "ביגוד": ["טישירט", "סווטשירט", "צעיפים", "ג׳ינסים", "ג׳קטים ומעיל"]
+  "נעל": ["כפכפים", "נעליים שטוחו", "סניקרס", "נעלי עקב", "מגפיים"]
 };
 
 export default function ProductsClient({ products }: { products: Product[] }) {
@@ -125,11 +124,6 @@ export default function ProductsClient({ products }: { products: Product[] }) {
               label="נעליים"
               active={category === "נעל"}
               onClick={() => handleCategoryChange("נעל")}
-            />
-            <FilterControl
-              label="בגדים"
-              active={category === "ביגוד"}
-              onClick={() => handleCategoryChange("ביגוד")}
             />
           </div>
           
