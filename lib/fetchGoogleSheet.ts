@@ -421,8 +421,10 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     
     allRows.forEach((row, index) => {
       const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
+      const modelRef = (row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
       const color = (row["צבע"] || row["color"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
+      const subcategory = (row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "").toString().trim();
       
       // Determine if it's a bag or shoe based on subcategory
       const bagSubcategories = [
