@@ -16,12 +16,14 @@ const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
 export default function ProductsClient({ products }: { products: Product[] }) {
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [subcategory, setSubcategory] = useState<string>("all");
+  const [familyName, setFamilyName] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
-  // Reset subcategory when category changes
+  // Reset subcategory and familyName when category changes
   const handleCategoryChange = (newCategory: CategoryFilter) => {
     setCategory(newCategory);
     setSubcategory("all");
+    setFamilyName("all");
   };
   
   // Get available subcategories for current category (only those that exist in products)
@@ -44,6 +46,18 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     // Return intersection: subcategories in both lists, sorted
     return categorySubcats.filter(subcat => productSubcats.has(subcat)).sort();
   }, [category, products]);
+  
+  // Get available family names for bags (only those that exist in products)
+  const availableFamilyNames = useMemo(() => {
+    if (category !== "תיק") {
+      return [];
+    }
+    const familyNames = new Set<string>();
+    products
+      .filter(p => p.category === "תיק" && p.familyName)
+      .forEach(p => familyNames.add(p.familyName!));
+    return Array.from(familyNames).sort();
+  }, [category, products]);
 
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
@@ -51,14 +65,18 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       
       // Filter by subcategory
       if (subcategory !== "all" && product.subcategory !== subcategory) return false;
+      
+      // Filter by family name (for bags)
+      if (category === "תיק" && familyName !== "all" && product.familyName !== familyName) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const matchesId = product.id.toLowerCase().includes(query);
         const matchesModelRef = product.modelRef.toLowerCase().includes(query);
         const matchesName = product.productName?.toLowerCase().includes(query) ?? false;
+        const matchesItemCode = product.itemCode?.toLowerCase().includes(query) ?? false;
 
-        if (!matchesId && !matchesModelRef && !matchesName) return false;
+        if (!matchesId && !matchesModelRef && !matchesName && !matchesItemCode) return false;
       }
 
       return true;
@@ -384,12 +402,25 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         </p>
         
         <h3 className="text-sm font-light text-luxury-noir leading-relaxed tracking-wide" style={{ letterSpacing: "0.02em" }}>
-          {product.productName}
+          {product.category === "תיק" && product.bagName ? (
+            <>
+              <span className="font-bold">{product.bagName}</span>
+              {product.itemCode && (
+                <span className="block text-xs font-light text-luxury-grey tracking-wide mt-1" style={{ letterSpacing: "0.03em" }}>
+                  {product.itemCode}
+                </span>
+              )}
+            </>
+          ) : (
+            product.productName
+          )}
         </h3>
         
-        <p className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
-          {product.modelRef}
-        </p>
+        {product.category !== "תיק" && (
+          <p className="text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
+            {product.modelRef}
+          </p>
+        )}
 
         <div className="divider-luxury my-6" />
 

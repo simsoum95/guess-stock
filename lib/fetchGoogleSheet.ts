@@ -515,6 +515,9 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   stockQuantity: number;
   productName?: string;
   size?: string;
+  familyName?: string;
+  bagName?: string;
+  itemCode?: string;
 } {
   // Helper to get value from row (check multiple possible column names)
   const getValue = (keys: string[]): string => {
@@ -572,16 +575,16 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
   }
   // else: stays as "תיק" (default to bags)
   
-  // Extract modelRef based on product type:
-  // - For BAGS: extract from itemCode (column G) - format: "PD760221-BLO-OS" -> "PD760221"
-  // - For SHOES: read from column D (קוד גם) - as before
+  // Extract modelRef from itemCode (column G) for ALL products
+  // Format: "PD760221-BLO-OS" -> "PD760221"
+  // If itemCode doesn't exist, fall back to column D for backward compatibility
   let modelRef = "";
-  if (isBag && itemCode) {
-    // Bags: extract modelRef from itemCode
+  if (itemCode) {
+    // Extract modelRef from itemCode (first part before dash)
     const parts = itemCode.split("-");
     modelRef = parts[0] || itemCode;
   } else {
-    // Shoes: read modelRef from column D (קוד גם) - as before
+    // Fallback: read modelRef from column D (קוד גם) - backward compatibility only (for shoes)
     modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
   }
   
@@ -597,6 +600,29 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
       // The color code is usually the second part (after modelRef)
       colorCode = parts[1].toUpperCase();
     }
+  }
+  
+  // For bags: read bag name and family name from column D (תיאור דגם)
+  let bagName: string | undefined;
+  let familyName: string | undefined;
+  if (isBag) {
+    const bagDescription = getValue(["תיאור דגם", "תיאור", "description", "Description", "DESCRIPTION"]);
+    if (bagDescription) {
+      bagName = bagDescription.trim();
+      // Extract first word as family name (e.g., "VIVIETTE MINI DBL ZIP" -> "VIVIETTE")
+      const firstWord = bagName.split(/\s+/)[0];
+      if (firstWord) {
+        familyName = firstWord.toUpperCase();
+      }
+    }
+  }
+  
+  // Determine productName based on category
+  let productName: string;
+  if (isBag && bagName) {
+    productName = bagName; // Use bag name for bags
+  } else {
+    productName = getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef;
   }
   
   return {
@@ -616,8 +642,11 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
     priceWholesale: getNumber(["סיטונאי", "מחיר סיטונאי", "priceWholesale", "PriceWholesale"]),
     // כמות מלאי נוכחי = stockQuantity (column K)
     stockQuantity: getNumber(["כמות מלאי נוכחי", "כמות מלאי נוכו", "מלאי", "כמות", "stockQuantity", "StockQuantity"]),
-    productName: getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef,
+    productName: productName,
     size: getValue(["מידה", "size", "Size", "SIZE"]),
+    familyName: familyName,
+    bagName: bagName,
+    itemCode: itemCode,
   };
 }
 
