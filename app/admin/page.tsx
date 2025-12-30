@@ -48,11 +48,9 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 mb-8">
         <StatCard title="סה״כ מוצרים" value={stats.total} color="blue" />
-        <StatCard title="במלאי" value={stats.inStock} color="green" />
-        <StatCard title="חסר במלאי" value={stats.outOfStock} color="red" />
-        <StatCard title="שווי מלאי" value={`₪${stats.totalValue.toLocaleString()}`} color="amber" />
+        <StatCard title="מוצרים עם תמונה" value={stats.withImages} color="purple" />
       </div>
 
       {/* Alerts */}
@@ -173,6 +171,7 @@ function StatCard({ title, value, color }: { title: string; value: string | numb
     green: "bg-green-50 text-green-600",
     red: "bg-red-50 text-red-600",
     amber: "bg-amber-50 text-amber-600",
+    purple: "bg-purple-50 text-purple-600",
   };
 
   return (
