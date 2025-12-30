@@ -9,11 +9,7 @@ async function getStats() {
     const products = await fetchProducts();
 
     const total = products.length;
-    const inStock = products.filter(p => p.stockQuantity > 0).length;
-    const outOfStock = products.filter(p => p.stockQuantity === 0).length;
-    const lowStock = products.filter(p => p.stockQuantity > 0 && p.stockQuantity < 5).length;
     const withImages = products.filter(p => p.imageUrl && !p.imageUrl.includes("default")).length;
-    const totalValue = products.reduce((sum, p) => sum + (p.priceWholesale * p.stockQuantity), 0);
     
     const byCategory: Record<string, number> = {};
     products.forEach(p => {
@@ -21,7 +17,7 @@ async function getStats() {
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     });
 
-    return { total, inStock, outOfStock, lowStock, withImages, totalValue, byCategory };
+    return { total, withImages, byCategory };
   } catch (error) {
     console.error("[AdminDashboard] Error fetching stats:", error);
     return null;
@@ -54,35 +50,19 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Alerts */}
-      {(stats.lowStock > 0 || stats.total - stats.withImages > 0) && (
-        <div className="grid gap-4 sm:grid-cols-2 mb-8">
-          {stats.lowStock > 0 && (
-            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-4">
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-amber-900">מלאי נמוך</p>
-                <p className="text-sm text-amber-700">{stats.lowStock} מוצרים עם פחות מ-5 יחידות</p>
-              </div>
+      {stats.total - stats.withImages > 0 && (
+        <div className="mb-8">
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-4">
+            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </div>
-          )}
-          
-          {stats.total - stats.withImages > 0 && (
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-slate-900">תמונות חסרות</p>
-                <p className="text-sm text-slate-600">{stats.total - stats.withImages} מוצרים ללא תמונה</p>
-              </div>
+            <div>
+              <p className="font-semibold text-slate-900">תמונות חסרות</p>
+              <p className="text-sm text-slate-600">{stats.total - stats.withImages} מוצרים ללא תמונה</p>
             </div>
-          )}
+          </div>
         </div>
       )}
 
