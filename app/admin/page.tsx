@@ -4,35 +4,6 @@ import Link from "next/link";
 // Cache for 2 minutes - faster navigation, data refreshed every 2 min
 export const revalidate = 120;
 
-async function getLastModifiedDate(): Promise<string | null> {
-  try {
-    const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
-    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-    
-    if (!GOOGLE_SHEET_ID || !GOOGLE_API_KEY) {
-      return null;
-    }
-    
-    const apiUrl = `https://www.googleapis.com/drive/v3/files/${GOOGLE_SHEET_ID}?fields=modifiedTime&key=${GOOGLE_API_KEY}`;
-    const response = await fetch(apiUrl, { cache: 'no-store' });
-    
-    if (!response.ok) {
-      console.warn("[AdminDashboard] Could not fetch last modified date from Google Drive API");
-      return null;
-    }
-    
-    const data = await response.json();
-    if (data.modifiedTime) {
-      return data.modifiedTime;
-    }
-    
-    return null;
-  } catch (error) {
-    console.warn("[AdminDashboard] Error fetching last modified date:", error);
-    return null;
-  }
-}
-
 async function getStats() {
   try {
     const products = await fetchProducts();
@@ -45,11 +16,8 @@ async function getStats() {
       const cat = p.subcategory || "אחר";
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     });
-    
-    // Get last modified date from Google Sheet
-    const lastModified = await getLastModifiedDate();
 
-    return { total, withImages, byCategory, lastModified };
+    return { total, withImages, byCategory };
   } catch (error) {
     console.error("[AdminDashboard] Error fetching stats:", error);
     return null;
@@ -76,22 +44,9 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 mb-8">
         <StatCard title="סה״כ מוצרים" value={stats.total} color="blue" />
         <StatCard title="מוצרים עם תמונה" value={stats.withImages} color="purple" />
-        {stats.lastModified && (
-          <StatCard 
-            title="עדכון אחרון" 
-            value={new Date(stats.lastModified).toLocaleString('he-IL', { 
-              year: 'numeric', 
-              month: '2-digit', 
-              day: '2-digit', 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })} 
-            color="slate" 
-          />
-        )}
       </div>
 
       {/* Alerts */}
@@ -197,7 +152,6 @@ function StatCard({ title, value, color }: { title: string; value: string | numb
     red: "bg-red-50 text-red-600",
     amber: "bg-amber-50 text-amber-600",
     purple: "bg-purple-50 text-purple-600",
-    slate: "bg-slate-50 text-slate-600",
   };
 
   return (
