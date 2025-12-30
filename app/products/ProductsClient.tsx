@@ -82,13 +82,19 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       return true;
     });
 
-    // Trier : produits avec image en premier, puis sans image
+    // Trier : 
+    // 1. Produits avec image en premier, puis sans image
+    // 2. Dans chaque groupe, trier par stock décroissant (plus de stock en premier)
     return result.sort((a, b) => {
       const aHasImage = a.imageUrl && !a.imageUrl.includes("default");
       const bHasImage = b.imageUrl && !b.imageUrl.includes("default");
+      
+      // Règle 1 : Produits avec image en premier
       if (aHasImage && !bHasImage) return -1;
       if (!aHasImage && bHasImage) return 1;
-      return 0;
+      
+      // Règle 2 : Si même statut d'image, trier par stock décroissant
+      return b.stockQuantity - a.stockQuantity;
     });
   }, [products, category, subcategory, familyName, searchQuery]);
 
