@@ -90,7 +90,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       if (!aHasImage && bHasImage) return 1;
       return 0;
     });
-  }, [products, category, subcategory, searchQuery]);
+  }, [products, category, subcategory, familyName, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
@@ -136,6 +136,25 @@ export default function ProductsClient({ products }: { products: Product[] }) {
               onClick={() => handleCategoryChange("נעל")}
             />
           </div>
+          
+          {/* Family Name Filters - Only show for bags */}
+          {category === "תיק" && availableFamilyNames.length > 0 && (
+            <div className="flex flex-wrap items-center gap-6">
+              <FilterControl
+                label="כל המשפחות"
+                active={familyName === "all"}
+                onClick={() => setFamilyName("all")}
+              />
+              {availableFamilyNames.map((family) => (
+                <FilterControl
+                  key={family}
+                  label={family}
+                  active={familyName === family}
+                  onClick={() => setFamilyName(family)}
+                />
+              ))}
+            </div>
+          )}
           
           {/* Subcategory Filters - Only show if a category is selected */}
           {category !== "all" && availableSubcategories.length > 0 && (
