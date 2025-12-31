@@ -33,19 +33,46 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
     console.log("[ImageUploader] Uploading with product association:", filePath);
     console.log("[ImageUploader] ModelRef:", modelRef, "Color:", color);
 
-    const { error } = await supabase.storage
+    // Upload to Storage
+    const { error: uploadError } = await supabase.storage
       .from("guess-images")
       .upload(filePath, file, { upsert: true });
 
-    if (error) {
-      console.error("[ImageUploader] Upload error:", error.message);
-      alert(`שגיאה בהעלאת תמונה: ${error.message}`);
+    if (uploadError) {
+      console.error("[ImageUploader] Upload error:", uploadError.message);
+      alert(`שגיאה בהעלאת תמונה: ${uploadError.message}`);
       return null;
     }
 
-    const { data } = supabase.storage.from("guess-images").getPublicUrl(filePath);
-    console.log("[ImageUploader] Upload success:", data.publicUrl);
-    return data.publicUrl;
+    const { data: urlData } = supabase.storage.from("guess-images").getPublicUrl(filePath);
+    const publicUrl = urlData.publicUrl;
+    console.log("[ImageUploader] Upload success:", publicUrl);
+
+    // Index the image in image_index table
+    try {
+      const { error: indexError } = await supabase
+        .from("image_index")
+        .upsert({
+          model_ref: modelRefClean,
+          color: colorClean,
+          filename: fileName,
+          url: publicUrl,
+        }, {
+          onConflict: "filename"
+        });
+
+      if (indexError) {
+        console.error("[ImageUploader] Index error:", indexError);
+        // Don't fail the upload if indexing fails, but log it
+      } else {
+        console.log("[ImageUploader] Image indexed successfully");
+      }
+    } catch (indexErr) {
+      console.error("[ImageUploader] Failed to index image:", indexErr);
+      // Continue anyway - image is uploaded
+    }
+
+    return publicUrl;
   };
 
   const handleFiles = async (files: FileList | null) => {
