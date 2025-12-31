@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import Link from "next/link";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice } = useCart();
@@ -14,6 +15,7 @@ export default function CartPage() {
     phone: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   const totalPrice = getTotalPrice();
 
@@ -23,72 +25,52 @@ export default function CartPage() {
       return;
     }
 
+    if (!pdfRef.current) {
+      alert("שגיאה ביצירת הקובץ. נסה שוב.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Generate PDF
-      const doc = new jsPDF();
-      
-      // Title
-      doc.setFontSize(20);
-      doc.text("בקשת הצעת מחיר", 105, 20, { align: "center" });
-      
-      // Customer info
-      doc.setFontSize(12);
-      let yPos = 35;
-      doc.text(`שם החנות: ${formData.shopName}`, 20, yPos);
-      yPos += 8;
-      doc.text(`שם פרטי: ${formData.firstName}`, 20, yPos);
-      if (formData.phone) {
-        yPos += 8;
-        doc.text(`טלפון: ${formData.phone}`, 20, yPos);
+      // Hide modal temporarily for PDF generation
+      const modalElement = document.querySelector('[role="dialog"]') as HTMLElement;
+      if (modalElement) {
+        modalElement.style.display = "none";
       }
-      yPos += 15;
-      
-      // Date
-      const date = new Date().toLocaleDateString("he-IL");
-      doc.text(`תאריך: ${date}`, 20, yPos);
-      yPos += 15;
-      
-      // Items table header
-      doc.setFontSize(10);
-      doc.text("מוצר", 20, yPos);
-      doc.text("כמות", 100, yPos);
-      doc.text("מחיר יחידה", 130, yPos);
-      doc.text("סה\"כ", 170, yPos);
-      yPos += 8;
-      
-      // Items
-      doc.setFontSize(9);
-      items.forEach((item) => {
-        const productName = item.product.category === "תיק" && item.product.bagName
-          ? item.product.bagName
-          : item.product.productName || item.product.modelRef;
-        const itemCode = item.product.itemCode || item.product.modelRef;
-        const unitPrice = item.product.priceWholesale;
-        const itemTotal = unitPrice * item.quantity;
-        
-        // Wrap long text
-        const lines = doc.splitTextToSize(`${productName} (${itemCode})`, 70);
-        lines.forEach((line: string, index: number) => {
-          doc.text(line, 20, yPos + (index * 5));
-        });
-        doc.text(item.quantity.toString(), 100, yPos);
-        doc.text(`₪${unitPrice.toFixed(2)}`, 130, yPos);
-        doc.text(`₪${itemTotal.toFixed(2)}`, 170, yPos);
-        yPos += Math.max(lines.length * 5, 10);
+
+      // Convert HTML to canvas
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
       });
+
+      // Show modal again
+      if (modalElement) {
+        modalElement.style.display = "";
+      }
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
       
-      yPos += 10;
-      doc.setFontSize(12);
-      doc.text(`סה\"כ כולל: ₪${totalPrice.toFixed(2)}`, 170, yPos, { align: "right" });
-      
-      yPos += 20;
-      doc.setFontSize(10);
-      doc.text("הבקשה תועבר ליועץ המכירות שלך שיחזור אליך בהקדם", 105, yPos, { align: "center" });
-      
-      // Save PDF
-      doc.save(`בקשת_הצעת_מחיר_${formData.shopName}_${Date.now()}.pdf`);
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`בקשת_הצעת_מחיר_${formData.shopName}_${Date.now()}.pdf`);
 
       // Send to server
       const response = await fetch("/api/cart/export", {
