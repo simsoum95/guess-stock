@@ -39,12 +39,35 @@ export default function CartPage() {
         modalElement.style.display = "none";
       }
 
+      // Make PDF content visible but off-screen for proper rendering
+      if (pdfRef.current) {
+        pdfRef.current.style.position = "fixed";
+        pdfRef.current.style.left = "0";
+        pdfRef.current.style.top = "0";
+        pdfRef.current.style.width = "210mm";
+        pdfRef.current.style.zIndex = "-1";
+        pdfRef.current.style.opacity = "0";
+      }
+
+      // Wait a bit for fonts to load and rendering to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Convert HTML to canvas
-      const canvas = await html2canvas(pdfRef.current, {
+      const canvas = await html2canvas(pdfRef.current!, {
         scale: 2,
         useCORS: true,
         logging: false,
+        letterRendering: true,
+        windowWidth: 794, // 210mm in pixels at 96 DPI
+        windowHeight: 1123, // 297mm in pixels
       });
+
+      // Hide PDF content again
+      if (pdfRef.current) {
+        pdfRef.current.style.position = "absolute";
+        pdfRef.current.style.left = "-9999px";
+        pdfRef.current.style.opacity = "1";
+      }
 
       // Show modal again
       if (modalElement) {
@@ -132,9 +155,9 @@ export default function CartPage() {
   return (
     <main className="min-h-screen bg-luxury-white">
       {/* Hidden PDF content */}
-      <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0, width: "210mm" }} dir="rtl">
-        <div className="bg-white p-8" style={{ minHeight: "297mm", fontFamily: "Arial, sans-serif" }}>
-          <h1 className="text-3xl font-bold text-center mb-8">בקשת הצעת מחיר</h1>
+      <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0, width: "210mm", backgroundColor: "white" }} dir="rtl">
+        <div className="bg-white p-8" style={{ minHeight: "297mm", fontFamily: "'Segoe UI', 'Arial Unicode MS', 'Noto Sans Hebrew', Arial, sans-serif", fontSize: "14px" }}>
+          <h1 className="text-3xl font-bold text-center mb-8" style={{ fontFamily: "'Segoe UI', 'Arial Unicode MS', 'Noto Sans Hebrew', Arial, sans-serif" }}>בקשת הצעת מחיר</h1>
           
           <div className="mb-6">
             <p className="text-base mb-2"><strong>שם החנות:</strong> {formData.shopName}</p>
