@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useCart } from "@/contexts/CartContext";
 import Link from "next/link";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice } = useCart();
