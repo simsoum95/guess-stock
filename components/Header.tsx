@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { CartIcon } from "./CartIcon";
 
 export function Header() {
   return (
@@ -50,8 +53,9 @@ export function Header() {
           </div>
         </Link>
 
-        {/* Admin Link */}
-        <div className="w-[140px] flex justify-end">
+        {/* Right Side - Cart & Admin */}
+        <div className="w-[140px] flex items-center justify-end gap-4">
+          <CartIcon />
           <Link 
             href="/admin/login" 
             className="text-[10px] font-light tracking-wide text-luxury-grey/50 hover:text-luxury-grey transition-colors duration-300"

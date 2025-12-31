@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { CartProvider } from "@/contexts/CartContext";
 
 export const metadata: Metadata = {
   title: "קטלוג רשמי – GUESS ישראל",
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className="bg-luxury-white text-luxury-noir font-sans antialiased min-h-screen">
-        <Header />
-        {children}
+        <CartProvider>
+          <Header />
+          {children}
+        </CartProvider>
       </body>
     </html>
   );

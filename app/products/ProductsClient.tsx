@@ -3,6 +3,7 @@
 import { useMemo, useState, memo, useEffect } from "react";
 import type { Product } from "@/lib/types";
 import Image from "next/image";
+import { useCart } from "@/contexts/CartContext";
 
 type CategoryFilter = "all" | "תיק" | "נעל";
 
@@ -474,6 +475,20 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
           </span>
           <div className={`h-1 w-1 rounded-full transition-colors duration-300 ${out ? "bg-luxury-grey/50" : "bg-luxury-noir"}`} />
         </div>
+
+        {/* Add to Cart Button */}
+        {!out && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              addToCart(product);
+            }}
+            className="w-full mt-4 py-3 px-4 bg-luxury-noir text-luxury-white text-xs font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300"
+            style={{ letterSpacing: "0.15em" }}
+          >
+            הוסף לעגלה
+          </button>
+        )}
       </div>
     </article>
   );
