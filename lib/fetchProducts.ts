@@ -5,7 +5,7 @@ import type { Product, Category } from "./types";
 // In-memory cache for images (survives between requests on same server instance)
 let imageCache: Map<string, { imageUrl: string; gallery: string[] }> | null = null;
 let imageCacheTime: number = 0;
-const IMAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - faster performance
+const IMAGE_CACHE_TTL = 1 * 60 * 1000; // 1 minute - faster performance but fresh images
 
 const categoryMap: Record<string, Category> = {
   "תיק": "תיק",

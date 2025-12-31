@@ -126,6 +126,9 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
         }
       }
 
+      // Show success message and redirect
+      alert("המוצר עודכן בהצלחה! התמונות יופיעו תוך דקה (עדכון קאש).");
+      
       // Force hard redirect for reliable navigation
       window.location.href = "/admin/products";
     } catch (err: any) {

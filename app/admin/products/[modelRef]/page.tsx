@@ -3,7 +3,7 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// Always fetch fresh data
+// Always fetch fresh data for edit pages
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 

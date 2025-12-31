@@ -88,6 +88,8 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
         // Don't fail the upload if indexing fails, but warn user
       } else {
         console.log("[ImageUploader] Image indexed successfully with modelRef:", modelRefForIndex, "color:", colorForIndex);
+        // Note: Image will appear after cache refresh (up to 1 minute)
+        // User should refresh the page to see it immediately
       }
     } catch (indexErr) {
       console.error("[ImageUploader] Failed to index image:", indexErr);
