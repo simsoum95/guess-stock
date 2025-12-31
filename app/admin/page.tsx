@@ -1,4 +1,5 @@
 import { fetchProducts } from "@/lib/fetchProducts";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 // Cache for 2 minutes - faster navigation, data refreshed every 2 min
@@ -17,7 +18,13 @@ async function getStats() {
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     });
 
-    return { total, withImages, byCategory };
+    // Get unread cart requests count
+    const { count: unreadCount } = await supabase
+      .from("cart_exports")
+      .select("*", { count: "exact", head: true })
+      .eq("viewed", false);
+
+    return { total, withImages, byCategory, unreadCount: unreadCount || 0 };
   } catch (error) {
     console.error("[AdminDashboard] Error fetching stats:", error);
     return null;
@@ -44,9 +51,16 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
         <StatCard title="סה״כ מוצרים" value={stats.total} color="blue" />
         <StatCard title="מוצרים עם תמונה" value={stats.withImages} color="purple" />
+        <StatCard 
+          title="בקשות הצעת מחיר" 
+          value={stats.unreadCount} 
+          color="amber" 
+          link="/admin/orders"
+          hasBadge={stats.unreadCount > 0}
+        />
       </div>
 
       {/* Alerts */}
@@ -145,7 +159,19 @@ export default async function AdminDashboard() {
   );
 }
 
-function StatCard({ title, value, color }: { title: string; value: string | number; color: string }) {
+function StatCard({ 
+  title, 
+  value, 
+  color, 
+  link,
+  hasBadge 
+}: { 
+  title: string; 
+  value: string | number; 
+  color: string;
+  link?: string;
+  hasBadge?: boolean;
+}) {
   const colors: Record<string, string> = {
     blue: "bg-blue-50 text-blue-600",
     green: "bg-green-50 text-green-600",
@@ -154,15 +180,34 @@ function StatCard({ title, value, color }: { title: string; value: string | numb
     purple: "bg-purple-50 text-purple-600",
   };
 
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+  const cardContent = (
+    <div className="bg-white rounded-xl border border-slate-200 p-5 relative">
+      {hasBadge && (
+        <div className="absolute top-3 left-3 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+      )}
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${colors[color]}`}>
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
+        {link ? (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        )}
       </div>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
       <p className="text-sm text-slate-500">{title}</p>
     </div>
   );
+
+  if (link) {
+    return (
+      <Link href={link} className="block hover:opacity-80 transition-opacity">
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return cardContent;
 }

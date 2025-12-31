@@ -19,6 +19,7 @@ interface Order {
   total_price: number;
   created_at: string;
   ip_address: string | null;
+  viewed: boolean;
 }
 
 export function OrdersTable({ orders }: { orders: Order[] }) {
@@ -74,9 +75,14 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
 
               return (
                 <>
-                  <tr key={order.id} className="hover:bg-slate-50">
+                  <tr key={order.id} className={`hover:bg-slate-50 ${!order.viewed ? 'bg-blue-50' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                      {date}
+                      <div className="flex items-center gap-2">
+                        {!order.viewed && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+                        )}
+                        {date}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                       {order.shop_name}

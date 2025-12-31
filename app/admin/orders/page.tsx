@@ -15,6 +15,17 @@ async function getOrders() {
     return [];
   }
 
+  // Mark all unread orders as viewed when page loads
+  if (data && data.length > 0) {
+    const unreadIds = data.filter(order => !order.viewed).map(order => order.id);
+    if (unreadIds.length > 0) {
+      await supabase
+        .from("cart_exports")
+        .update({ viewed: true })
+        .in("id", unreadIds);
+    }
+  }
+
   return data || [];
 }
 

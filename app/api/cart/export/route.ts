@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         items: items,
         total_price: totalPrice,
         ip_address: ipAddress,
+        viewed: false, // New orders are unread by default
       })
       .select()
       .single();
