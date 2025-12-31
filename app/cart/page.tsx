@@ -40,35 +40,71 @@ export default function CartPage() {
       }
 
       // Make PDF content visible but off-screen for proper rendering
-      if (pdfRef.current) {
-        pdfRef.current.style.position = "fixed";
-        pdfRef.current.style.left = "0";
-        pdfRef.current.style.top = "0";
-        pdfRef.current.style.width = "210mm";
-        pdfRef.current.style.zIndex = "-1";
-        pdfRef.current.style.opacity = "0";
+      const element = pdfRef.current;
+      if (!element) {
+        throw new Error("PDF element not found");
       }
 
-      // Wait a bit for fonts to load and rendering to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Store original styles
+      const originalStyles = {
+        position: element.style.position,
+        left: element.style.left,
+        top: element.style.top,
+        width: element.style.width,
+        zIndex: element.style.zIndex,
+        opacity: element.style.opacity,
+        visibility: element.style.visibility,
+        backgroundColor: element.style.backgroundColor,
+      };
 
-      // Convert HTML to canvas
-      const canvas = await html2canvas(pdfRef.current!, {
+      // Make element visible but off-screen
+      element.style.position = "fixed";
+      element.style.left = "0";
+      element.style.top = "0";
+      element.style.width = "210mm";
+      element.style.zIndex = "9999";
+      element.style.opacity = "1";
+      element.style.visibility = "visible";
+      element.style.backgroundColor = "white";
+
+      // Force layout recalculation
+      element.offsetHeight;
+
+      // Wait for React to render and fonts to load
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Get actual dimensions from scrollWidth/scrollHeight
+      const width = element.scrollWidth || element.offsetWidth;
+      const height = element.scrollHeight || element.offsetHeight;
+
+      // Convert HTML to canvas with explicit dimensions
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
+        backgroundColor: "#ffffff",
+        width: width,
+        height: height,
       });
 
-      // Hide PDF content again
-      if (pdfRef.current) {
-        pdfRef.current.style.position = "absolute";
-        pdfRef.current.style.left = "-9999px";
-        pdfRef.current.style.opacity = "1";
-      }
+      // Restore original styles
+      element.style.position = originalStyles.position;
+      element.style.left = originalStyles.left;
+      element.style.top = originalStyles.top;
+      element.style.width = originalStyles.width;
+      element.style.zIndex = originalStyles.zIndex;
+      element.style.opacity = originalStyles.opacity;
+      element.style.visibility = originalStyles.visibility;
+      element.style.backgroundColor = originalStyles.backgroundColor;
 
       // Show modal again
       if (modalElement) {
         modalElement.style.display = "";
+      }
+
+      // Check if canvas is valid
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas capture failed - empty canvas");
       }
 
       const imgData = canvas.toDataURL("image/png");
@@ -152,8 +188,29 @@ export default function CartPage() {
   return (
     <main className="min-h-screen bg-luxury-white">
       {/* Hidden PDF content */}
-      <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0, width: "210mm", backgroundColor: "white" }} dir="rtl">
-        <div className="bg-white p-8" style={{ minHeight: "297mm", fontFamily: "'Segoe UI', 'Arial Unicode MS', 'Noto Sans Hebrew', Arial, sans-serif", fontSize: "14px" }}>
+      <div 
+        ref={pdfRef} 
+        style={{ 
+          position: "absolute", 
+          left: "-9999px", 
+          top: 0, 
+          width: "210mm", 
+          backgroundColor: "white",
+          visibility: "hidden",
+        }} 
+        dir="rtl"
+      >
+        <div 
+          className="bg-white p-8" 
+          style={{ 
+            minHeight: "297mm", 
+            width: "210mm",
+            fontFamily: "'Segoe UI', 'Arial Unicode MS', 'Noto Sans Hebrew', Arial, sans-serif", 
+            fontSize: "14px",
+            backgroundColor: "white",
+            color: "black",
+          }}
+        >
           <h1 className="text-3xl font-bold text-center mb-8" style={{ fontFamily: "'Segoe UI', 'Arial Unicode MS', 'Noto Sans Hebrew', Arial, sans-serif" }}>בקשת הצעת מחיר</h1>
           
           <div className="mb-6">
