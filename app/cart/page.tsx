@@ -131,6 +131,61 @@ export default function CartPage() {
 
   return (
     <main className="min-h-screen bg-luxury-white">
+      {/* Hidden PDF content */}
+      <div ref={pdfRef} style={{ position: "absolute", left: "-9999px", top: 0, width: "210mm" }} dir="rtl">
+        <div className="bg-white p-8" style={{ minHeight: "297mm", fontFamily: "Arial, sans-serif" }}>
+          <h1 className="text-3xl font-bold text-center mb-8">בקשת הצעת מחיר</h1>
+          
+          <div className="mb-6">
+            <p className="text-base mb-2"><strong>שם החנות:</strong> {formData.shopName}</p>
+            <p className="text-base mb-2"><strong>שם פרטי:</strong> {formData.firstName}</p>
+            {formData.phone && <p className="text-base mb-2"><strong>טלפון:</strong> {formData.phone}</p>}
+            <p className="text-base mb-4"><strong>תאריך:</strong> {new Date().toLocaleDateString("he-IL")}</p>
+          </div>
+
+          <table className="w-full border-collapse border border-gray-300 mb-6" style={{ fontFamily: "Arial, sans-serif" }}>
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 p-3 text-right">מוצר</th>
+                <th className="border border-gray-300 p-3 text-center">כמות</th>
+                <th className="border border-gray-300 p-3 text-center">מחיר יחידה</th>
+                <th className="border border-gray-300 p-3 text-center">סה"כ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => {
+                const productName = item.product.category === "תיק" && item.product.bagName
+                  ? item.product.bagName
+                  : item.product.productName || item.product.modelRef;
+                const itemCode = item.product.itemCode || item.product.modelRef;
+                const unitPrice = item.product.priceWholesale;
+                const itemTotal = unitPrice * item.quantity;
+                
+                return (
+                  <tr key={index}>
+                    <td className="border border-gray-300 p-3">
+                      <div className="text-sm">{productName}</div>
+                      <div className="text-xs text-gray-600">({itemCode})</div>
+                    </td>
+                    <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
+                    <td className="border border-gray-300 p-3 text-center">₪{unitPrice.toFixed(2)}</td>
+                    <td className="border border-gray-300 p-3 text-center">₪{itemTotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="text-right text-lg font-bold mb-6">
+            סה"כ כולל: ₪{totalPrice.toFixed(2)}
+          </div>
+
+          <div className="text-center text-sm text-gray-600 mt-8">
+            הבקשה תועבר ליועץ המכירות שלך שיחזור אליך בהקדם
+          </div>
+        </div>
+      </div>
+
       <section className="mx-auto max-w-[1200px] px-16 py-20">
         <h1 className="text-3xl font-light text-luxury-noir mb-8">העגלה שלי</h1>
 
