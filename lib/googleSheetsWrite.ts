@@ -23,6 +23,9 @@ interface ProductData {
   priceRetail?: number;
   stockQuantity?: number;
   priceWholesale?: number;
+  bagName?: string; // For bags: name from column D (תיאור דגם)
+  itemCode?: string; // Item code from column G (קוד פריט)
+  category?: string; // "תיק" or "נעל"
 }
 
 /**
@@ -193,9 +196,13 @@ async function getSheetHeaders(accessToken: string, sheetName: string): Promise<
  * Build row data based on actual column headers in the sheet
  */
 function buildRowData(headers: string[], product: ProductData): string[] {
-  // Generate item code from modelRef + color abbreviation
-  const colorAbbrev = product.color.substring(0, 3).toUpperCase();
-  const itemCode = `${product.modelRef}-${colorAbbrev}-OS`;
+  // For bags: use itemCode if provided, otherwise generate from modelRef
+  // For shoes: generate itemCode from modelRef + color
+  const isBag = product.category === "תיק" || (product.subcategory && product.subcategory.includes("תיק"));
+  const itemCode = product.itemCode || (() => {
+    const colorAbbrev = product.color.substring(0, 3).toUpperCase();
+    return `${product.modelRef}-${colorAbbrev}-OS`;
+  })();
 
   // Map column names to values (supporting multiple possible names for each field)
   const columnMappings: { [key: string]: string } = {
@@ -205,13 +212,15 @@ function buildRowData(headers: string[], product: ProductData): string[] {
     "תת משפחה": product.subcategory || "",
     // Brand
     "מותג": product.brand || "GUESS",
-    // Model Reference
-    "קוד גם": product.modelRef,
+    // For bags: column D is "תיאור דגם" (bagName), not "קוד גם"
+    // For shoes: column D is still "קוד גם" (modelRef)
+    "תיאור דגם": isBag && product.bagName ? product.bagName : "",
+    "קוד גם": isBag ? "" : product.modelRef, // Only for shoes
     // Gender
     "מגדר": product.gender || "",
     // Supplier
     "ספק": product.supplier || "",
-    // Item Code
+    // Item Code (column G) - always contains the full item code
     "קוד פריט": itemCode,
     // Color
     "צבע": product.color,
@@ -312,9 +321,10 @@ export async function addProductToSheet(product: ProductData): Promise<{ success
 
 /**
  * Find a product row by modelRef and color
- * Dynamically finds the correct columns by reading headers first
+ * For bags: searches by itemCode (column G) if available, otherwise by modelRef extracted from itemCode
+ * For shoes: searches by modelRef (column D) and color
  */
-async function findProductRow(sheetName: string, modelRef: string, color: string): Promise<number | null> {
+async function findProductRow(sheetName: string, modelRef: string, color: string, itemCode?: string): Promise<number | null> {
   const accessToken = await getAccessToken();
   
   // Fetch all data from the sheet
@@ -342,7 +352,15 @@ async function findProductRow(sheetName: string, modelRef: string, color: string
   // Find column indices from headers
   const headers = rows[0].map((h: string) => h.trim());
   
-  // Find modelRef column (קוד גם)
+  // Determine if this is a bags sheet (has "תיאור דגם" column)
+  const isBagsSheet = headers.some((h: string) => h.includes("תיאור דגם"));
+  
+  // Find itemCode column (קוד פריט) - column G
+  let itemCodeColIndex = headers.findIndex((h: string) => 
+    h.includes("קוד פריט") || h.includes("itemCode")
+  );
+  
+  // Find modelRef column (קוד גם) - only for shoes
   let modelRefColIndex = headers.findIndex((h: string) => 
     h.includes("קוד גם") || h.includes("קוד דגם") || h.includes("modelRef")
   );
@@ -352,25 +370,41 @@ async function findProductRow(sheetName: string, modelRef: string, color: string
     h.includes("צבע") || h.includes("color")
   );
 
-  console.log(`[findProductRow] Sheet "${sheetName}" - modelRef col: ${modelRefColIndex}, color col: ${colorColIndex}`);
-  console.log(`[findProductRow] Looking for modelRef="${modelRef}", color="${color}"`);
-
-  if (modelRefColIndex === -1) {
-    console.error(`[findProductRow] Could not find modelRef column in "${sheetName}". Headers: ${headers.join(", ")}`);
-    return null;
-  }
+  console.log(`[findProductRow] Sheet "${sheetName}" (bags: ${isBagsSheet}) - itemCode col: ${itemCodeColIndex}, modelRef col: ${modelRefColIndex}, color col: ${colorColIndex}`);
+  console.log(`[findProductRow] Looking for modelRef="${modelRef}", color="${color}"${itemCode ? `, itemCode="${itemCode}"` : ""}`);
 
   // Search for the product
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const rowModelRef = (row[modelRefColIndex] || "").toString().trim();
     const rowColor = colorColIndex >= 0 ? (row[colorColIndex] || "").toString().trim() : "";
     
-    // Match by modelRef and color (case-insensitive)
-    const modelRefMatch = rowModelRef.toUpperCase() === modelRef.toUpperCase();
-    const colorMatch = colorColIndex === -1 || rowColor.toUpperCase() === color.toUpperCase();
+    let matches = false;
     
-    if (modelRefMatch && colorMatch) {
+    if (isBagsSheet && itemCodeColIndex >= 0) {
+      // For bags: match by itemCode (which contains modelRef-color)
+      const rowItemCode = (row[itemCodeColIndex] || "").toString().trim();
+      if (itemCode) {
+        // Direct itemCode match
+        matches = rowItemCode.toUpperCase() === itemCode.toUpperCase();
+      } else {
+        // Extract modelRef from itemCode and match
+        const extractedModelRef = rowItemCode.split("-")[0];
+        matches = extractedModelRef.toUpperCase() === modelRef.toUpperCase();
+      }
+      // Also check color
+      if (matches && colorColIndex >= 0) {
+        matches = rowColor.toUpperCase() === color.toUpperCase();
+      }
+    } else if (modelRefColIndex >= 0) {
+      // For shoes: match by modelRef (column D) and color
+      const rowModelRef = (row[modelRefColIndex] || "").toString().trim();
+      matches = rowModelRef.toUpperCase() === modelRef.toUpperCase();
+      if (matches && colorColIndex >= 0) {
+        matches = rowColor.toUpperCase() === color.toUpperCase();
+      }
+    }
+    
+    if (matches) {
       console.log(`[findProductRow] Found product at row ${i + 1} in "${sheetName}"`);
       return i + 1; // Google Sheets rows are 1-indexed
     }
@@ -401,7 +435,7 @@ export async function updateProductInSheet(
     let rowNumber: number | null = null;
 
     for (const sheetName of sheetNames) {
-      const row = await findProductRow(sheetName, modelRef, color);
+      const row = await findProductRow(sheetName, modelRef, color, updates.itemCode);
       if (row !== null) {
         foundSheet = sheetName;
         rowNumber = row;
@@ -413,37 +447,65 @@ export async function updateProductInSheet(
       return { success: false, error: `Product ${modelRef} (${color}) not found` };
     }
 
-    // Build update data - only update specified fields
-    // Columns: A: קולקציה, B: תת משפחה, C: מותג, D: קוד גם, E: מגדר, F: ספק, 
-    //          G: קוד פריט, H: צבע, I: מחיר, J: כמות מלאי, K: סיטונאי
+    // Get headers to determine column indices dynamically
+    const headers = await getSheetHeaders(accessToken, foundSheet);
+    const isBagsSheet = headers.some((h: string) => h.includes("תיאור דגם"));
+    
+    // Build update data - find column indices dynamically
     const updateValues: { range: string; values: string[][] }[] = [];
     
+    const getColumnIndex = (headerPatterns: string[]): number => {
+      for (const pattern of headerPatterns) {
+        const idx = headers.findIndex((h: string) => h.includes(pattern));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    
+    const getColumnLetter = (index: number): string => {
+      return String.fromCharCode(65 + index); // A=65
+    };
+    
     if (updates.collection !== undefined) {
-      updateValues.push({ range: `${foundSheet}!A${rowNumber}`, values: [[updates.collection]] });
+      const colIdx = getColumnIndex(["קולקציה"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.collection]] });
     }
     if (updates.subcategory !== undefined) {
-      updateValues.push({ range: `${foundSheet}!B${rowNumber}`, values: [[updates.subcategory]] });
+      const colIdx = getColumnIndex(["תת משפחה"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.subcategory]] });
     }
     if (updates.brand !== undefined) {
-      updateValues.push({ range: `${foundSheet}!C${rowNumber}`, values: [[updates.brand]] });
+      const colIdx = getColumnIndex(["מותג"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.brand]] });
+    }
+    // For bags: column D is "תיאור דגם" (bagName), for shoes: "קוד גם" (modelRef)
+    if (isBagsSheet && updates.bagName !== undefined) {
+      const colIdx = getColumnIndex(["תיאור דגם"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.bagName]] });
     }
     if (updates.gender !== undefined) {
-      updateValues.push({ range: `${foundSheet}!E${rowNumber}`, values: [[updates.gender]] });
+      const colIdx = getColumnIndex(["מגדר"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.gender]] });
     }
     if (updates.supplier !== undefined) {
-      updateValues.push({ range: `${foundSheet}!F${rowNumber}`, values: [[updates.supplier]] });
+      const colIdx = getColumnIndex(["ספק"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.supplier]] });
     }
     if (updates.color !== undefined) {
-      updateValues.push({ range: `${foundSheet}!H${rowNumber}`, values: [[updates.color]] }); // H = צבע
+      const colIdx = getColumnIndex(["צבע"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.color]] });
     }
     if (updates.priceRetail !== undefined) {
-      updateValues.push({ range: `${foundSheet}!I${rowNumber}`, values: [[formatPrice(updates.priceRetail)]] }); // I = מחיר
+      const colIdx = getColumnIndex(["מחיר כולל מע\"מ בסיס"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[formatPrice(updates.priceRetail)]] });
     }
     if (updates.stockQuantity !== undefined) {
-      updateValues.push({ range: `${foundSheet}!J${rowNumber}`, values: [[updates.stockQuantity.toString()]] }); // J = כמות מלאי
+      const colIdx = getColumnIndex(["כמות מלאי נוכחי"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[updates.stockQuantity.toString()]] });
     }
     if (updates.priceWholesale !== undefined) {
-      updateValues.push({ range: `${foundSheet}!K${rowNumber}`, values: [[formatPrice(updates.priceWholesale)]] }); // K = סיטונאי
+      const colIdx = getColumnIndex(["סיטונאי"]);
+      if (colIdx >= 0) updateValues.push({ range: `${foundSheet}!${getColumnLetter(colIdx)}${rowNumber}`, values: [[formatPrice(updates.priceWholesale)]] });
     }
 
     if (updateValues.length === 0) {

@@ -7,8 +7,11 @@ import { ImageUploader } from "./ImageUploader";
 interface Product {
   modelRef: string;
   productName?: string;
+  bagName?: string;
+  itemCode?: string;
   brand: string;
   color: string;
+  category?: string;
   subcategory: string;
   collection?: string;
   supplier?: string;
@@ -28,8 +31,11 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
   const [form, setForm] = useState<Product>({
     modelRef: product?.modelRef || "",
     productName: product?.productName || "",
+    bagName: product?.bagName || "",
+    itemCode: product?.itemCode || "",
     brand: product?.brand || "GUESS",
     color: product?.color || "",
+    category: product?.category || "תיק",
     subcategory: product?.subcategory || "תיק",
     collection: product?.collection || "",
     supplier: product?.supplier || "",
@@ -75,6 +81,9 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
             modelRef: product.modelRef,
             originalColor: product.color,
             productName: form.productName,
+            bagName: form.bagName,
+            itemCode: form.itemCode,
+            category: form.category,
             brand: form.brand,
             subcategory: form.subcategory,
             collection: form.collection,
@@ -155,17 +164,45 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">שם מוצר</label>
-                <input
-                  type="text"
-                  name="productName"
-                  value={form.productName}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  placeholder="תיק צד אלגנטי"
-                />
-              </div>
+              {form.category === "תיק" ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">תיאור דגם (שם משפחה)</label>
+                    <input
+                      type="text"
+                      name="bagName"
+                      value={form.bagName || ""}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      placeholder="VIVIETTE MINI DBL ZIP CROSSBDY"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">עבור תיקים: שם המשפחה המלא</p>
+                  </div>
+                  {form.itemCode && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">קוד פריט (אוטומטי)</label>
+                      <input
+                        type="text"
+                        value={form.itemCode}
+                        disabled
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-100 text-slate-600"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">שם מוצר</label>
+                  <input
+                    type="text"
+                    name="productName"
+                    value={form.productName || ""}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="תיק צד אלגנטי"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">מותג</label>

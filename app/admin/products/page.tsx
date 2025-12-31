@@ -14,8 +14,11 @@ async function getProducts() {
     return products.map(p => ({
       modelRef: p.modelRef,
       productName: p.productName || p.modelRef,
+      bagName: p.bagName, // For bags
+      itemCode: p.itemCode, // Item code for all products
       brand: p.brand,
       color: p.color,
+      category: p.category,
       subcategory: p.subcategory,
       priceWholesale: p.priceWholesale,
       priceRetail: p.priceRetail,

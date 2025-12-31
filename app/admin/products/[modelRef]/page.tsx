@@ -25,8 +25,11 @@ async function getProduct(modelRef: string, color: string) {
   return {
     modelRef: product.modelRef,
     productName: product.productName,
+    bagName: product.bagName, // For bags
+    itemCode: product.itemCode, // Item code
     brand: product.brand,
     color: product.color,
+    category: product.category,
     subcategory: product.subcategory,
     collection: product.collection,
     supplier: product.supplier,
@@ -63,7 +66,10 @@ export default async function EditProductPage({ params, searchParams }: PageProp
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">עריכת מוצר</h1>
-          <p className="text-slate-500 mt-1">{product.modelRef} - {product.color}</p>
+          <p className="text-slate-500 mt-1">
+            {product.bagName || product.productName || product.modelRef}
+            {product.itemCode && ` (${product.itemCode})`} - {product.color}
+          </p>
         </div>
         
         <div className="flex items-center gap-2">

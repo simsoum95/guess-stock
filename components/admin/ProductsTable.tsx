@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 interface Product {
   modelRef: string;
   productName?: string;
+  bagName?: string;
+  itemCode?: string;
   brand: string;
   color: string;
+  category?: string;
   subcategory: string;
   priceWholesale: number;
   priceRetail: number;
@@ -32,9 +35,14 @@ export function ProductsTable({ products }: { products: Product[] }) {
     return products.filter(p => {
       if (search) {
         const q = search.toLowerCase();
-        if (!p.modelRef?.toLowerCase().includes(q) && 
-            !p.productName?.toLowerCase().includes(q) &&
-            !p.color?.toLowerCase().includes(q)) return false;
+        const searchableText = [
+          p.modelRef,
+          p.productName,
+          p.bagName,
+          p.itemCode,
+          p.color
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!searchableText.includes(q)) return false;
       }
       if (category !== "all" && p.subcategory !== category) return false;
       if (stockFilter === "in" && p.stockQuantity === 0) return false;
@@ -145,8 +153,23 @@ export function ProductsTable({ products }: { products: Product[] }) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900 text-sm">{product.modelRef}</p>
-                    <p className="text-xs text-slate-500">{product.brand}</p>
+                    {product.category === "תיק" && product.bagName ? (
+                      <>
+                        <p className="font-medium text-slate-900 text-sm font-bold">{product.bagName}</p>
+                        {product.itemCode && (
+                          <p className="text-xs text-slate-500">{product.itemCode}</p>
+                        )}
+                        <p className="text-xs text-slate-400">{product.brand}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-slate-900 text-sm">{product.productName || product.modelRef}</p>
+                        {product.itemCode && (
+                          <p className="text-xs text-slate-500">{product.itemCode}</p>
+                        )}
+                        <p className="text-xs text-slate-400">{product.brand}</p>
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">

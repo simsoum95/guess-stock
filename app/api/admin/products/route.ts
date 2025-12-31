@@ -88,7 +88,10 @@ export async function PUT(request: NextRequest) {
       color: body.color,
       priceRetail: body.priceRetail,
       stockQuantity: body.stockQuantity,
-      priceWholesale: body.priceWholesale
+      priceWholesale: body.priceWholesale,
+      bagName: body.bagName,
+      itemCode: body.itemCode,
+      category: body.category
     });
 
     if (result.success) {
