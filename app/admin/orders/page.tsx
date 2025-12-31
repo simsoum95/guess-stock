@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { OrdersTable } from "./OrdersTable";
+import { RefreshOnMount } from "./RefreshOnMount";
 
-export const revalidate = 60; // Revalidate every minute
+export const revalidate = 0; // Always fetch fresh data when page is accessed
 
 async function getOrders() {
   const { data, error } = await supabase
@@ -27,6 +28,7 @@ export default async function AdminOrdersPage() {
 
   return (
     <div className="p-6 lg:p-8 lg:pt-8 pt-20">
+      <RefreshOnMount />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">בקשות הצעת מחיר</h1>
         <p className="text-slate-500 mt-1">כל הבקשות שנשלחו על ידי הלקוחות</p>
