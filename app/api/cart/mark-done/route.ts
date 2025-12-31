@@ -15,23 +15,24 @@ export async function POST(request: NextRequest) {
 
     const { error } = await supabase
       .from("cart_exports")
-      .update({ viewed: true })
+      .update({ status: "done", viewed: true })
       .eq("id", orderId);
 
     if (error) {
-      console.error("[cart/mark-viewed] Error updating order:", error);
+      console.error("[cart/mark-done] Error updating order:", error);
       return NextResponse.json(
-        { error: "Failed to mark as viewed" },
+        { error: "Failed to mark as done" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[cart/mark-viewed] Error:", error);
+    console.error("[cart/mark-done] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
   }
 }
+

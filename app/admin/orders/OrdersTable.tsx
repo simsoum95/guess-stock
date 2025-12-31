@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface CartItem {
   productName: string;
@@ -20,10 +21,58 @@ interface Order {
   created_at: string;
   ip_address: string | null;
   viewed: boolean;
+  status?: string;
 }
 
-export function OrdersTable({ orders }: { orders: Order[] }) {
+export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; status?: string }) {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [viewedOrders, setViewedOrders] = useState<Set<string>>(new Set());
+  const [processingOrder, setProcessingOrder] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleViewDetails = async (orderId: string) => {
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+    
+    // Mark as viewed when details are expanded
+    if (expandedOrder !== orderId && !viewedOrders.has(orderId)) {
+      try {
+        const response = await fetch("/api/cart/mark-viewed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        
+        if (response.ok) {
+          setViewedOrders(prev => new Set(prev).add(orderId));
+          router.refresh();
+        }
+      } catch (error) {
+        console.error("Error marking as viewed:", error);
+      }
+    }
+  };
+
+  const handleMarkDone = async (orderId: string) => {
+    setProcessingOrder(orderId);
+    try {
+      const response = await fetch("/api/cart/mark-done", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      if (response.ok) {
+        router.refresh();
+      } else {
+        alert("שגיאה בסימון הבקשה כבוצעה");
+      }
+    } catch (error) {
+      console.error("Error marking as done:", error);
+      alert("שגיאה בסימון הבקשה כבוצעה");
+    } finally {
+      setProcessingOrder(null);
+    }
+  };
 
   if (orders.length === 0) {
     return (
@@ -73,12 +122,15 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
               });
               const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
+              const isViewed = viewedOrders.has(order.id) || order.viewed;
+              const isPending = status === "pending";
+
               return (
                 <>
-                  <tr key={order.id} className={`hover:bg-slate-50 ${!order.viewed ? 'bg-blue-50' : ''}`}>
+                  <tr key={order.id} className={`hover:bg-slate-50 ${!isViewed && isPending ? 'bg-blue-50' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                       <div className="flex items-center gap-2">
-                        {!order.viewed && (
+                        {!isViewed && isPending && (
                           <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
                         )}
                         {date}
@@ -100,14 +152,23 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                       ₪{Number(order.total_price).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() =>
-                          setExpandedOrder(expandedOrder === order.id ? null : order.id)
-                        }
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {expandedOrder === order.id ? "הסתר" : "פרטים"}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleViewDetails(order.id)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          {expandedOrder === order.id ? "הסתר" : "פרטים"}
+                        </button>
+                        {isPending && (
+                          <button
+                            onClick={() => handleMarkDone(order.id)}
+                            disabled={processingOrder === order.id}
+                            className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {processingOrder === order.id ? "..." : "בוצע"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   {expandedOrder === order.id && (

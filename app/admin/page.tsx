@@ -18,11 +18,12 @@ async function getStats() {
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     });
 
-    // Get unread cart requests count
+    // Get unread pending cart requests count (only pending, not done)
     const { count: unreadCount } = await supabase
       .from("cart_exports")
       .select("*", { count: "exact", head: true })
-      .eq("viewed", false);
+      .eq("viewed", false)
+      .eq("status", "pending");
 
     return { total, withImages, byCategory, unreadCount: unreadCount || 0 };
   } catch (error) {

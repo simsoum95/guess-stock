@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
         total_price: totalPrice,
         ip_address: ipAddress,
         viewed: false, // New orders are unread by default
+        status: "pending", // New orders are pending by default
       })
       .select()
       .single();

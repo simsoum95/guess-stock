@@ -8,29 +8,22 @@ async function getOrders() {
     .from("cart_exports")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
   if (error) {
     console.error("[admin/orders] Error fetching orders:", error);
-    return [];
+    return { pending: [], done: [] };
   }
 
-  // Mark all unread orders as viewed when page loads
-  if (data && data.length > 0) {
-    const unreadIds = data.filter(order => !order.viewed).map(order => order.id);
-    if (unreadIds.length > 0) {
-      await supabase
-        .from("cart_exports")
-        .update({ viewed: true })
-        .in("id", unreadIds);
-    }
-  }
+  // Separate pending and done orders
+  const pending = (data || []).filter(order => !order.status || order.status === "pending");
+  const done = (data || []).filter(order => order.status === "done");
 
-  return data || [];
+  return { pending, done };
 }
 
 export default async function AdminOrdersPage() {
-  const orders = await getOrders();
+  const { pending, done } = await getOrders();
 
   return (
     <div className="p-6 lg:p-8 lg:pt-8 pt-20">
@@ -39,7 +32,19 @@ export default async function AdminOrdersPage() {
         <p className="text-slate-500 mt-1">כל הבקשות שנשלחו על ידי הלקוחות</p>
       </div>
 
-      <OrdersTable orders={orders} />
+      {/* Pending Orders */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-slate-900 mb-4">ממתין</h2>
+        <OrdersTable orders={pending} status="pending" />
+      </div>
+
+      {/* Done Orders */}
+      {done.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">בוצע</h2>
+          <OrdersTable orders={done} status="done" />
+        </div>
+      )}
     </div>
   );
 }
