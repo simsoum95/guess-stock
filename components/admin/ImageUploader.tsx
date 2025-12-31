@@ -131,10 +131,65 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
 
   const setAsMain = (url: string) => onImageChange(url, gallery);
 
-  const removeImage = (url: string) => {
-    const newGallery = gallery.filter(g => g !== url);
-    const newMain = url === currentImage ? (newGallery[0] || "/images/default.png") : currentImage;
-    onImageChange(newMain, newGallery);
+  const removeImage = async (url: string) => {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Extract filename from URL
+    // URL format: https://...supabase.co/storage/v1/object/public/guess-images/products/FILENAME
+    const urlParts = url.split('/');
+    const filenameIndex = urlParts.findIndex(part => part === 'products');
+    const filename = filenameIndex >= 0 && filenameIndex < urlParts.length - 1 
+      ? urlParts[filenameIndex + 1] 
+      : null;
+
+    if (!filename) {
+      console.error("[ImageUploader] Could not extract filename from URL:", url);
+      alert("שגיאה: לא ניתן לזהות את שם הקובץ");
+      return;
+    }
+
+    console.log("[ImageUploader] Deleting image:", filename);
+
+    try {
+      // 1. Delete from Storage
+      const filePath = `products/${filename}`;
+      const { error: storageError } = await supabase.storage
+        .from("guess-images")
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error("[ImageUploader] Storage delete error:", storageError);
+        alert(`שגיאה במחיקת התמונה מהאחסון: ${storageError.message}`);
+        return;
+      }
+
+      console.log("[ImageUploader] Deleted from Storage:", filePath);
+
+      // 2. Delete from image_index
+      const { error: indexError } = await supabase
+        .from("image_index")
+        .delete()
+        .eq("filename", filename);
+
+      if (indexError) {
+        console.error("[ImageUploader] Index delete error:", indexError);
+        // Continue anyway - file is deleted from storage
+      } else {
+        console.log("[ImageUploader] Deleted from index:", filename);
+      }
+
+      // 3. Update UI
+      const newGallery = gallery.filter(g => g !== url);
+      const newMain = url === currentImage ? (newGallery[0] || "/images/default.png") : currentImage;
+      onImageChange(newMain, newGallery);
+
+    } catch (error) {
+      console.error("[ImageUploader] Error deleting image:", error);
+      alert(`שגיאה במחיקת התמונה: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   return (
