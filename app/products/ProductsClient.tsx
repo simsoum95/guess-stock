@@ -243,6 +243,7 @@ const FilterControl = memo(function FilterControl({
 
 const ProductCard = memo(function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { addToCart } = useCart();
   const out = product.stockQuantity === 0;
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
