@@ -9,9 +9,10 @@ interface Props {
   onImageChange: (imageUrl: string, gallery: string[]) => void;
   modelRef: string;
   color?: string;
+  itemCode?: string; // For bags: used to extract actual modelRef
 }
 
-export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, color }: Props) {
+export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, color, itemCode }: Props & { itemCode?: string }) {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -21,17 +22,36 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     
-    // Format: MODELREF-COLOR-1.jpg (for association with products)
-    // The fetchProducts.ts looks for images by modelRef and color
-    const colorClean = (color || "DEFAULT").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const modelRefClean = (modelRef || "PRODUCT").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    // IMPORTANT: Use the EXACT modelRef and color format as stored in Google Sheets
+    // fetchProducts.ts matches by modelRef.toUpperCase().trim() and color.toUpperCase().trim()
+    // So we must use the same format for the filename and index
+    
+    // For bags: modelRef is extracted from itemCode (e.g., "NN984571-BLA-OS" -> "NN984571")
+    // Extract modelRef from itemCode if available, otherwise use modelRef as-is
+    let actualModelRef = modelRef;
+    if (itemCode && itemCode.includes("-")) {
+      const parts = itemCode.split("-");
+      actualModelRef = parts[0]; // Extract modelRef from itemCode
+      console.log("[ImageUploader] Extracted modelRef from itemCode:", actualModelRef, "from itemCode:", itemCode);
+    }
+    
+    // For filename: use clean format (no spaces/special chars) for file system compatibility
+    const colorForFilename = (color || "DEFAULT").toUpperCase().trim().replace(/[^A-Z0-9]/g, "");
+    const modelRefForFilename = (actualModelRef || "PRODUCT").toUpperCase().trim().replace(/[^A-Z0-9]/g, "");
+    
+    // For index: use EXACT format as in Google Sheets (just uppercase, no cleaning)
+    // This ensures matching works correctly in fetchProducts
+    const colorForIndex = (color || "DEFAULT").toUpperCase().trim();
+    const modelRefForIndex = (actualModelRef || "PRODUCT").toUpperCase().trim();
+    
     const extension = file.name.split('.').pop() || 'jpg';
     const timestamp = Date.now();
-    const fileName = `${modelRefClean}-${colorClean}-${index + 1}-${timestamp}.${extension}`;
+    const fileName = `${modelRefForFilename}-${colorForFilename}-${index + 1}-${timestamp}.${extension}`;
     const filePath = `products/${fileName}`;
 
     console.log("[ImageUploader] Uploading with product association:", filePath);
-    console.log("[ImageUploader] ModelRef:", modelRef, "Color:", color);
+    console.log("[ImageUploader] ModelRef (for index):", modelRefForIndex, "Color (for index):", colorForIndex);
+    console.log("[ImageUploader] ModelRef (for filename):", modelRefForFilename, "Color (for filename):", colorForFilename);
 
     // Upload to Storage
     const { error: uploadError } = await supabase.storage
@@ -48,13 +68,14 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
     const publicUrl = urlData.publicUrl;
     console.log("[ImageUploader] Upload success:", publicUrl);
 
-    // Index the image in image_index table
+    // Index the image in image_index table with EXACT modelRef and color format
+    // This ensures fetchProducts can match it correctly
     try {
       const { error: indexError } = await supabase
         .from("image_index")
         .upsert({
-          model_ref: modelRefClean,
-          color: colorClean,
+          model_ref: modelRefForIndex, // Use exact format (just uppercase, no cleaning)
+          color: colorForIndex,        // Use exact format (just uppercase, no cleaning)
           filename: fileName,
           url: publicUrl,
         }, {
@@ -63,12 +84,14 @@ export function ImageUploader({ currentImage, gallery, onImageChange, modelRef, 
 
       if (indexError) {
         console.error("[ImageUploader] Index error:", indexError);
-        // Don't fail the upload if indexing fails, but log it
+        alert(`שגיאה באינדוקס התמונה: ${indexError.message}`);
+        // Don't fail the upload if indexing fails, but warn user
       } else {
-        console.log("[ImageUploader] Image indexed successfully");
+        console.log("[ImageUploader] Image indexed successfully with modelRef:", modelRefForIndex, "color:", colorForIndex);
       }
     } catch (indexErr) {
       console.error("[ImageUploader] Failed to index image:", indexErr);
+      alert(`שגיאה באינדוקס התמונה: ${indexErr instanceof Error ? indexErr.message : String(indexErr)}`);
       // Continue anyway - image is uploaded
     }
 

@@ -357,6 +357,7 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
               onImageChange={handleImageChange}
               modelRef={form.modelRef}
               color={form.color}
+              itemCode={form.itemCode}
             />
           </div>
         </div>
