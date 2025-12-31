@@ -57,9 +57,6 @@ export default function CartPage() {
         scale: 2,
         useCORS: true,
         logging: false,
-        letterRendering: true,
-        windowWidth: 794, // 210mm in pixels at 96 DPI
-        windowHeight: 1123, // 297mm in pixels
       });
 
       // Hide PDF content again
