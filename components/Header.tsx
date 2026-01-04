@@ -26,28 +26,15 @@ export function Header() {
           </Link>
         </nav>
 
-        {/* Logos Center */}
-        <Link href="/" className="flex items-center gap-8">
+        {/* Logo Center - Company logo only, larger */}
+        <Link href="/" className="flex items-center justify-center">
           <div className="relative">
             <Image
               src="/images/logo-company.png"
               alt="לוגו חברה"
-              width={140}
-              height={48}
-              className="h-12 w-auto object-contain opacity-95"
-              priority
-            />
-          </div>
-          
-          <div className="h-px w-12 bg-luxury-grey/30" />
-          
-          <div className="relative">
-            <Image
-              src="/images/logo-guess.png"
-              alt="Guess Logo"
-              width={120}
-              height={44}
-              className="h-11 w-auto object-contain opacity-95"
+              width={280}
+              height={96}
+              className="h-16 w-auto object-contain opacity-95"
               priority
             />
           </div>

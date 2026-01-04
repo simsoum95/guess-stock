@@ -6,20 +6,20 @@ export default function HomePage() {
     <main className="min-h-screen hero-bg">
       <section className="relative min-h-screen flex flex-col items-center justify-center px-12 py-32">
         {/* Logos */}
-        <div className="mb-24 flex items-center justify-center gap-16 animate-fade-in-luxury">
+        <div className="mb-24 flex flex-col items-center justify-center gap-8 animate-fade-in-luxury">
+          {/* Company Logo - Large and centered */}
           <div className="relative">
             <Image
               src="/images/logo-company.png"
               alt="לוגו חברה"
-              width={240}
-              height={84}
-              className="h-20 w-auto object-contain opacity-95"
+              width={480}
+              height={168}
+              className="h-40 w-auto object-contain opacity-95"
               priority
             />
           </div>
           
-          <div className="h-px w-24 bg-luxury-grey/20" />
-          
+          {/* Guess Logo - Below, same size as before */}
           <div className="relative">
             <Image
               src="/images/logo-guess.png"
