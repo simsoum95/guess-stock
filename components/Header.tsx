@@ -15,14 +15,14 @@ export function Header() {
         <nav className="hidden lg:flex items-center gap-10">
           <Link 
             href="/" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
+            className="text-sm font-medium tracking-[0.15em] uppercase text-luxury-noir hover:text-luxury-grey transition-colors duration-300"
             prefetch={true}
           >
             דף הבית
           </Link>
           <Link 
             href="/products" 
-            className="text-xs font-light tracking-[0.2em] uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
+            className="text-sm font-medium tracking-[0.15em] uppercase text-luxury-noir hover:text-luxury-grey transition-colors duration-300"
             prefetch={true}
           >
             קטלוג
@@ -47,7 +47,7 @@ export function Header() {
               <Link 
                 href="/" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-light tracking-wide uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300 py-2"
+                className="text-sm font-medium tracking-wide uppercase text-luxury-noir hover:text-luxury-grey transition-colors duration-300 py-2"
                 prefetch={true}
               >
                 דף הבית
@@ -55,7 +55,7 @@ export function Header() {
               <Link 
                 href="/products" 
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-light tracking-wide uppercase text-luxury-grey hover:text-luxury-noir transition-colors duration-300 py-2"
+                className="text-sm font-medium tracking-wide uppercase text-luxury-noir hover:text-luxury-grey transition-colors duration-300 py-2"
                 prefetch={true}
               >
                 קטלוג
@@ -83,7 +83,7 @@ export function Header() {
           <CartIcon />
           <Link 
             href="/admin/login" 
-            className="hidden sm:block text-[10px] font-light tracking-wide text-luxury-grey/50 hover:text-luxury-grey transition-colors duration-300"
+            className="hidden sm:block text-xs font-medium tracking-wide text-luxury-grey hover:text-luxury-noir transition-colors duration-300"
           >
             כניסת מנהל
           </Link>
