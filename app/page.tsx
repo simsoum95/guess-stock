@@ -23,14 +23,10 @@ export default function HomePage() {
           {/* Brand Logos - Below company logo, left to right (RTL: most popular first) */}
           <div className="flex flex-wrap items-center justify-center gap-8 max-w-6xl">
             <BrandLogo name="GUESS" filename="guess.png" />
-            <BrandLogo name="GUESS JEANS" filename="guess-jeans.png" />
             <BrandLogo name="SAM EDELMAN" filename="sam-edelman.png" />
             <BrandLogo name="VILEBREQUIN" filename="vilebrequin.png" />
             <BrandLogo name="DKNY" filename="dkny.png" />
             <BrandLogo name="BAYTON" filename="bayton.png" />
-            <BrandLogo name="CIRCUS NY" filename="circus-ny.png" />
-            <BrandLogo name="GOOCE" filename="gooce.png" />
-            <BrandLogo name="PULLIEZ" filename="pulliez.png" />
           </div>
         </div>
 
