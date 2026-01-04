@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 interface CartItem {
   productName: string;
@@ -71,6 +72,76 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
       alert("שגיאה בסימון הבקשה כבוצעה");
     } finally {
       setProcessingOrder(null);
+    }
+  };
+
+  const handleDownloadExcel = (order: Order) => {
+    try {
+      // Prepare data for Excel export
+      const date = new Date(order.created_at).toLocaleDateString("he-IL", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // Header row with order info
+      const headerData = [
+        ["פרטי הלקוח"],
+        ["תאריך", date],
+        ["שם החנות", order.shop_name],
+        ["שם פרטי", order.first_name],
+        ["טלפון", order.phone || ""],
+        [],
+        ["פרטי המוצרים"],
+        ["שם מוצר", "קוד פריט", "כמות", "מחיר יחידה (₪)", "סה\"כ (₪)"],
+      ];
+
+      // Product rows
+      const productRows = order.items.map((item) => [
+        item.productName,
+        item.itemCode,
+        item.quantity,
+        item.unitPrice.toFixed(2),
+        item.totalPrice.toFixed(2),
+      ]);
+
+      // Total row
+      const totalRow = ["", "", "", "סה\"כ כולל:", order.total_price.toFixed(2)];
+
+      // Combine all data
+      const excelData = [
+        ...headerData,
+        ...productRows,
+        [],
+        totalRow,
+      ];
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+      // Set column widths for better readability
+      ws["!cols"] = [
+        { wch: 30 }, // שם מוצר
+        { wch: 20 }, // קוד פריט
+        { wch: 10 }, // כמות
+        { wch: 15 }, // מחיר יחידה
+        { wch: 15 }, // סה"כ
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "בקשת הצעת מחיר");
+
+      // Generate filename
+      const filename = `בקשת_הצעת_מחיר_${order.shop_name}_${order.first_name}_${date.replace(/[\/\s:]/g, "_")}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error("Error generating Excel:", error);
+      alert(`שגיאה ביצירת הקובץ: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -158,6 +229,13 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                           className="text-blue-600 hover:text-blue-800"
                         >
                           {expandedOrder === order.id ? "הסתר" : "פרטים"}
+                        </button>
+                        <button
+                          onClick={() => handleDownloadExcel(order)}
+                          className="text-purple-600 hover:text-purple-800"
+                          title="הורד קובץ Excel"
+                        >
+                          הורד
                         </button>
                         {isPending && (
                           <button
