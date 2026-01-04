@@ -19,9 +19,27 @@ export function BrandLogo({ name, filename }: BrandLogoProps) {
     );
   }
 
+  // Essayer différentes extensions si le fichier avec l'extension spécifiée n'existe pas
+  const baseName = filename.replace(/\.(png|jpg|jpeg|avif|webp)$/i, '');
+  const possibleExtensions = ['.png', '.jpg', '.jpeg', '.avif', '.webp'];
+  
+  const getImageSrc = () => {
+    // Si le filename a déjà une extension, l'utiliser d'abord
+    if (filename.match(/\.(png|jpg|jpeg|avif|webp)$/i)) {
+      return `/images/brands/${filename}`;
+    }
+    // Sinon, essayer les extensions dans l'ordre
+    for (const ext of possibleExtensions) {
+      const testPath = `/images/brands/${baseName}${ext}`;
+      // Next.js Image component gérera l'existence du fichier
+      return testPath;
+    }
+    return `/images/brands/${filename}`;
+  };
+
   return (
     <Image
-      src={`/images/brands/${filename}`}
+      src={getImageSrc()}
       alt={name}
       width={120}
       height={60}
