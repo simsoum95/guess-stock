@@ -35,10 +35,7 @@ export default function HomePage() {
         {/* Title */}
         <h1 className="mb-12 text-center font-serif animate-fade-in-luxury" style={{ animationDelay: "0.1s" }}>
           <span className="text-luxury-title block">
-            קטלוג רשמי
-          </span>
-          <span className="text-luxury-title block mt-2">
-            GUESS ישראל
+            קטלוג מלאי רשמי ישראל
           </span>
         </h1>
 
