@@ -22,7 +22,7 @@ export default function HomePage() {
           
           {/* Brand Logos - Below company logo, left to right (GUESS first on left) */}
           <div className="flex flex-wrap items-center justify-center gap-12 max-w-7xl px-8">
-            <BrandLogo name="BAYTON" filename="bayton.avif" />
+            <BrandLogo name="BAYTON" filename="bayton.jpg" />
             <BrandLogo name="DKNY" filename="dkny.png" />
             <BrandLogo name="VILEBREQUIN" filename="vilebrequin.jpg" />
             <BrandLogo name="SAM EDELMAN" filename="sam-edelman.png" />
