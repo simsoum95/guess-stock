@@ -38,14 +38,14 @@ export function BrandLogo({ name, filename }: BrandLogoProps) {
   };
 
   return (
-    <div className="flex items-center justify-center" style={{ minHeight: '60px', maxHeight: '60px' }}>
+    <div className="flex items-center justify-center" style={{ minHeight: '40px', maxHeight: '40px' }}>
       <Image
         src={getImageSrc()}
         alt={name}
         width={200}
         height={60}
-        className="h-[60px] w-auto max-w-[200px] object-contain object-center opacity-80 hover:opacity-100 transition-opacity"
-        style={{ height: '60px', width: 'auto' }}
+        className="h-[40px] sm:h-[50px] lg:h-[60px] w-auto max-w-[120px] sm:max-w-[150px] lg:max-w-[200px] object-contain object-center opacity-80 hover:opacity-100 transition-opacity"
+        style={{ width: 'auto' }}
         onError={() => setImageError(true)}
       />
     </div>
