@@ -19,16 +19,17 @@ export default function HomePage() {
             />
           </div>
           
-          {/* Guess Logo - Below, same size as before */}
-          <div className="relative">
-            <Image
-              src="/images/logo-guess.png"
-              alt="Guess Logo"
-              width={220}
-              height={80}
-              className="h-20 w-auto object-contain opacity-95"
-              priority
-            />
+          {/* Brand Names - Below company logo */}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-light text-luxury-grey">
+            <span>GUESS</span>
+            <span>GUESS JEANS</span>
+            <span>SAM EDELMAN</span>
+            <span>VILEBREQUIN</span>
+            <span>DKNY</span>
+            <span>BAYTON</span>
+            <span>CIRCUS NY</span>
+            <span>GOOCE</span>
+            <span>PULLIEZ</span>
           </div>
         </div>
 
