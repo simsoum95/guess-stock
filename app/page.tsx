@@ -20,13 +20,13 @@ export default function HomePage() {
             />
           </div>
           
-          {/* Brand Logos - Below company logo, left to right (RTL: most popular first) */}
-          <div className="flex flex-wrap items-center justify-center gap-8 max-w-6xl">
-            <BrandLogo name="GUESS" filename="guess.jpg" />
-            <BrandLogo name="SAM EDELMAN" filename="sam-edelman.png" />
-            <BrandLogo name="VILEBREQUIN" filename="vilebrequin.jpg" />
-            <BrandLogo name="DKNY" filename="dkny.png" />
+          {/* Brand Logos - Below company logo, left to right (GUESS first on left) */}
+          <div className="flex flex-wrap items-center justify-center gap-12 max-w-7xl px-8">
             <BrandLogo name="BAYTON" filename="bayton.avif" />
+            <BrandLogo name="DKNY" filename="dkny.png" />
+            <BrandLogo name="VILEBREQUIN" filename="vilebrequin.jpg" />
+            <BrandLogo name="SAM EDELMAN" filename="sam-edelman.png" />
+            <BrandLogo name="GUESS" filename="guess.jpg" />
           </div>
         </div>
 
