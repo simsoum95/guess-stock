@@ -12,9 +12,9 @@ export default function HomePage() {
             <Image
               src="/images/logo-company.png"
               alt="לוגו חברה"
-              width={480}
-              height={168}
-              className="h-40 w-auto object-contain opacity-95"
+              width={720}
+              height={252}
+              className="h-64 w-auto object-contain opacity-95"
               priority
             />
           </div>
