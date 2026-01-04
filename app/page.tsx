@@ -19,17 +19,71 @@ export default function HomePage() {
             />
           </div>
           
-          {/* Brand Names - Below company logo */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-light text-luxury-grey">
-            <span>GUESS</span>
-            <span>GUESS JEANS</span>
-            <span>SAM EDELMAN</span>
-            <span>VILEBREQUIN</span>
-            <span>DKNY</span>
-            <span>BAYTON</span>
-            <span>CIRCUS NY</span>
-            <span>GOOCE</span>
-            <span>PULLIEZ</span>
+          {/* Brand Logos - Below company logo, left to right (RTL: most popular first) */}
+          <div className="flex flex-wrap items-center justify-center gap-8 max-w-6xl">
+            <Image
+              src="/images/brands/guess.png"
+              alt="GUESS"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/guess-jeans.png"
+              alt="GUESS JEANS"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/sam-edelman.png"
+              alt="SAM EDELMAN"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/vilebrequin.png"
+              alt="VILEBREQUIN"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/dkny.png"
+              alt="DKNY"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/bayton.png"
+              alt="BAYTON"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/circus-ny.png"
+              alt="CIRCUS NY"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/gooce.png"
+              alt="GOOCE"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <Image
+              src="/images/brands/pulliez.png"
+              alt="PULLIEZ"
+              width={120}
+              height={60}
+              className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            />
           </div>
         </div>
 
