@@ -445,8 +445,37 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
     const skippedRows: Array<{index: number; reason: string; row: any}> = [];
     
     allRows.forEach((row, index) => {
-      const itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
-      const modelRef = (row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+      // Get itemCode with flexible key matching
+      let itemCode = "";
+      for (const key of Object.keys(row)) {
+        const keyLower = key.toLowerCase().trim();
+        if (keyLower.includes("קוד פריט") || keyLower.includes("itemcode")) {
+          const value = row[key];
+          if (value && String(value).trim().length > 0) {
+            itemCode = String(value).trim();
+            break;
+          }
+        }
+      }
+      if (!itemCode) {
+        itemCode = (row["קוד פריט"] || row["itemCode"] || row["ItemCode"] || "").toString().trim();
+      }
+      
+      // Get modelRef with flexible key matching
+      let modelRef = "";
+      for (const key of Object.keys(row)) {
+        const keyLower = key.toLowerCase().trim();
+        if (keyLower.includes("קוד גם") || keyLower.includes("modelref") || keyLower.includes("קוד דגם")) {
+          const value = row[key];
+          if (value && String(value).trim().length > 0) {
+            modelRef = String(value).trim();
+            break;
+          }
+        }
+      }
+      if (!modelRef) {
+        modelRef = (row["מגז-קוד גם"] || row["קוד גם"] || row["קוד דגם"] || row["modelRef"] || "").toString().trim();
+      }
       const color = (row["צבע"] || row["color"] || "").toString().trim();
       const size = (row["מידה"] || row["size"] || row["Size"] || "").toString().trim();
       const subcategory = (row["תת משפחה"] || row["תת קטגוריה"] || row["subcategory"] || "").toString().trim();
