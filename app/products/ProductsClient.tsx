@@ -27,6 +27,14 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     setSubcategory("all");
     setFamilyName("all");
   };
+  
+  // Reset category, subcategory and familyName when brand changes
+  const handleBrandChange = (newBrand: string) => {
+    setBrand(newBrand);
+    setCategory("all");
+    setSubcategory("all");
+    setFamilyName("all");
+  };
 
   // Get available brands from products
   const availableBrands = useMemo(() => {
@@ -37,38 +45,54 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     return Array.from(brands).sort();
   }, [products]);
   
-  // Get available subcategories for current category (only those that exist in products)
+  // Get available categories based on selected brand (only those that exist in products)
+  const availableCategories = useMemo(() => {
+    const categories = new Set<CategoryFilter>();
+    products
+      .filter(p => brand === "all" || p.brand === brand)
+      .forEach(p => {
+        if (p.category === "תיק" || p.category === "נעל") {
+          categories.add(p.category);
+        }
+      });
+    return Array.from(categories).sort();
+  }, [brand, products]);
+  
+  // Get available subcategories for current category and brand (only those that exist in products)
   const availableSubcategories = useMemo(() => {
+    // First filter products by brand
+    const filteredProducts = products.filter(p => brand === "all" || p.brand === brand);
+    
     if (category === "all") {
-      // Get all unique subcategories from products
+      // Get all unique subcategories from filtered products
       const allSubcats = new Set<string>();
-      products.forEach(p => {
+      filteredProducts.forEach(p => {
         if (p.subcategory) allSubcats.add(p.subcategory);
       });
       return Array.from(allSubcats).sort();
     }
-    // Get subcategories that both exist in SUBcategoriesByCategory AND in products
+    // Get subcategories that both exist in SUBcategoriesByCategory AND in filtered products
     const categorySubcats = SUBcategoriesByCategory[category] || [];
     const productSubcats = new Set<string>();
-    products
+    filteredProducts
       .filter(p => p.category === category && p.subcategory)
       .forEach(p => productSubcats.add(p.subcategory));
     
     // Return intersection: subcategories in both lists, sorted
     return categorySubcats.filter(subcat => productSubcats.has(subcat)).sort();
-  }, [category, products]);
+  }, [brand, category, products]);
   
-  // Get available family names for bags (only those that exist in products)
+  // Get available family names for bags (only those that exist in products for selected brand)
   const availableFamilyNames = useMemo(() => {
     if (category !== "תיק") {
       return [];
     }
     const familyNames = new Set<string>();
     products
-      .filter(p => p.category === "תיק" && p.familyName)
+      .filter(p => (brand === "all" || p.brand === brand) && p.category === "תיק" && p.familyName)
       .forEach(p => familyNames.add(p.familyName!));
     return Array.from(familyNames).sort();
-  }, [category, products]);
+  }, [brand, category, products]);
 
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
@@ -144,37 +168,37 @@ export default function ProductsClient({ products }: { products: Product[] }) {
               <FilterControl
                 label="כל המותגים"
                 active={brand === "all"}
-                onClick={() => setBrand("all")}
+                onClick={() => handleBrandChange("all")}
               />
               {availableBrands.map((brandName) => (
                 <FilterControl
                   key={brandName}
                   label={brandName}
                   active={brand === brandName}
-                  onClick={() => setBrand(brandName)}
+                  onClick={() => handleBrandChange(brandName)}
                 />
               ))}
             </div>
           )}
           
-          {/* Main Category Filters */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
-            <FilterControl
-              label="כל הקטגוריות"
-              active={category === "all"}
-              onClick={() => handleCategoryChange("all")}
-            />
-            <FilterControl
-              label="תיקים"
-              active={category === "תיק"}
-              onClick={() => handleCategoryChange("תיק")}
-            />
-            <FilterControl
-              label="נעליים"
-              active={category === "נעל"}
-              onClick={() => handleCategoryChange("נעל")}
-            />
-          </div>
+          {/* Main Category Filters - Only show categories available for selected brand */}
+          {availableCategories.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
+              <FilterControl
+                label="כל הקטגוריות"
+                active={category === "all"}
+                onClick={() => handleCategoryChange("all")}
+              />
+              {availableCategories.map((cat) => (
+                <FilterControl
+                  key={cat}
+                  label={cat === "תיק" ? "תיקים" : cat === "נעל" ? "נעליים" : cat}
+                  active={category === cat}
+                  onClick={() => handleCategoryChange(cat)}
+                />
+              ))}
+            </div>
+          )}
           
           {/* Family Name Filters - Only show for bags */}
           {category === "תיק" && availableFamilyNames.length > 0 && (
