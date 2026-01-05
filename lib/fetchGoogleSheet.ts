@@ -42,7 +42,28 @@ async function getAllSheetNames(): Promise<string[]> {
 
   // Fallback: try common names including "final test"
   console.warn("[fetchGoogleSheet] Could not fetch sheet names, trying common names");
-  return ["final test", "Sheet1", "תיקים", "נעליים", "גיליון2", "גיליון1"];
+  return ["final test", "Sheet1", "תיקים", "נעליים", "נעליים SAM", "VILEBREQUIN", "גיליון2", "גיליון1"];
+}
+
+/**
+ * Extract brand name from sheet name
+ * "תיקים" or "נעליים" → "GUESS"
+ * "נעליים SAM" → "SAM EDELMAN"
+ * "VILEBREQUIN" → "VILEBREQUIN"
+ */
+function extractBrandFromSheetName(sheetName: string): string {
+  const name = sheetName.trim();
+  
+  if (name.includes("VILEBREQUIN") || name.toUpperCase().includes("VILEBREQUIN")) {
+    return "VILEBREQUIN";
+  }
+  
+  if (name.includes("SAM") || name.includes("EDELMAN")) {
+    return "SAM EDELMAN";
+  }
+  
+  // Default to GUESS for "תיקים" and "נעליים"
+  return "GUESS";
 }
 
 /**
@@ -372,6 +393,10 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
         
         if (validRows.length > 0) {
           console.log(`[fetchGoogleSheet] ✅ Adding ${validRows.length} valid rows from "${sheetName}"`);
+          // Add sheet name metadata to each row for brand detection
+          validRows.forEach(row => {
+            (row as any)._sheetName = sheetName;
+          });
           allRows.push(...validRows);
         } else {
           console.error(`[fetchGoogleSheet] ❌ Skipping "${sheetName}" - no valid rows`);
@@ -498,8 +523,11 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
 /**
  * Map Google Sheet row to Product data structure
  * Adjust column names based on your actual Google Sheet columns
+ * @param row - The Google Sheet row data
+ * @param index - Row index
+ * @param sheetName - Name of the sheet (used to extract brand)
  */
-export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
+export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetName?: string): {
   id: string;
   collection: string;
   category: string;
@@ -625,12 +653,23 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number): {
     productName = getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef;
   }
   
+  // Extract brand from sheet name (stored in row metadata) or from row data
+  const rowSheetName = (row as any)._sheetName || sheetName;
+  let brand = getValue(["מותג", "brand", "Brand", "BRAND"]);
+  
+  // Prefer brand from sheet name (more reliable)
+  if (rowSheetName) {
+    brand = extractBrandFromSheetName(rowSheetName);
+  } else if (!brand) {
+    brand = "GUESS"; // Default fallback
+  }
+
   return {
     id: uniqueId,
     collection: getValue(["קולקציה", "collection", "Collection", "COLLECTION"]),
     category: category || "תיק",
     subcategory: subcategory,
-    brand: getValue(["מותג", "brand", "Brand", "BRAND"]),
+    brand: brand,
     modelRef: modelRef,
     gender: getValue(["מגדר", "gender", "Gender", "GENDER"]),
     supplier: getValue(["ספק", "supplier", "Supplier", "SUPPLIER"]),

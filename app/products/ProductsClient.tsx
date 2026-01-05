@@ -15,6 +15,7 @@ const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
 };
 
 export default function ProductsClient({ products }: { products: Product[] }) {
+  const [brand, setBrand] = useState<string>("all");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [subcategory, setSubcategory] = useState<string>("all");
   const [familyName, setFamilyName] = useState<string>("all");
@@ -26,6 +27,15 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     setSubcategory("all");
     setFamilyName("all");
   };
+
+  // Get available brands from products
+  const availableBrands = useMemo(() => {
+    const brands = new Set<string>();
+    products.forEach(p => {
+      if (p.brand) brands.add(p.brand);
+    });
+    return Array.from(brands).sort();
+  }, [products]);
   
   // Get available subcategories for current category (only those that exist in products)
   const availableSubcategories = useMemo(() => {
@@ -62,6 +72,9 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
+      // Filter by brand (first filter)
+      if (brand !== "all" && product.brand !== brand) return false;
+      
       if (category !== "all" && product.category !== category) return false;
       
       // Filter by subcategory
@@ -97,7 +110,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       // Règle 2 : Si même statut d'image, trier par stock décroissant
       return b.stockQuantity - a.stockQuantity;
     });
-  }, [products, category, subcategory, familyName, searchQuery]);
+  }, [products, brand, category, subcategory, familyName, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
@@ -125,6 +138,25 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 
         {/* Filter Controls */}
         <div className="mb-12 sm:mb-16 lg:mb-24 space-y-4 sm:space-y-6 lg:space-y-8 border-b border-luxury-grey/20 pb-4 sm:pb-6 lg:pb-8">
+          {/* Brand Filters - First filter */}
+          {availableBrands.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
+              <FilterControl
+                label="כל המותגים"
+                active={brand === "all"}
+                onClick={() => setBrand("all")}
+              />
+              {availableBrands.map((brandName) => (
+                <FilterControl
+                  key={brandName}
+                  label={brandName}
+                  active={brand === brandName}
+                  onClick={() => setBrand(brandName)}
+                />
+              ))}
+            </div>
+          )}
+          
           {/* Main Category Filters */}
           <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
             <FilterControl
