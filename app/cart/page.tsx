@@ -140,8 +140,10 @@ export default function CartPage() {
             productId: item.product.id,
             productName: item.product.category === "תיק" && item.product.bagName
               ? item.product.bagName
-              : item.product.productName || item.product.modelRef,
+              : item.product.modelRef, // For shoes, use modelRef instead of productName
             itemCode: item.product.itemCode || item.product.modelRef,
+            category: item.product.category,
+            color: item.product.color, // Include color for shoes
             quantity: item.quantity,
             unitPrice: item.product.priceWholesale,
             totalPrice: item.product.priceWholesale * item.quantity,
@@ -231,18 +233,23 @@ export default function CartPage() {
             </thead>
             <tbody>
               {items.map((item, index) => {
-                const productName = item.product.category === "תיק" && item.product.bagName
+                const isBag = item.product.category === "תיק";
+                const displayName = isBag && item.product.bagName
                   ? item.product.bagName
-                  : item.product.productName || item.product.modelRef;
-                const itemCode = item.product.itemCode || item.product.modelRef;
+                  : item.product.modelRef;
+                const displayDetail = isBag 
+                  ? (item.product.itemCode || item.product.modelRef)
+                  : item.product.color;
                 const unitPrice = item.product.priceWholesale;
                 const itemTotal = unitPrice * item.quantity;
                 
                 return (
                   <tr key={index}>
                     <td className="border border-gray-300 p-3">
-                      <div className="text-sm">{productName}</div>
-                      <div className="text-xs text-gray-600">({itemCode})</div>
+                      <div className="text-sm font-bold">{displayName}</div>
+                      {displayDetail && (
+                        <div className="text-xs text-gray-600">{displayDetail}</div>
+                      )}
                     </td>
                     <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
                     <td className="border border-gray-300 p-3 text-center">₪{unitPrice.toFixed(2)}</td>
@@ -268,10 +275,13 @@ export default function CartPage() {
 
         <div className="space-y-6 mb-8">
           {items.map((item) => {
-            const productName = item.product.category === "תיק" && item.product.bagName
+            const isBag = item.product.category === "תיק";
+            const displayName = isBag && item.product.bagName
               ? item.product.bagName
-              : item.product.productName || item.product.modelRef;
-            const itemCode = item.product.itemCode || item.product.modelRef;
+              : item.product.modelRef;
+            const displayDetail = isBag 
+              ? (item.product.itemCode || item.product.modelRef)
+              : item.product.color;
             
             return (
               <div
@@ -281,14 +291,16 @@ export default function CartPage() {
                 <div className="w-24 h-24 bg-neutral-50 rounded overflow-hidden flex-shrink-0">
                   <img
                     src={item.product.imageUrl}
-                    alt={productName}
+                    alt={displayName}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 
                 <div className="flex-1">
-                  <h3 className="text-base font-light text-luxury-noir mb-1">{productName}</h3>
-                  <p className="text-xs text-luxury-grey">{itemCode}</p>
+                  <h3 className="text-base font-bold text-luxury-noir mb-1">{displayName}</h3>
+                  {displayDetail && (
+                    <p className="text-xs text-luxury-grey">{displayDetail}</p>
+                  )}
                   <p className="text-sm text-luxury-noir mt-2">₪{item.product.priceWholesale.toFixed(2)}</p>
                 </div>
                 

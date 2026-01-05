@@ -7,6 +7,8 @@ import * as XLSX from "xlsx";
 interface CartItem {
   productName: string;
   itemCode: string;
+  category?: string;
+  color?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -254,17 +256,25 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                       <td colSpan={7} className="px-6 py-4 bg-slate-50">
                         <div className="space-y-2">
                           <h4 className="font-medium text-slate-900 mb-3">פרטי המוצרים:</h4>
-                          {order.items.map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between py-2 border-b border-slate-200 last:border-0"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">
-                                  {item.productName}
-                                </p>
-                                <p className="text-xs text-slate-500">{item.itemCode}</p>
-                              </div>
+                          {order.items.map((item, index) => {
+                            // For shoes: productName is modelRef, show color below
+                            // For bags: productName is bagName, show itemCode below
+                            const isBag = item.category === "תיק";
+                            const displayDetail = isBag ? item.itemCode : item.color;
+                            
+                            return (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between py-2 border-b border-slate-200 last:border-0"
+                              >
+                                <div>
+                                  <p className="text-sm font-bold text-slate-900">
+                                    {item.productName}
+                                  </p>
+                                  {displayDetail && (
+                                    <p className="text-xs text-slate-500">{displayDetail}</p>
+                                  )}
+                                </div>
                               <div className="text-right">
                                 <p className="text-sm text-slate-900">
                                   כמות: {item.quantity} × ₪{item.unitPrice.toFixed(2)}
@@ -274,7 +284,8 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                                 </p>
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       </td>
                     </tr>
