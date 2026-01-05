@@ -355,8 +355,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
           alt={product.productName || ""}
           loading={priority ? "eager" : "lazy"}
           decoding={priority ? "sync" : "async"}
-          className={`h-full w-full ${product.category === "נעל" ? "object-contain" : "object-cover lg:group-hover:scale-105"} transition-transform duration-300`}
-          style={product.category === "נעל" ? { padding: "1rem" } : undefined}
+          className={`h-full w-full ${product.category === "נעל" ? "object-contain" : "object-contain lg:group-hover:scale-105"} transition-transform duration-300`}
+          style={product.category === "נעל" ? { padding: "1rem" } : product.category === "תיק" ? { padding: "0.5rem" } : undefined}
           onError={(e) => {
             (e.target as HTMLImageElement).src = "/images/default.png";
           }}
