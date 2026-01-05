@@ -21,17 +21,9 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   const [familyName, setFamilyName] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
-  // Reset subcategory and familyName when category changes
-  const handleCategoryChange = (newCategory: CategoryFilter) => {
-    setCategory(newCategory);
-    setSubcategory("all");
-    setFamilyName("all");
-  };
-  
-  // Reset category, subcategory and familyName when brand changes
+  // Reset subcategory and familyName when brand changes
   const handleBrandChange = (newBrand: string) => {
     setBrand(newBrand);
-    setCategory("all");
     setSubcategory("all");
     setFamilyName("all");
   };
@@ -45,67 +37,43 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     return Array.from(brands).sort();
   }, [products]);
   
-  // Get available categories based on selected brand (only those that exist in products)
+  // Get available categories (subcategories) for selected brand (only those that exist in products)
   const availableCategories = useMemo(() => {
-    const categories = new Set<CategoryFilter>();
-    products
-      .filter(p => brand === "all" || p.brand === brand)
-      .forEach(p => {
-        if (p.category === "תיק" || p.category === "נעל") {
-          categories.add(p.category);
-        }
-      });
+    // Filter products by brand first
+    const filteredProducts = products.filter(p => brand === "all" || p.brand === brand);
+    
+    // Get all unique subcategories from filtered products
+    const categories = new Set<string>();
+    filteredProducts.forEach(p => {
+      if (p.subcategory) categories.add(p.subcategory);
+    });
     return Array.from(categories).sort();
   }, [brand, products]);
   
-  // Get available subcategories for current category and brand (only those that exist in products)
-  const availableSubcategories = useMemo(() => {
-    // First filter products by brand
-    const filteredProducts = products.filter(p => brand === "all" || p.brand === brand);
-    
-    if (category === "all") {
-      // Get all unique subcategories from filtered products
-      const allSubcats = new Set<string>();
-      filteredProducts.forEach(p => {
-        if (p.subcategory) allSubcats.add(p.subcategory);
-      });
-      return Array.from(allSubcats).sort();
-    }
-    // Get subcategories that both exist in SUBcategoriesByCategory AND in filtered products
-    const categorySubcats = SUBcategoriesByCategory[category] || [];
-    const productSubcats = new Set<string>();
-    filteredProducts
-      .filter(p => p.category === category && p.subcategory)
-      .forEach(p => productSubcats.add(p.subcategory));
-    
-    // Return intersection: subcategories in both lists, sorted
-    return categorySubcats.filter(subcat => productSubcats.has(subcat)).sort();
-  }, [brand, category, products]);
-  
-  // Get available family names for bags (only those that exist in products for selected brand)
+  // Get available family names for bags (only those that exist in products for selected brand and subcategory)
   const availableFamilyNames = useMemo(() => {
-    if (category !== "תיק") {
+    // Only show family names if a bag subcategory is selected
+    const bagSubcategories = ["ארנקים", "מזוודות", "מחזיק מפתחות", "תיק גב", "תיק נסיעות", "תיק נשיאה", "תיק ערב", "תיק צד"];
+    if (subcategory === "all" || !bagSubcategories.includes(subcategory)) {
       return [];
     }
     const familyNames = new Set<string>();
     products
-      .filter(p => (brand === "all" || p.brand === brand) && p.category === "תיק" && p.familyName)
+      .filter(p => (brand === "all" || p.brand === brand) && p.category === "תיק" && p.subcategory === subcategory && p.familyName)
       .forEach(p => familyNames.add(p.familyName!));
     return Array.from(familyNames).sort();
-  }, [brand, category, products]);
+  }, [brand, subcategory, products]);
 
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
       // Filter by brand (first filter)
       if (brand !== "all" && product.brand !== brand) return false;
       
-      if (category !== "all" && product.category !== category) return false;
-      
-      // Filter by subcategory
+      // Filter by subcategory (now called "category" in the UI)
       if (subcategory !== "all" && product.subcategory !== subcategory) return false;
       
       // Filter by family name (for bags)
-      if (category === "תיק" && familyName !== "all" && product.familyName !== familyName) return false;
+      if (familyName !== "all" && product.familyName !== familyName) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
@@ -134,7 +102,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       // Règle 2 : Si même statut d'image, trier par stock décroissant
       return b.stockQuantity - a.stockQuantity;
     });
-  }, [products, brand, category, subcategory, familyName, searchQuery]);
+  }, [products, brand, subcategory, familyName, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
