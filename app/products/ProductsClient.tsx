@@ -439,15 +439,16 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
               )}
             </>
           ) : (
-            product.productName
+            <>
+              <span className="font-bold">{product.modelRef}</span>
+              {product.color && (
+                <span className="block text-[10px] sm:text-xs font-light text-luxury-grey tracking-wide mt-0.5 sm:mt-1" style={{ letterSpacing: "0.03em" }}>
+                  {product.color}
+                </span>
+              )}
+            </>
           )}
         </h3>
-        
-        {product.category !== "תיק" && (
-          <p className="text-[10px] sm:text-xs font-light text-luxury-grey tracking-wide" style={{ letterSpacing: "0.03em" }}>
-            {product.modelRef}
-          </p>
-        )}
 
         <div className="divider-luxury my-3 sm:my-4 lg:my-6" />
 
