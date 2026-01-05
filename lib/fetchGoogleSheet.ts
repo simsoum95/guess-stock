@@ -458,13 +458,11 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       ];
       const isBag = bagSubcategories.some(sub => subcategory.includes(sub));
       
-      // For bags: itemCode is required. For shoes: modelRef (column D) is required
-      if (isBag && !itemCode) {
-        skippedRows.push({ index: index + 1, reason: "Bag without itemCode (column G)", row: { itemCode, modelRef, color } });
-        return;
-      }
-      if (!isBag && !modelRef) {
-        skippedRows.push({ index: index + 1, reason: "Shoe without modelRef (column D)", row: { itemCode, modelRef, color } });
+      // Accept row if it has itemCode (column G) OR modelRef (column D)
+      // itemCode is preferred and more reliable (already unique per product)
+      // For new brands, itemCode should be used as the primary identifier
+      if (!itemCode && !modelRef) {
+        skippedRows.push({ index: index + 1, reason: "No itemCode (column G) or modelRef (column D)", row: { itemCode, modelRef, color, subcategory } });
         return;
       }
       
