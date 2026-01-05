@@ -358,8 +358,9 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
             const hasIdentifier = itemCode.length > 0 || modelRef.length > 0;
             
             if (hasData && !hasIdentifier) {
-              if (idx < 10) {
-                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no itemCode (column G). Keys:`, Object.keys(row).slice(0, 5));
+              if (idx < 20) {
+                console.warn(`[fetchGoogleSheet] Row ${idx} has data but no itemCode/modelRef. Keys:`, Object.keys(row).slice(0, 10));
+                console.warn(`[fetchGoogleSheet] Row ${idx} values:`, Object.entries(row).slice(0, 10).map(([k, v]) => `${k}="${String(v).substring(0, 30)}"`));
               }
             }
             
