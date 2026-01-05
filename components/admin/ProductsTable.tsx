@@ -23,7 +23,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
-  const [stockSort, setStockSort] = useState<"none" | "asc" | "desc">("none");
+  const [stockSort, setStockSort] = useState<"none" | "asc" | "desc">("desc");
   const [deleteModal, setDeleteModal] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
