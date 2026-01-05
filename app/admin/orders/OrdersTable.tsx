@@ -101,13 +101,17 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
       ];
 
       // Product rows
-      const productRows = order.items.map((item) => [
-        item.productName,
-        item.itemCode,
-        item.quantity,
-        item.unitPrice.toFixed(2),
-        item.totalPrice.toFixed(2),
-      ]);
+      const productRows = order.items.map((item) => {
+        const isBag = item.category === "תיק";
+        const displayDetail = isBag ? item.itemCode : item.color || "";
+        return [
+          item.productName,
+          displayDetail,
+          item.quantity,
+          item.unitPrice.toFixed(2),
+          item.totalPrice.toFixed(2),
+        ];
+      });
 
       // Total row
       const totalRow = ["", "", "", "סה\"כ כולל:", order.total_price.toFixed(2)];
