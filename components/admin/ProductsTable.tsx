@@ -23,6 +23,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  const [stockSort, setStockSort] = useState<"none" | "asc" | "desc">("none");
   const [deleteModal, setDeleteModal] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
@@ -32,7 +33,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   }, [products]);
 
   const filtered = useMemo(() => {
-    return products.filter(p => {
+    let result = products.filter(p => {
       if (search) {
         const q = search.toLowerCase();
         const searchableText = [
@@ -49,7 +50,16 @@ export function ProductsTable({ products }: { products: Product[] }) {
       if (stockFilter === "out" && p.stockQuantity > 0) return false;
       return true;
     });
-  }, [products, search, category, stockFilter]);
+
+    // Sort by stock quantity
+    if (stockSort === "asc") {
+      result = [...result].sort((a, b) => a.stockQuantity - b.stockQuantity);
+    } else if (stockSort === "desc") {
+      result = [...result].sort((a, b) => b.stockQuantity - a.stockQuantity);
+    }
+
+    return result;
+  }, [products, search, category, stockFilter, stockSort]);
 
   const handleDelete = async () => {
     if (!deleteModal) return;
@@ -120,6 +130,25 @@ export function ProductsTable({ products }: { products: Product[] }) {
             <option value="in">במלאי</option>
             <option value="out">חסר</option>
           </select>
+
+          {/* Stock Sort */}
+          <button
+            onClick={() => {
+              if (stockSort === "none") setStockSort("asc");
+              else if (stockSort === "asc") setStockSort("desc");
+              else setStockSort("none");
+            }}
+            className={`px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium transition-colors ${
+              stockSort === "none" 
+                ? "bg-slate-50 text-slate-700 hover:bg-slate-100" 
+                : "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+            }`}
+            title={stockSort === "none" ? "מיין לפי מלאי" : stockSort === "asc" ? "מהקטן לגדול" : "מהגדול לקטן"}
+          >
+            {stockSort === "none" && "מיין לפי מלאי"}
+            {stockSort === "asc" && "מלאי: קטן → גדול"}
+            {stockSort === "desc" && "מלאי: גדול → קטן"}
+          </button>
         </div>
         <p className="mt-2 text-xs text-slate-500">{filtered.length} תוצאות</p>
       </div>
