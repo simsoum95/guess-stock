@@ -493,15 +493,43 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       if (!uniqueRows.has(key)) {
         uniqueRows.set(key, row);
       } else {
-        // Count duplicates for debugging
-        const count = duplicateCount.get(key) || 0;
-        duplicateCount.set(key, count + 1);
-        skippedRows.push({ 
-          index: index + 1, 
-          reason: `Duplicate key: ${key}`, 
-          row: { itemCode, modelRef, color, key } 
-        });
-        console.warn(`[fetchGoogleSheet] Duplicate found (row ${index + 1}): ${key} - keeping first occurrence`);
+        // If itemCode is the same, it's a true duplicate - skip it
+        // But if it's a different product with same modelRef+color, we need to differentiate
+        // For itemCode-based keys, if the key is the same, it's definitely a duplicate
+        // For modelRef+color keys, we might need to add more differentiation (like size or row index)
+        const existingRow = uniqueRows.get(key);
+        const existingItemCode = (existingRow?.["קוד פריט"] || existingRow?.["itemCode"] || "").toString().trim();
+        const existingColor = (existingRow?.["צבע"] || existingRow?.["color"] || "").toString().trim();
+        
+        // If both have the same itemCode, it's a true duplicate - skip
+        if (itemCode && existingItemCode && itemCode.toUpperCase() === existingItemCode.toUpperCase()) {
+          const count = duplicateCount.get(key) || 0;
+          duplicateCount.set(key, count + 1);
+          skippedRows.push({ 
+            index: index + 1, 
+            reason: `Duplicate itemCode: ${key}`, 
+            row: { itemCode, modelRef, color, key } 
+          });
+          console.warn(`[fetchGoogleSheet] Duplicate itemCode found (row ${index + 1}): ${key} - keeping first occurrence`);
+        } else {
+          // Different products with same key - create a more unique key
+          // This can happen if modelRef+color is the same but itemCode differs
+          const newKey = itemCode ? `${itemCode}|ROW${index}`.toUpperCase() : `${key}|ROW${index}`.toUpperCase();
+          if (!uniqueRows.has(newKey)) {
+            uniqueRows.set(newKey, row);
+            console.log(`[fetchGoogleSheet] Different product with same key, using new key: ${newKey} (original: ${key})`);
+          } else {
+            // Even the new key exists - skip this one
+            const count = duplicateCount.get(newKey) || 0;
+            duplicateCount.set(newKey, count + 1);
+            skippedRows.push({ 
+              index: index + 1, 
+              reason: `Duplicate even with new key: ${newKey}`, 
+              row: { itemCode, modelRef, color, key, newKey } 
+            });
+            console.warn(`[fetchGoogleSheet] Duplicate found even with new key (row ${index + 1}): ${newKey}`);
+          }
+        }
       }
     });
 
