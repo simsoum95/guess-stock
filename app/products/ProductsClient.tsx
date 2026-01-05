@@ -149,27 +149,33 @@ export default function ProductsClient({ products }: { products: Product[] }) {
             </div>
           )}
           
-          {/* Main Category Filters - Only show categories available for selected brand */}
+          {/* Category Filters - Show all subcategories for selected brand */}
           {availableCategories.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
               <FilterControl
                 label="כל הקטגוריות"
-                active={category === "all"}
-                onClick={() => handleCategoryChange("all")}
+                active={subcategory === "all"}
+                onClick={() => {
+                  setSubcategory("all");
+                  setFamilyName("all");
+                }}
               />
               {availableCategories.map((cat) => (
                 <FilterControl
                   key={cat}
-                  label={cat === "תיק" ? "תיקים" : cat === "נעל" ? "נעליים" : cat}
-                  active={category === cat}
-                  onClick={() => handleCategoryChange(cat)}
+                  label={cat}
+                  active={subcategory === cat}
+                  onClick={() => {
+                    setSubcategory(cat);
+                    setFamilyName("all"); // Reset family name when category changes
+                  }}
                 />
               ))}
             </div>
           )}
           
-          {/* Family Name Filters - Only show for bags */}
-          {category === "תיק" && availableFamilyNames.length > 0 && (
+          {/* Family Name Filters - Only show for bag subcategories */}
+          {availableFamilyNames.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6">
               <FilterControl
                 label="כל המשפחות"
@@ -182,25 +188,6 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                   label={family}
                   active={familyName === family}
                   onClick={() => setFamilyName(family)}
-                />
-              ))}
-            </div>
-          )}
-          
-          {/* Subcategory Filters - Only show if a category is selected */}
-          {category !== "all" && availableSubcategories.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6">
-              <FilterControl
-                label="כל התת-קטגוריות"
-                active={subcategory === "all"}
-                onClick={() => setSubcategory("all")}
-              />
-              {availableSubcategories.map((subcat) => (
-                <FilterControl
-                  key={subcat}
-                  label={subcat}
-                  active={subcategory === subcat}
-                  onClick={() => setSubcategory(subcat)}
                 />
               ))}
             </div>
