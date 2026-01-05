@@ -497,13 +497,18 @@ export async function fetchProductsFromGoogleSheet(): Promise<GoogleSheetRow[]> 
       }
       
       // Generate unique key:
-      // - If itemCode (column G) exists, use it as unique key (most reliable - already unique per product)
-      // - For bags: use itemCode (already unique)
-      // - For shoes: use itemCode if available, otherwise modelRef + color + row index
+      // - If itemCode exists, use itemCode + color as unique key (itemCode alone is not unique - same itemCode can have different colors)
+      // - For products without itemCode, use modelRef + color + size (if available)
       let key: string;
       if (itemCode) {
-        // Use itemCode as primary key (most reliable - it's already unique per product)
-        key = itemCode.toUpperCase().trim();
+        // Use itemCode + color as unique key (same itemCode can have different colors)
+        const colorKey = color ? color.toUpperCase().trim() : "";
+        if (colorKey) {
+          key = `${itemCode.toUpperCase().trim()}|${colorKey}`;
+        } else {
+          // If no color, use itemCode only (fallback)
+          key = itemCode.toUpperCase().trim();
+        }
       } else if (isBag) {
         // Bag without itemCode - this should not happen, but use index as fallback
         key = `BAG|ROW${index}`.toUpperCase();
