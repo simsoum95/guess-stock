@@ -51,7 +51,29 @@ function parseImageFilename(fileName) {
     let cleanName = baseName;
     
     // Try to extract modelRef and color from various patterns
-    // Pattern 1: MODELREF-COLOR (e.g., "HBSE-325-0017-BLACK" or "HBSE-325-0017-SOLID-BLACK")
+    // IMPORTANT: Check underscore pattern FIRST for SAM EDELMAN (HBSE-125-0011_BLACK_1.jpg)
+    
+    // Pattern 1: MODELREF_COLOR (e.g., "HBSE-125-0011_BLACK_1" or "HBSE_325_0017_BLACK")
+    // This is the most common pattern for SAM EDELMAN files
+    if (cleanName.includes("_")) {
+        const parts = cleanName.split("_");
+        if (parts.length >= 2) {
+            // First part is modelRef (e.g., "HBSE-125-0011")
+            let modelRef = parts[0].trim().toUpperCase();
+            // Second part is color (e.g., "BLACK")
+            let color = parts[1].trim().toUpperCase();
+            
+            // Remove numeric suffixes if there are more parts (e.g., "BLACK_1" -> "BLACK")
+            // But since we're only taking parts[1], the numeric suffix is in parts[2], so we don't need to remove it
+            // The color is already correct in parts[1]
+            
+            if (modelRef && color && modelRef.length > 0 && color.length > 0) {
+                return { modelRef, color };
+            }
+        }
+    }
+    
+    // Pattern 2: MODELREF-COLOR (e.g., "HBSE-325-0017-BLACK" or "HBSE-325-0017-SOLID-BLACK")
     if (cleanName.includes("-")) {
         const parts = cleanName.split("-");
         if (parts.length >= 2) {
@@ -59,23 +81,6 @@ function parseImageFilename(fileName) {
             const modelRef = parts[0].trim().toUpperCase();
             // Last part(s) are usually color (may be multiple words)
             const color = parts.slice(1).join("-").trim().toUpperCase();
-            if (modelRef && color && modelRef.length > 0 && color.length > 0) {
-                return { modelRef, color };
-            }
-        }
-    }
-    
-    // Pattern 2: MODELREF_COLOR (e.g., "HBSE-325-0017_BLACK_1" or "HBSE_325_0017_BLACK")
-    if (cleanName.includes("_")) {
-        const parts = cleanName.split("_");
-        if (parts.length >= 2) {
-            let modelRef = parts[0].trim().toUpperCase();
-            let color = parts.slice(1).join("_").trim().toUpperCase();
-            
-            // Remove numeric suffixes from color (e.g., "BLACK_1" -> "BLACK", "BLACK_2" -> "BLACK")
-            // Also handle cases like "BLACK_1_2" -> "BLACK"
-            color = color.replace(/_\d+(_\d+)*$/, "");
-            
             if (modelRef && color && modelRef.length > 0 && color.length > 0) {
                 return { modelRef, color };
             }
