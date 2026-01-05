@@ -5,18 +5,8 @@ import type { Product } from "@/lib/types";
 import Image from "next/image";
 import { useCart } from "@/contexts/CartContext";
 
-type CategoryFilter = "all" | "תיק" | "נעל";
-
-// Sous-catégories par catégorie principale
-const SUBcategoriesByCategory: Record<CategoryFilter, string[]> = {
-  all: [],
-  "תיק": ["ארנקים", "מזוודות", "מחזיק מפתחות", "תיק גב", "תיק נסיעות", "תיק נשיאה", "תיק ערב", "תיק צד"],
-  "נעל": ["כפכפים", "נעליים שטוחו", "סניקרס", "נעלי עקב", "מגפיים"]
-};
-
 export default function ProductsClient({ products }: { products: Product[] }) {
   const [brand, setBrand] = useState<string>("all");
-  const [category, setCategory] = useState<CategoryFilter>("all");
   const [subcategory, setSubcategory] = useState<string>("all");
   const [familyName, setFamilyName] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
