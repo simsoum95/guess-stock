@@ -671,13 +671,30 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   // else: stays as "תיק" (default to bags)
   
   // Extract modelRef from itemCode (column G) for ALL products
-  // Format: "PD760221-BLO-OS" -> "PD760221"
+  // Format GUESS: "PD760221-BLO-OS" -> "PD760221"
+  // Format SAM EDELMAN: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011" (3 first parts)
   // If itemCode doesn't exist, fall back to column D for backward compatibility
   let modelRef = "";
   if (itemCode) {
-    // Extract modelRef from itemCode (first part before dash)
     const parts = itemCode.split("-");
-    modelRef = parts[0] || itemCode;
+    
+    // Detect brand from sheet name to determine itemCode format
+    const brand = extractBrandFromSheetName(sheetName || "");
+    
+    // For SAM EDELMAN and VILEBREQUIN, modelRef is the first 3 parts (e.g., "HBSE-125-0011")
+    // For GUESS, modelRef is just the first part (e.g., "PD760221")
+    if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
+      // Format: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011"
+      if (parts.length >= 3) {
+        modelRef = parts.slice(0, 3).join("-");
+      } else {
+        // Fallback: use first part if not enough parts
+        modelRef = parts[0] || itemCode;
+      }
+    } else {
+      // GUESS format: "PD760221-BLO-OS" -> "PD760221"
+      modelRef = parts[0] || itemCode;
+    }
   } else {
     // Fallback: read modelRef from column D (קוד גם) - backward compatibility only (for shoes)
     modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
@@ -686,14 +703,28 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   // Use itemCode as the unique ID (it's already unique per product)
   const uniqueId = itemCode || `${modelRef}-${color}-${index}`;
   
-  // Extract color code from itemCode (e.g., "PD760221-BLO-OS" -> "BLO")
-  // This is more reliable for image matching than the full color name
+  // Extract color code from itemCode
+  // Format GUESS: "PD760221-BLO-OS" -> "BLO" (second part)
+  // Format SAM EDELMAN: "HBSE-125-0011-BLACK-OS" -> "BLACK" (fourth part, or use column H color)
   let colorCode = "";
   if (itemCode) {
     const parts = itemCode.split("-");
-    if (parts.length >= 2) {
-      // The color code is usually the second part (after modelRef)
-      colorCode = parts[1].toUpperCase();
+    const brand = extractBrandFromSheetName(sheetName || "");
+    
+    if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
+      // For SAM EDELMAN/VILEBREQUIN, color is in the 4th part (index 3)
+      // Format: "HBSE-125-0011-BLACK-OS" -> "BLACK"
+      if (parts.length >= 4) {
+        colorCode = parts[3].toUpperCase();
+      } else if (parts.length >= 2) {
+        // Fallback: try second part
+        colorCode = parts[1].toUpperCase();
+      }
+    } else {
+      // GUESS format: "PD760221-BLO-OS" -> "BLO" (second part)
+      if (parts.length >= 2) {
+        colorCode = parts[1].toUpperCase();
+      }
     }
   }
   
