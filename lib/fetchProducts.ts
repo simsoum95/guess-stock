@@ -804,61 +804,60 @@ export async function fetchProducts(): Promise<Product[]> {
         // 1. There's only ONE unique color available AND
         // 2. The product's colorCode (if exists) doesn't indicate a different specific color
         // This prevents CV866522-COG from using CV866522-OFFWHITE images
-        if (!images && modelRefImages && modelRefImages.length > 0) {
-            // Get unique colors (normalized to avoid duplicates like "OFF" vs "OFFWHITE" counting as 2)
-            const uniqueColors = new Set<string>();
-            for (const item of modelRefImages) {
-              const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
-              uniqueColors.add(normalized);
-            }
-            
-            const singleColor = uniqueColors.size === 1 ? Array.from(uniqueColors)[0] : null;
-            
-            // Check if product has a specific colorCode that differs from available color
-            let canUseFallback = false;
-            if (singleColor) {
-              if (productColorCode) {
-                // Product has specific colorCode (e.g., "COG", "BLA", "OFF")
-                // Only use fallback if this colorCode could match the available color
-                const colorCodeNorm = productColorCode.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
-                // Check if colorCode matches available color via matchesColor
-                const availableColorItem = modelRefImages.find(item => {
-                  const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
-                  return normalized === singleColor;
-                });
-                if (availableColorItem && matchesColor(availableColorItem.color, productColorCode)) {
-                  // colorCode matches available color (e.g., "OFF" matches "OFFWHITE")
-                  canUseFallback = true;
-                } else {
-                  // colorCode is different from available color (e.g., "COG" doesn't match "OFFWHITE")
-                  canUseFallback = false;
-                  if (isDebugProduct) {
-                    console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ colorCode "${productColorCode}" (normalized: "${colorCodeNorm}") doesn't match available color "${singleColor}" - NOT using fallback`);
-                  }
-                }
-              } else {
-                // No colorCode, safe to use fallback for single-color products (like shoes)
+        if (!images) {
+          // Get unique colors (normalized to avoid duplicates like "OFF" vs "OFFWHITE" counting as 2)
+          const uniqueColors = new Set<string>();
+          for (const item of modelRefImages) {
+            const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+            uniqueColors.add(normalized);
+          }
+          
+          const singleColor = uniqueColors.size === 1 ? Array.from(uniqueColors)[0] : null;
+          
+          // Check if product has a specific colorCode that differs from available color
+          let canUseFallback = false;
+          if (singleColor) {
+            if (productColorCode) {
+              // Product has specific colorCode (e.g., "COG", "BLA", "OFF")
+              // Only use fallback if this colorCode could match the available color
+              const colorCodeNorm = productColorCode.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+              // Check if colorCode matches available color via matchesColor
+              const availableColorItem = modelRefImages.find(item => {
+                const normalized = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+                return normalized === singleColor;
+              });
+              if (availableColorItem && matchesColor(availableColorItem.color, productColorCode)) {
+                // colorCode matches available color (e.g., "OFF" matches "OFFWHITE")
                 canUseFallback = true;
-              }
-            }
-            
-            if (canUseFallback && singleColor) {
-              // Only ONE unique color available and colorCode matches (or no colorCode) - safe to use as fallback
-              images = modelRefImages[0].images;
-              modelOnlyMatches++;
-              if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 unique color available (${singleColor}) - using as fallback`);
+              } else {
+                // colorCode is different from available color (e.g., "COG" doesn't match "OFFWHITE")
+                canUseFallback = false;
+                if (isDebugProduct) {
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ colorCode "${productColorCode}" (normalized: "${colorCodeNorm}") doesn't match available color "${singleColor}" - NOT using fallback`);
+                }
               }
             } else {
-              // Multiple colors or colorCode mismatch - don't use fallback
-              if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${uniqueColors.size} unique colors available (${Array.from(uniqueColors).join(", ")}) - NOT using fallback`);
-              }
+              // No colorCode, safe to use fallback for single-color products (like shoes)
+              canUseFallback = true;
             }
-          } else if (!images) {
+          }
+          
+          if (canUseFallback && singleColor) {
+            // Only ONE unique color available and colorCode matches (or no colorCode) - safe to use as fallback
+            images = modelRefImages[0].images;
+            modelOnlyMatches++;
             if (isDebugProduct) {
-              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️  NO COLOR MATCH but only 1 unique color available (${singleColor}) - using as fallback`);
             }
+          } else {
+            // Multiple colors or colorCode mismatch - don't use fallback
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO COLOR MATCH and ${uniqueColors.size} unique colors available (${Array.from(uniqueColors).join(", ")}) - NOT using fallback`);
+            }
+          }
+        } else if (!images && modelRefImages && modelRefImages.length === 0) {
+          if (isDebugProduct) {
+            console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
           }
         }
       }
