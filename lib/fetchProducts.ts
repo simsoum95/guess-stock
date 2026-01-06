@@ -773,6 +773,37 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
           
+          // Special handling for VILEBREQUIN and SAM EDELMAN:
+          // For these brands, if modelRef matches exactly, use ALL images for that modelRef
+          // regardless of color (images often don't have explicit color in filename)
+          // Example: PYRE9000 (color: BLANC) should show all PYRE9000-*-front.jpg and PYRE9000-*-back.jpg images
+          if (!images && (productBrand === "VILEBREQUIN" || productBrand === "SAM EDELMAN") && modelRefImages.length > 0) {
+            // Combine all images from all colors for this modelRef
+            const allUrls: string[] = [];
+            for (const item of modelRefImages) {
+              if (item.images.gallery && item.images.gallery.length > 0) {
+                allUrls.push(...item.images.gallery);
+              } else if (item.images.imageUrl) {
+                allUrls.push(item.images.imageUrl);
+              }
+            }
+            
+            // Remove duplicates
+            const uniqueUrls = Array.from(new Set(allUrls));
+            
+            if (uniqueUrls.length > 0) {
+              images = {
+                imageUrl: uniqueUrls[0],
+                gallery: uniqueUrls,
+              };
+              colorMatches++;
+              matchedCount++;
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ Using ALL images for ${productBrand} modelRef "${productModelRef}" (${uniqueUrls.length} images)`);
+              }
+            }
+          }
+          
           // Smart fallback: Only use fallback if:
           // 1. There's only ONE unique color available AND
           // 2. The product's colorCode (if exists) doesn't indicate a different specific color
