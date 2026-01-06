@@ -25,7 +25,21 @@ function parseImageFilename(fileName) {
     const cleanedFileName = cleanFilename(fileName);
     const baseName = cleanedFileName.replace(/\.[^/.]+$/, "").trim();
 
-    // Pattern 1: MODELREF_COLOR (e.g., "HBSE-125-0011_BLACK_1")
+    // Pattern 1: VILEBREQUIN format "PYRE9000-315-back.jpg"
+    // Extract modelRef as first part (PYRE9000) and color as second part (315)
+    // Ignore "-back", "-front", etc. suffixes
+    if (baseName.match(/^(PYRE|VBQ)[A-Z0-9]+-\d+-/i)) {
+        const match = baseName.match(/^([A-Z0-9]+)-(\d+)-/i);
+        if (match) {
+            const modelRef = match[1].toUpperCase().replace(/O/g, '0'); // Fix O -> 0 typo
+            const color = match[2].toUpperCase();
+            if (modelRef && color) {
+                return { modelRef, color };
+            }
+        }
+    }
+    
+    // Pattern 2: MODELREF_COLOR (e.g., "HBSE-125-0011_BLACK_1")
     if (baseName.includes("_")) {
         const parts = baseName.split("_");
         if (parts.length >= 2) {
@@ -38,7 +52,7 @@ function parseImageFilename(fileName) {
         }
     }
     
-    // Pattern 2: MODELREF-COLOR
+    // Pattern 3: MODELREF-COLOR (e.g., "HBSE-325-0017-BLACK")
     if (baseName.includes("-")) {
         const parts = baseName.split("-");
         if (parts.length >= 2) {
