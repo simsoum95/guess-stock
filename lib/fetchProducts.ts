@@ -799,33 +799,8 @@ export async function fetchProducts(): Promise<Product[]> {
             }
           }
         }
-            // Combine all images from all colors for this modelRef
-            const allUrls: string[] = [];
-            for (const item of modelRefImages) {
-              if (item.images.gallery && item.images.gallery.length > 0) {
-                allUrls.push(...item.images.gallery);
-              } else if (item.images.imageUrl) {
-                allUrls.push(item.images.imageUrl);
-              }
-            }
-            
-            // Remove duplicates
-            const uniqueUrls = Array.from(new Set(allUrls));
-            
-            if (uniqueUrls.length > 0) {
-              images = {
-                imageUrl: uniqueUrls[0],
-                gallery: uniqueUrls,
-              };
-              colorMatches++;
-              matchedCount++;
-              if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ Using ALL images for ${productBrand} modelRef "${productModelRef}" (${uniqueUrls.length} images)`);
-              }
-            }
-          }
           
-          // Smart fallback: Only use fallback if:
+        // Smart fallback: Only use fallback if:
           // 1. There's only ONE unique color available AND
           // 2. The product's colorCode (if exists) doesn't indicate a different specific color
           // This prevents CV866522-COG from using CV866522-OFFWHITE images
