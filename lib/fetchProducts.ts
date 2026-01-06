@@ -657,9 +657,9 @@ export async function fetchProducts(): Promise<Product[]> {
       let images: { imageUrl: string; gallery: string[] } | undefined;
       
       // Debug log for specific products
-      const isDebugProduct = productModelRef === "PD760221" || productModelRef === "CV866522";
+      const isDebugProduct = productModelRef === "PD760221" || productModelRef === "CV866522" || productModelRef.startsWith("HBSE-");
       if (isDebugProduct) {
-        console.log(`[DEBUG ${productModelRef}-${productColor}] productColorCode: "${productColorCode}", productColor: "${productColor}"`);
+        console.log(`[DEBUG ${productModelRef}-${productColor}] brand: "${productBrand}", productColorCode: "${productColorCode}", productColor: "${productColor}"`);
       }
       
       // Try exact match with colorCode first (most reliable)
@@ -720,6 +720,10 @@ export async function fetchProducts(): Promise<Product[]> {
       // regardless of color (images often don't have explicit color in filename)
       // This should be checked FIRST, before color matching, so we get all images
       // Example: HBSE-325-0037A should show all images for that modelRef, not just one color
+      if (isDebugProduct) {
+        console.log(`[DEBUG ${productModelRef}] Checking brand: "${productBrand}" === "SAM EDELMAN"? ${productBrand === "SAM EDELMAN"}`);
+        console.log(`[DEBUG ${productModelRef}] modelRefImages found? ${modelRefImages ? modelRefImages.length : 'null'}`);
+      }
       if ((productBrand === "VILEBREQUIN" || productBrand === "SAM EDELMAN") && modelRefImages && modelRefImages.length > 0) {
         // Combine all images from all colors for this modelRef
         const allUrls: string[] = [];
