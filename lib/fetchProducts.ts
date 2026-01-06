@@ -649,6 +649,7 @@ export async function fetchProducts(): Promise<Product[]> {
     const products: Product[] = productsWithData.map((productData) => {
       const productModelRef = productData.modelRef.toUpperCase().trim();
       const productColor = productData.color.toUpperCase().trim();
+      const productBrand = (productData as any).brand || "";
       // Use colorCode from itemCode (e.g., "BLO" from "PD760221-BLO-OS") - more reliable for matching
       const productColorCode = (productData as any).colorCode?.toUpperCase().trim() || "";
       
