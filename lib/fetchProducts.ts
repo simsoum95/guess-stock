@@ -381,6 +381,13 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
     
     console.log(`[fetchProducts] ✅ Loaded ${allIndexData.length} images from index table (with pagination)`);
     
+    // Debug: Count SAM EDELMAN images
+    const samEdelmanImages = allIndexData.filter((img: any) => img.model_ref?.startsWith('HBSE-') || img.model_ref?.startsWith('FESE-') || img.model_ref?.startsWith('SBSE-'));
+    console.log(`[fetchProducts] SAM EDELMAN images loaded: ${samEdelmanImages.length}`);
+    if (samEdelmanImages.length > 0) {
+      console.log(`[fetchProducts] Sample SAM EDELMAN images:`, samEdelmanImages.slice(0, 5).map((img: any) => ({ model_ref: img.model_ref, color: img.color })));
+    }
+    
     const indexData = allIndexData;
     const indexError: any = null;
     
