@@ -713,71 +713,92 @@ export async function fetchProducts(): Promise<Product[]> {
       }
       
       // Look up by modelRef in index and try color matching
-      if (!images) {
-        const modelRefImages = modelRefIndex.get(productModelRef);
-        
-        if (isDebugProduct) {
-          console.log(`[DEBUG ${productModelRef}] modelRefImages count: ${modelRefImages?.length || 0}`);
-          if (modelRefImages) {
-            console.log(`[DEBUG ${productModelRef}] Available colors:`, modelRefImages.map(i => i.color));
+      const modelRefImages = modelRefIndex.get(productModelRef);
+      
+      // Special handling for VILEBREQUIN and SAM EDELMAN:
+      // For these brands, if modelRef matches exactly, use ALL images for that modelRef
+      // regardless of color (images often don't have explicit color in filename)
+      // This should be checked FIRST, before color matching, so we get all images
+      // Example: HBSE-325-0037A should show all images for that modelRef, not just one color
+      if ((productBrand === "VILEBREQUIN" || productBrand === "SAM EDELMAN") && modelRefImages && modelRefImages.length > 0) {
+        // Combine all images from all colors for this modelRef
+        const allUrls: string[] = [];
+        for (const item of modelRefImages) {
+          if (item.images.gallery && item.images.gallery.length > 0) {
+            allUrls.push(...item.images.gallery);
+          } else if (item.images.imageUrl) {
+            allUrls.push(item.images.imageUrl);
           }
         }
         
-        if (modelRefImages && modelRefImages.length > 0) {
+        // Remove duplicates
+        const uniqueUrls = Array.from(new Set(allUrls));
+        
+        if (uniqueUrls.length > 0) {
+          images = {
+            imageUrl: uniqueUrls[0],
+            gallery: uniqueUrls,
+          };
+          colorMatches++;
+          matchedCount++;
           if (isDebugProduct) {
-            console.log(`[DEBUG ${productModelRef}-${productColor}] Available image colors:`, modelRefImages.map(i => i.color));
+            console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ Using ALL images for ${productBrand} modelRef "${productModelRef}" (${uniqueUrls.length} images)`);
           }
-          
-          // First try with colorCode (e.g., "BLO", "OFF", "COG")
-          // IMPORTANT: Only match if colors truly match - don't use wrong color
-          if (productColorCode) {
-            for (const item of modelRefImages) {
-              const directMatch = item.color === productColorCode;
-              const colorMapMatch = matchesColor(item.color, productColorCode);
+        }
+      }
+      
+      // For other brands (GUESS), try color matching
+      if (!images && modelRefImages && modelRefImages.length > 0) {
+        if (isDebugProduct) {
+          console.log(`[DEBUG ${productModelRef}] modelRefImages count: ${modelRefImages.length}`);
+          console.log(`[DEBUG ${productModelRef}] Available colors:`, modelRefImages.map(i => i.color));
+          console.log(`[DEBUG ${productModelRef}-${productColor}] Available image colors:`, modelRefImages.map(i => i.color));
+        }
+        
+        // First try with colorCode (e.g., "BLO", "OFF", "COG")
+        // IMPORTANT: Only match if colors truly match - don't use wrong color
+        if (productColorCode) {
+          for (const item of modelRefImages) {
+            const directMatch = item.color === productColorCode;
+            const colorMapMatch = matchesColor(item.color, productColorCode);
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" vs productColorCode "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
+            }
+            // Only use this image if it truly matches
+            if (directMatch || colorMapMatch) {
+              images = item.images;
+              colorMatches++;
+              matchedCount++;
               if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" vs productColorCode "${productColorCode}": direct=${directMatch}, colorMap=${colorMapMatch}`);
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via colorCode "${productColorCode}"! Using image for color "${item.color}":`, item.images.imageUrl);
               }
-              // Only use this image if it truly matches
-              if (directMatch || colorMapMatch) {
-                images = item.images;
-                colorMatches++;
-                matchedCount++;
-                if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via colorCode "${productColorCode}"! Using image for color "${item.color}":`, item.images.imageUrl);
-                }
-                break; // Stop searching once we found a match
-              }
+              break; // Stop searching once we found a match
             }
           }
-          
-          // Then try with full color name (normalized for comparison)
-          if (!images) {
-            const normalizedProductColor = productColor.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
-            for (const item of modelRefImages) {
-              const normalizedItemColor = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
-              const directMatch = normalizedItemColor === normalizedProductColor || item.color === productColor;
-              const colorMapMatch = matchesColor(item.color, productColor);
+        }
+        
+        // Then try with full color name (normalized for comparison)
+        if (!images) {
+          const normalizedProductColor = productColor.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+          for (const item of modelRefImages) {
+            const normalizedItemColor = item.color.replace(/[^A-Z0-9]/g, "").replace(/OS$/, "").replace(/LOGO$/, "");
+            const directMatch = normalizedItemColor === normalizedProductColor || item.color === productColor;
+            const colorMapMatch = matchesColor(item.color, productColor);
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" (normalized: "${normalizedItemColor}") vs productColor "${productColor}" (normalized: "${normalizedProductColor}"): direct=${directMatch}, colorMap=${colorMapMatch}`);
+            }
+            // Only use this image if it truly matches
+            if (directMatch || colorMapMatch) {
+              images = item.images;
+              colorMatches++;
+              matchedCount++;
               if (isDebugProduct) {
-                console.log(`[DEBUG ${productModelRef}-${productColor}] Testing image color "${item.color}" (normalized: "${normalizedItemColor}") vs productColor "${productColor}" (normalized: "${normalizedProductColor}"): direct=${directMatch}, colorMap=${colorMapMatch}`);
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via productColor "${productColor}"! Using image for color "${item.color}":`, item.images.imageUrl);
               }
-              // Only use this image if it truly matches
-              if (directMatch || colorMapMatch) {
-                images = item.images;
-                colorMatches++;
-                matchedCount++;
-                if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ MATCHED via productColor "${productColor}"! Using image for color "${item.color}":`, item.images.imageUrl);
-                }
-                break; // Stop searching once we found a match
-              }
+              break; // Stop searching once we found a match
             }
           }
-          
-          // Special handling for VILEBREQUIN and SAM EDELMAN:
-          // For these brands, if modelRef matches exactly, use ALL images for that modelRef
-          // regardless of color (images often don't have explicit color in filename)
-          // Example: PYRE9000 (color: BLANC) should show all PYRE9000-*-front.jpg and PYRE9000-*-back.jpg images
-          if (!images && (productBrand === "VILEBREQUIN" || productBrand === "SAM EDELMAN") && modelRefImages.length > 0) {
+        }
             // Combine all images from all colors for this modelRef
             const allUrls: string[] = [];
             for (const item of modelRefImages) {
