@@ -25,6 +25,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  * - "HBSE-225-0107-26-front.jpg" → modelRef: "HBSE-225-0107", color: "26"
  * - "HBSE-125-0118 -26-back.jpg" → modelRef: "HBSE-125-0118", color: "26"
  * - "HBSE-125-0014A_EGGSHELL_1.jpg" → modelRef: "HBSE-125-0014A", color: "EGGSHELL"
+ * - "HBSE-225-0107-26 A.jpg" → modelRef: "HBSE-225-0107", color: "26"
+ * - "HBSE-325-0029-26-1.jpg" → modelRef: "HBSE-325-0029", color: "26"
+ * - "HBSE-325-0012-26 lifestyle.jpg" → modelRef: "HBSE-325-0012", color: "26"
  */
 function parseSamEdelmanFilename(filename) {
   const baseName = filename.replace(/\.[^/.]+$/, ''); // Remove extension
@@ -38,9 +41,9 @@ function parseSamEdelmanFilename(filename) {
     };
   }
   
-  // Pattern 2: HBSE-XXX-XXXX-ColorCode-view.jpg or HBSE-XXX-XXXX -ColorCode-view.jpg
-  // Color code is typically 2 digits like 26, 33, 40, 14 or a word like BLACK, IVORY
-  const dashMatch = baseName.match(/^(HBSE-\d{3}-\d{4}[A-Z]?)\s*-\s*(\d{2}|[A-Z]+)(?:\s*-\s*(?:front|back|side|detail|interior|lifestyle|a).*)?$/i);
+  // Pattern 2: HBSE-XXX-XXXX-ColorCode-view.jpg or with extra suffixes
+  // e.g., HBSE-325-0029-26-1.jpg, HBSE-325-0029-26-CU.jpg
+  const dashMatch = baseName.match(/^(HBSE-\d{3}-\d{4}[A-Z]?)\s*-\s*(\d{1,2}|[A-Z]+)(?:\s*[-\s].*)?$/i);
   if (dashMatch) {
     return {
       modelRef: dashMatch[1].toUpperCase().replace(/\s/g, ''),
@@ -49,7 +52,7 @@ function parseSamEdelmanFilename(filename) {
   }
   
   // Pattern 3: Just HBSE-XXX-XXXX-ColorCode.jpg
-  const simpleMatch = baseName.match(/^(HBSE-\d{3}-\d{4}[A-Z]?)-(\d{2}|[A-Z]+)$/i);
+  const simpleMatch = baseName.match(/^(HBSE-\d{3}-\d{4}[A-Z]?)-(\d{1,2}|[A-Z]+)$/i);
   if (simpleMatch) {
     return {
       modelRef: simpleMatch[1].toUpperCase(),
