@@ -801,10 +801,10 @@ export async function fetchProducts(): Promise<Product[]> {
         }
           
         // Smart fallback: Only use fallback if:
-          // 1. There's only ONE unique color available AND
-          // 2. The product's colorCode (if exists) doesn't indicate a different specific color
-          // This prevents CV866522-COG from using CV866522-OFFWHITE images
-          if (!images && modelRefImages.length > 0) {
+        // 1. There's only ONE unique color available AND
+        // 2. The product's colorCode (if exists) doesn't indicate a different specific color
+        // This prevents CV866522-COG from using CV866522-OFFWHITE images
+        if (!images && modelRefImages && modelRefImages.length > 0) {
             // Get unique colors (normalized to avoid duplicates like "OFF" vs "OFFWHITE" counting as 2)
             const uniqueColors = new Set<string>();
             for (const item of modelRefImages) {
