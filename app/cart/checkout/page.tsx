@@ -132,10 +132,10 @@ export default function CheckoutPage() {
 
       if (response.ok) {
         clearCart();
-        alert("הבקשה נשלחה בהצלחה! היועץ שלך יחזור אליך בהקדם.");
-        router.push("/products");
+        router.push("/cart/success");
       } else {
         console.error("Error saving cart export");
+        alert("שגיאה בשליחת הבקשה. נסה שוב.");
       }
     } catch (error) {
       console.error("Error exporting cart:", error);
