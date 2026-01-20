@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCurrentAdmin } from "@/hooks/useCurrentAdmin";
 
@@ -93,10 +93,10 @@ const ROLE_OPTIONS = [
   { value: "viewer", label: "צופה בלבד", color: "bg-gray-100 text-gray-700" },
 ];
 
-export default function UserDetailsPage({ params }: { params: Promise<{ userId: string }> }) {
-  const { userId } = use(params);
-  const router = useRouter();
-  const { isSuperAdmin } = useCurrentAdmin();
+export default function UserDetailsPage() {
+  const params = useParams();
+  const userId = params.userId as string;
+  const { isSuperAdmin, loading: authLoading } = useCurrentAdmin();
   
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,6 +184,15 @@ export default function UserDetailsPage({ params }: { params: Promise<{ userId: 
   function handleRoleChange(newRole: string) {
     if (!user) return;
     setUser({ ...user, role: newRole });
+  }
+
+  // Wait for auth to load
+  if (authLoading) {
+    return (
+      <div className="p-6 lg:p-8 lg:pt-6">
+        <div className="text-center text-slate-500">טוען...</div>
+      </div>
+    );
   }
 
   // Only super_admin can access this page
