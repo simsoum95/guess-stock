@@ -344,7 +344,7 @@ export default function CartPage() {
           })}
         </div>
 
-        <div className="border-t border-luxury-grey/20 pt-4 md:pt-6 mb-6 md:mb-8 relative z-10">
+        <div className="border-t border-luxury-grey/20 pt-4 md:pt-6 mb-6 md:mb-8 relative" style={{ zIndex: 9999 }}>
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <span className="text-base md:text-lg font-light text-luxury-noir">סה"כ כולל:</span>
             <span className="text-xl md:text-2xl font-light text-luxury-noir">₪{totalPrice.toFixed(2)}</span>
@@ -352,13 +352,16 @@ export default function CartPage() {
           
           <button 
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowModal(true);
+            onClick={() => setShowModal(true)}
+            onTouchStart={() => setShowModal(true)}
+            className="w-full py-5 px-6 bg-black text-white text-base font-medium tracking-wide uppercase cursor-pointer select-none text-center relative"
+            style={{ 
+              WebkitAppearance: "none",
+              WebkitTapHighlightColor: "rgba(0,0,0,0.1)", 
+              touchAction: "manipulation",
+              zIndex: 9999,
+              minHeight: "60px",
             }}
-            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none text-center relative z-50"
-            style={{ letterSpacing: "0.15em", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}
           >
             שלח בקשה
           </button>
