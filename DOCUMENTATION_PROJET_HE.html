@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockFlow B2B - תיעוד טכני | שמעון חליווה</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fff;
+            padding: 40px;
+            max-width: 950px;
+            margin: 0 auto;
+            direction: rtl;
+        }
+        
+        h1 {
+            font-size: 36px;
+            color: #1a1a1a;
+            border-bottom: 4px solid #e5a00d;
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 26px;
+            color: #1a1a1a;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f8f4e8 0%, #fff 100%);
+            border-right: 5px solid #e5a00d;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        h3 {
+            font-size: 20px;
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        h4 {
+            font-size: 17px;
+            color: #444;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .url {
+            background: #1a1a1a;
+            color: #e5a00d;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 20px 0;
+            display: inline-block;
+            font-size: 16px;
+            direction: ltr;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 14px;
+            text-align: right;
+        }
+        
+        th {
+            background: #1a1a1a;
+            color: white;
+            font-weight: 600;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        tr:hover {
+            background: #f0f0f0;
+        }
+        
+        ul, ol {
+            margin: 15px 0;
+            padding-right: 25px;
+        }
+        
+        li {
+            margin-bottom: 10px;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+            border: 2px solid #e5a00d;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .complexity-box {
+            background: linear-gradient(135deg, #e8f4fc 0%, #fff 100%);
+            border: 2px solid #0066cc;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .challenge-box {
+            background: linear-gradient(135deg, #fce8e8 0%, #fff 100%);
+            border: 2px solid #cc3300;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .success-box {
+            background: linear-gradient(135deg, #e8fce8 0%, #fff 100%);
+            border: 2px solid #00cc33;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #e5a00d;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #ccc;
+            margin-top: 8px;
+        }
+        
+        .tech-badge {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #e5a00d;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 4px;
+            font-weight: bold;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .logo-header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            border-radius: 20px;
+            color: white;
+        }
+        
+        .logo-header h1 {
+            color: white;
+            border-bottom-color: #e5a00d;
+        }
+        
+        .logo-header .subtitle {
+            color: #ccc;
+        }
+        
+        .brands {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 25px 0;
+        }
+        
+        .brand-name {
+            background: white;
+            color: #1a1a1a;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .feature-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .feature-card h4 {
+            margin-top: 0;
+            color: #e5a00d;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #c7254e;
+            direction: ltr;
+            display: inline-block;
+        }
+        
+        .code-block {
+            background: #1a1a1a;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 20px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .code-block .keyword { color: #66d9ef; }
+        .code-block .string { color: #a6e22e; }
+        .code-block .comment { color: #75715e; }
+        
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .icon-card {
+            text-align: center;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+        
+        .icon-card .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            margin-top: 60px;
+            padding: 30px;
+            background: #1a1a1a;
+            border-radius: 15px;
+            text-align: center;
+            color: #888;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        @media print {
+            @page {
+                size: 210mm 5000mm;
+                margin: 15mm;
+            }
+            
+            body {
+                padding: 10px;
+                width: 100%;
+            }
+            
+            .section, h2, h3, .feature-card, .highlight-box, 
+            .complexity-box, .challenge-box, .success-box, table {
+                page-break-inside: auto !important;
+                page-break-before: auto !important;
+                page-break-after: auto !important;
+            }
+            
+            .logo-header, .stat-box, .footer, .tech-badge, 
+            .brand-name, .code-block, th {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo-header">
+        <h1>🚀 STOCKFLOW B2B</h1>
+        <p class="subtitle">פלטפורמת מסחר אלקטרוני B2B עם מלאי בזמן אמת וניהול הזמנות</p>
+        <p style="color: #e5a00d; font-size: 16px; margin: 15px 0;">פותח על ידי <strong>שמעון חליווה</strong></p>
+        <p style="color: #ccc; font-size: 14px;">📞 058-446-9947</p>
+        <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">לקוח: Global Brands Gallery (GBG)</p>
+        <div class="brands">
+            <span class="brand-name">GUESS</span>
+            <span class="brand-name">SAM EDELMAN</span>
+            <span class="brand-name">VILEBREQUIN</span>
+            <span class="brand-name">DKNY</span>
+            <span class="brand-name">BAYTON</span>
+        </div>
+        <div class="url">🔗 https://gb-guess-stock.vercel.app/</div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 תקציר מנהלים</h2>
+        
+        <div class="highlight-box">
+            <p><strong>StockFlow B2B</strong> היא פלטפורמת מסחר אלקטרוני B2B מלאה ומתוחכמת, שפותחה בהתאמה אישית על ידי <strong>שמעון חליווה</strong> עבור הלקוח <strong>Global Brands Gallery (GBG)</strong>.</p>
+            
+            <p>פתרון זה מאפשר:</p>
+            <ul>
+                <li>📊 <strong>ניהול מלאי בזמן אמת</strong> מסונכרן עם Google Sheets</li>
+                <li>🛒 <strong>קבלת הזמנות מיידית</strong> מלקוחות B2B</li>
+                <li>📦 <strong>קטלוג של יותר מ-1100 מוצרים</strong> מ-5 מותגים בינלאומיים</li>
+                <li>👨‍💼 <strong>פאנל ניהול מלא</strong> עם ניהול משתמשים והרשאות</li>
+                <li>📧 <strong>התראות אוטומטיות</strong> במייל בכל הזמנה</li>
+            </ul>
+            
+            <p>פרויקט זה מייצג <strong>חודשים של פיתוח אינטנסיבי</strong>, הכולל שליטה ב<strong>יותר מ-12 טכנולוגיות שונות</strong>, פתרון של <strong>עשרות אתגרים טכניים מורכבים</strong>, ויישום פונקציונליות מתקדמת השמורה בדרך כלל לפלטפורמות ארגוניות.</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">+1100</div>
+                <div class="stat-label">מוצרים מנוהלים</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+10,000</div>
+                <div class="stat-label">שורות קוד</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+50</div>
+                <div class="stat-label">קבצי מקור</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+15</div>
+                <div class="stat-label">נקודות API</div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">5</div>
+                <div class="stat-label">מותגים משולבים</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+80</div>
+                <div class="stat-label">מיפויי צבעים</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">9</div>
+                <div class="stat-label">הרשאות גרנולריות</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+12</div>
+                <div class="stat-label">טכנולוגיות בשימוש</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🏗️ ארכיטקטורה טכנית מתקדמת</h2>
+        
+        <p>הפרויקט משתמש בארכיטקטורת <strong>full-stack מודרנית</strong> המבוססת על הטכנולוגיות העדכניות ביותר בשוק, המבטיחות ביצועים, יכולת הרחבה ותחזוקתיות.</p>
+
+        <h3>מחסנית טכנולוגית מלאה</h3>
+        
+        <div style="text-align: center; margin: 25px 0;">
+            <span class="tech-badge">Next.js 14</span>
+            <span class="tech-badge">TypeScript</span>
+            <span class="tech-badge">React 18</span>
+            <span class="tech-badge">Supabase</span>
+            <span class="tech-badge">PostgreSQL</span>
+            <span class="tech-badge">Tailwind CSS</span>
+            <span class="tech-badge">Google Sheets API</span>
+            <span class="tech-badge">Nodemailer</span>
+            <span class="tech-badge">jsPDF</span>
+            <span class="tech-badge">html2canvas</span>
+            <span class="tech-badge">XLSX.js</span>
+            <span class="tech-badge">Vercel</span>
+        </div>
+
+        <table>
+            <tr>
+                <th>שכבה</th>
+                <th>טכנולוגיה</th>
+                <th>תפקיד ומורכבות</th>
+            </tr>
+            <tr>
+                <td><strong>Frontend</strong></td>
+                <td>Next.js 14 + React 18</td>
+                <td>App Router, Server Components, Client Components, Streaming</td>
+            </tr>
+            <tr>
+                <td><strong>שפה</strong></td>
+                <td>TypeScript</td>
+                <td>הקלדה קפדנית, ממשקים מורכבים, generics, union types</td>
+            </tr>
+            <tr>
+                <td><strong>מסד נתונים</strong></td>
+                <td>PostgreSQL (Supabase)</td>
+                <td>טבלאות יחסיות, RLS (Row Level Security), פונקציות SQL</td>
+            </tr>
+            <tr>
+                <td><strong>אחסון קבצים</strong></td>
+                <td>Supabase Storage</td>
+                <td>Bucket מאובטח, העלאה ישירה, URLs ציבוריים חתומים</td>
+            </tr>
+            <tr>
+                <td><strong>מקור נתונים</strong></td>
+                <td>Google Sheets API v4</td>
+                <td>קריאה בזמן אמת, פענוח מורכב, ניהול מכסות</td>
+            </tr>
+            <tr>
+                <td><strong>אימות</strong></td>
+                <td>Supabase Auth</td>
+                <td>JWT, sessions מתמשכים, middleware הגנה</td>
+            </tr>
+            <tr>
+                <td><strong>מיילים</strong></td>
+                <td>Nodemailer + Gmail</td>
+                <td>SMTP מאובטח, תבניות HTML, App Passwords</td>
+            </tr>
+            <tr>
+                <td><strong>PDF</strong></td>
+                <td>jsPDF + html2canvas</td>
+                <td>רינדור canvas, תמיכה RTL/עברית, הורדה בצד לקוח</td>
+            </tr>
+            <tr>
+                <td><strong>Excel</strong></td>
+                <td>XLSX.js (SheetJS)</td>
+                <td>יצירה דינמית, עיצוב עמודות, ייצוא בצד לקוח</td>
+            </tr>
+            <tr>
+                <td><strong>עיצוב</strong></td>
+                <td>Tailwind CSS</td>
+                <td>Utility-first, עיצוב רספונסיבי, מוכן ל-dark mode</td>
+            </tr>
+            <tr>
+                <td><strong>פריסה</strong></td>
+                <td>Vercel</td>
+                <td>Edge functions, CDN גלובלי, preview deployments, CI/CD</td>
+            </tr>
+        </table>
+
+        <div class="complexity-box">
+            <h4>🧠 מורכבות ארכיטקטורית</h4>
+            <p>הארכיטקטורה משלבת <strong>Server Components</strong> ו-<strong>Client Components</strong> באופן אופטימלי:</p>
+            <ul>
+                <li><strong>Server Components</strong>: שליפת נתונים, רינדור ראשוני ידידותי ל-SEO, הפחתת JavaScript בצד לקוח</li>
+                <li><strong>Client Components</strong>: אינטראקטיביות, מצב מקומי, ניהול עגלה, טפסים</li>
+                <li><strong>API Routes</strong>: נקודות קצה REST מאובטחות לפעולות CRUD</li>
+                <li><strong>Middleware</strong>: הגנת נתיבים, הפניות, אימות sessions</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 מערכת סנכרון נתונים</h2>
+        
+        <p>אחד האתגרים המרכזיים בפרויקט הוא <strong>סנכרון בזמן אמת</strong> בין Google Sheets (מקור האמת לנתוני מוצרים) לאפליקציית האינטרנט.</p>
+
+        <div class="challenge-box">
+            <h4>⚠️ אתגרים טכניים שנפתרו</h4>
+            <ul>
+                <li><strong>נפח נתונים</strong>: יותר מ-1100 מוצרים לסנכרון בכל בקשה</li>
+                <li><strong>ביצועים</strong>: זמן תגובה < 2 שניות למרות הנפח</li>
+                <li><strong>התאמת תמונות</strong>: שיוך חכם מוצר/תמונות לפי מק"ט וצבע</li>
+                <li><strong>ניהול מכסות</strong>: עמידה במגבלות API של Google (100 בקשות/100 שניות)</li>
+                <li><strong>Cache חכם</strong>: איזון בין רעננות הנתונים לביצועים</li>
+            </ul>
+        </div>
+
+        <h3>אלגוריתם התאמת תמונות</h3>
+        
+        <p>המערכת משתמשת ב<strong>אלגוריתם מתוחכם בחמישה שלבים</strong> כדי לשייך כל מוצר לתמונות שלו:</p>
+
+        <div class="code-block">
+<span class="comment">// אלגוריתם התאמה ב-5 שלבים</span>
+
+<span class="comment">// שלב 1: התאמה מדויקת modelRef + colorCode</span>
+key = `${modelRef}|${colorCode}`  <span class="comment">// לדוגמה: "PD760221|BLA"</span>
+
+<span class="comment">// שלב 2: התאמה מדויקת modelRef + fullColor</span>
+key = `${modelRef}|${color}`  <span class="comment">// לדוגמה: "PD760221|BLACK 001"</span>
+
+<span class="comment">// שלב 3: התאמה מנורמלת (ללא תווים מיוחדים)</span>
+normalizedColor = color.replace(/[^A-Z0-9]/g, "")
+
+<span class="comment">// שלב 4: התאמה דרך COLOR_MAP (יותר מ-80 התאמות)</span>
+COLOR_MAP["BLA"] → ["BLACK", "NOIR", "שחור", "BLK"]
+COLOR_MAP["COG"] → ["COGNAC", "קוניאק"]
+
+<span class="comment">// שלב 5: Fallback חכם (אם רק צבע אחד זמין)</span>
+<span class="keyword">if</span> (uniqueColors.size === 1 && colorMatches) {
+  images = modelRefImages[0].images;
+}
+        </div>
+
+        <div class="success-box">
+            <h4>✅ תוצאות שהושגו</h4>
+            <ul>
+                <li><strong>יותר מ-95% מהמוצרים</strong> משויכים נכון לתמונות שלהם</li>
+                <li><strong>תמיכה ביותר מ-80 וריאציות צבעים</strong> (אנגלית, צרפתית, עברית, קודים)</li>
+                <li><strong>זמן התאמה</strong>: < 500ms ליותר מ-1100 מוצרים</li>
+                <li><strong>עדיפות תמונות</strong>: packshots (PZ) קודם, אחר כך faces (F)</li>
+            </ul>
+        </div>
+
+        <h3>מערכת Cache רב-שכבתית</h3>
+        
+        <table>
+            <tr>
+                <th>שכבה</th>
+                <th>משך</th>
+                <th>שימוש</th>
+            </tr>
+            <tr>
+                <td>Cache תמונות (זיכרון שרת)</td>
+                <td>דקה אחת</td>
+                <td>מונע רשימה מחדש של יותר מ-5000 תמונות בכל בקשה</td>
+            </tr>
+            <tr>
+                <td>Cache מוצרים (אדמין)</td>
+                <td>30 שניות</td>
+                <td>נתונים רעננים לעריכות</td>
+            </tr>
+            <tr>
+                <td>Cache מוצרים (ציבורי)</td>
+                <td>2 דקות</td>
+                <td>ביצועים אופטימליים למבקרים</td>
+            </tr>
+            <tr>
+                <td>אינדקס תמונות (מסד נתונים)</td>
+                <td>קבוע</td>
+                <td>טבלת image_index לחיפוש מיידי</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🔐 מערכת הרשאות מתקדמת (RBAC)</h2>
+        
+        <p>הפרויקט מיישם מערכת <strong>Role-Based Access Control (RBAC)</strong> מלאה עם <strong>הרשאות גרנולריות</strong>, בדומה לפתרונות ארגוניים כמו Salesforce או SAP.</p>
+
+        <h3>מטריצת 9 ההרשאות</h3>
+        
+        <table>
+            <tr>
+                <th>הרשאה</th>
+                <th>קוד טכני</th>
+                <th>אלמנטי UI מושפעים</th>
+            </tr>
+            <tr>
+                <td>📗 Google Sheets</td>
+                <td><code>access_google_sheet</code></td>
+                <td>כפתור "Google Sheets" בכותרת ובסרגל צד</td>
+            </tr>
+            <tr>
+                <td>➕ הוספת מוצרים</td>
+                <td><code>add_products</code></td>
+                <td>כפתור "הוסף מוצר", דף /admin/products/new</td>
+            </tr>
+            <tr>
+                <td>✏️ עריכת מוצרים</td>
+                <td><code>edit_products</code></td>
+                <td>טופס עריכה מלא, כפתור 🗑️ מחיקה</td>
+            </tr>
+            <tr>
+                <td>🖼️ עריכת תמונות</td>
+                <td><code>edit_images</code></td>
+                <td>אזור העלאת תמונות בלבד</td>
+            </tr>
+            <tr>
+                <td>👁️ צפייה בהזמנות</td>
+                <td><code>view_orders</code></td>
+                <td>תפריט "בקשות הצעת מחיר", טבלת הזמנות</td>
+            </tr>
+            <tr>
+                <td>✅ טיפול בהזמנות</td>
+                <td><code>process_orders</code></td>
+                <td>כפתור "בוצע" (סימון כטופל)</td>
+            </tr>
+            <tr>
+                <td>🗑️ מחיקת הזמנות</td>
+                <td><code>delete_orders</code></td>
+                <td>כפתור 🗑️, שחזור, מחיקה לצמיתות</td>
+            </tr>
+            <tr>
+                <td>📥 ייצוא Excel</td>
+                <td><code>export_orders</code></td>
+                <td>כפתור "הורד" (הורדת Excel)</td>
+            </tr>
+            <tr>
+                <td>👥 ניהול משתמשים</td>
+                <td><code>manage_users</code></td>
+                <td>תפריט "ניהול משתמשים", יצירה/מחיקת משתמשים</td>
+            </tr>
+        </table>
+
+        <h3>3 תפקידים זמינים</h3>
+        
+        <table>
+            <tr>
+                <th>תפקיד</th>
+                <th>תיאור</th>
+            </tr>
+            <tr>
+                <td>👑 Super Admin</td>
+                <td>שליטה מלאה, לא ניתן למחיקה</td>
+            </tr>
+            <tr>
+                <td>👤 Admin</td>
+                <td>גישה מורחבת הניתנת להגדרה</td>
+            </tr>
+            <tr>
+                <td>👁️ Viewer</td>
+                <td>קריאה בלבד</td>
+            </tr>
+        </table>
+
+        <div class="success-box">
+            <h4>✅ אבטחה מובטחת</h4>
+            <ul>
+                <li><strong>אימות כפול</strong>: בצד לקוח (UI) וגם בצד שרת (API)</li>
+                <li><strong>כפתורים מוסתרים</strong>: משתמשים רואים רק מה שהם יכולים לעשות</li>
+                <li><strong>אזורים נעולים</strong>: טפסים מושבתים חלקית לפי הרשאות</li>
+                <li><strong>הגנת Super Admin</strong>: אי אפשר למחוק את עצמך</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🖼️ מערכת ניהול תמונות</h2>
+        
+        <p>ניהול התמונות מייצג אחד האתגרים הטכניים המורכבים ביותר בפרויקט, עם <strong>יותר מ-5000 תמונות</strong> לאינדוקס ושיוך נכון.</p>
+
+        <div class="icon-grid">
+            <div class="icon-card">
+                <div class="icon">☁️</div>
+                <div><strong>Supabase Storage</strong></div>
+                <div style="font-size: 13px; color: #666;">Bucket "guess-images"</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">📁</div>
+                <div><strong>+5000 תמונות</strong></div>
+                <div style="font-size: 13px; color: #666;">תיקיית /products/</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">⚡</div>
+                <div><strong>טבלת אינדקס</strong></div>
+                <div style="font-size: 13px; color: #666;">חיפוש מיידי</div>
+            </div>
+        </div>
+
+        <div class="challenge-box">
+            <h4>⚠️ אתגר: התאמת צבעים</h4>
+            <p>הצבעים מבוטאים בצורות שונות לפי המקורות:</p>
+            <ul>
+                <li><strong>Google Sheets</strong>: "BLACK 001", "NATURAL COGNAC", "BLEU MARINE"</li>
+                <li><strong>שמות קבצים</strong>: "BLA", "NAT", "390"</li>
+                <li><strong>VILEBREQUIN</strong>: קודים מספריים (390, 010, 500) + שמות בצרפתית</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📧 מערכת התראות אוטומטיות במייל</h2>
+        
+        <p>כל הזמנה חדשה מפעילה אוטומטית שליחת מייל התראה לאחראים.</p>
+
+        <table>
+            <tr>
+                <th>פרמטר</th>
+                <th>ערך</th>
+            </tr>
+            <tr>
+                <td>שירות</td>
+                <td>Gmail SMTP דרך Nodemailer</td>
+            </tr>
+            <tr>
+                <td>אימות</td>
+                <td>App Password (2FA)</td>
+            </tr>
+            <tr>
+                <td>פורמט</td>
+                <td>HTML רספונסיבי (RTL)</td>
+            </tr>
+            <tr>
+                <td>טריגר</td>
+                <td>POST /api/cart/export</td>
+            </tr>
+        </table>
+
+        <div class="feature-card">
+            <h4>📦 בקשת הצעת מחיר חדשה #[ID]</h4>
+            <p><strong>פרטי הלקוח:</strong></p>
+            <ul>
+                <li>שם החנות: [שם]</li>
+                <li>שם פרטי: [שם פרטי]</li>
+                <li>טלפון: [מספר]</li>
+                <li>שם הסוכן: [סוכן]</li>
+            </ul>
+            <p><strong>פריטים בהזמנה:</strong></p>
+            <ul>
+                <li>• [מוצר 1] (מק"ט) x[כמות] - ₪[מחיר]</li>
+                <li>• [מוצר 2] (מק"ט) x[כמות] - ₪[מחיר]</li>
+            </ul>
+            <p style="background: #e5a00d; color: #000; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold;">
+                סה"כ: ₪[סכום]
+            </p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📄 יצירת מסמכים</h2>
+        
+        <h3>PDF עם תמיכה בעברית (RTL)</h3>
+        
+        <div class="challenge-box">
+            <h4>⚠️ אתגר טכני מרכזי</h4>
+            <p>ספריות PDF סטנדרטיות (jsPDF) לא תומכות באופן מקורי בעברית ובכיוון כתיבה RTL. הפתרון המיושם משתמש ב<strong>גישה היברידית</strong>:</p>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// פתרון: רינדור HTML → Canvas → PDF</span>
+
+<span class="comment">// 1. יצירת תוכן HTML עם סגנונות RTL</span>
+<span class="keyword">const</span> htmlContent = `
+  &lt;div dir="rtl" style="font-family: Arial;"&gt;
+    &lt;h2&gt;בקשת הצעת מחיר&lt;/h2&gt;
+    &lt;table&gt;...&lt;/table&gt;
+  &lt;/div&gt;
+`;
+
+<span class="comment">// 2. לכידה ב-canvas עם html2canvas</span>
+<span class="keyword">const</span> canvas = <span class="keyword">await</span> html2canvas(element);
+
+<span class="comment">// 3. הכנסת התמונה ל-PDF</span>
+<span class="keyword">const</span> pdf = <span class="keyword">new</span> jsPDF();
+pdf.addImage(canvas.toDataURL(), <span class="string">'PNG'</span>, 10, 10);
+pdf.save(<span class="string">'order.pdf'</span>);
+        </div>
+
+        <div class="success-box">
+            <h4>✅ תוצאה</h4>
+            <ul>
+                <li><strong>עברית מרונדרת בצורה מושלמת</strong> (כיוון RTL נשמר)</li>
+                <li><strong>טבלאות מעוצבות</strong> עם גבולות ויישור</li>
+                <li><strong>הורדה אוטומטית</strong> בצד לקוח</li>
+                <li><strong>תואם לנייד</strong> (iOS ו-Android)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🛍️ יכולות מסחר אלקטרוני מלאות</h2>
+
+        <h3>קטלוג ציבורי</h3>
+        
+        <div class="feature-card">
+            <h4>🔍 מערכת סינון מתקדמת</h4>
+            <ul>
+                <li><strong>לפי מותג</strong>: 5 מותגים זמינים</li>
+                <li><strong>לפי קטגוריה</strong>: תיק צד, ארנקים, סניקרס, כפכפים, נעלי עקב, מגפיים, ועוד</li>
+                <li><strong>לפי משפחה</strong>: לתיקים (VIVIETTE, NOELLE, SESTRI, וכו')</li>
+                <li><strong>חיפוש טקסט</strong>: לפי שם, מק"ט, קוד פריט</li>
+            </ul>
+        </div>
+
+        <div class="feature-card">
+            <h4>📊 מיון חכם</h4>
+            <ol>
+                <li>מוצרים <strong>עם תמונות</strong> מוצגים ראשונים</li>
+                <li>אחר כך מיון לפי <strong>מלאי יורד</strong> (הפופולריים ביותר קודם)</li>
+            </ol>
+        </div>
+
+        <div class="feature-card">
+            <h4>🛒 עגלה עם Context API</h4>
+            <ul>
+                <li><strong>הוספה/הסרה</strong> של מוצרים</li>
+                <li><strong>שינוי כמויות</strong> (+ / -)</li>
+                <li><strong>חישוב אוטומטי</strong> של הסכום</li>
+                <li><strong>תג התראה</strong> על אייקון העגלה</li>
+                <li><strong>שמירה</strong> במהלך הסשן</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>👨‍💼 פאנל ניהול מלא</h2>
+
+        <h3>דשבורד עם סטטיסטיקות</h3>
+        
+        <div class="icon-grid">
+            <div class="icon-card">
+                <div class="icon">📦</div>
+                <div><strong>סה"כ מוצרים</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">+1100</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">🖼️</div>
+                <div><strong>עם תמונות</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">95%</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">📋</div>
+                <div><strong>הזמנות</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">בזמן אמת</div>
+            </div>
+        </div>
+
+        <h3>ניהול הזמנות עם 3 סטטוסים</h3>
+        
+        <table>
+            <tr>
+                <th>סטטוס</th>
+                <th>תיאור</th>
+                <th>פעולות זמינות</th>
+            </tr>
+            <tr>
+                <td>📋 בקשות בהמתנה</td>
+                <td>בקשות חדשות שלא טופלו</td>
+                <td>צפייה, הורדה, טיפול, סל</td>
+            </tr>
+            <tr>
+                <td>✅ בקשות שטופלו</td>
+                <td>הזמנות שסומנו כטופלו</td>
+                <td>צפייה, הורדה, סל</td>
+            </tr>
+            <tr>
+                <td>🗑️ סל המחזור</td>
+                <td>סל (מחיקה רכה)</td>
+                <td>שחזור, מחיקה לצמיתות</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>📱 עיצוב רספונסיבי ו-UX</h2>
+        
+        <p>הממשק תוכנן עם גישת <strong>mobile-first</strong> ומתאים בצורה מושלמת לכל המסכים.</p>
+
+        <h3>Breakpoints של Tailwind CSS</h3>
+        
+        <table>
+            <tr>
+                <th>Breakpoint</th>
+                <th>רוחב</th>
+                <th>יעד</th>
+            </tr>
+            <tr>
+                <td><code>sm</code></td>
+                <td>640px</td>
+                <td>סמארטפונים גדולים, טאבלטים קטנים</td>
+            </tr>
+            <tr>
+                <td><code>md</code></td>
+                <td>768px</td>
+                <td>טאבלטים</td>
+            </tr>
+            <tr>
+                <td><code>lg</code></td>
+                <td>1024px</td>
+                <td>דסקטופ</td>
+            </tr>
+            <tr>
+                <td><code>xl</code></td>
+                <td>1280px</td>
+                <td>מסך גדול</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🚀 פריסה ותשתית</h2>
+        
+        <h3>Vercel - פלטפורמת פריסה</h3>
+        
+        <div class="feature-card">
+            <ul>
+                <li><strong>CI/CD אוטומטי</strong>: כל push ל-main מפעיל פריסה</li>
+                <li><strong>Preview deployments</strong>: לכל branch יש URL בדיקה משלו</li>
+                <li><strong>Edge Network</strong>: CDN גלובלי לזמני טעינה אופטימליים</li>
+                <li><strong>Serverless Functions</strong>: נתיבי API מופעלים לפי דרישה</li>
+                <li><strong>Analytics</strong>: מדדי ביצועים משולבים</li>
+            </ul>
+        </div>
+
+        <h3>משתני סביבה (+10)</h3>
+        
+        <table>
+            <tr>
+                <th>משתנה</th>
+                <th>שימוש</th>
+            </tr>
+            <tr>
+                <td><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
+                <td>URL של מופע Supabase</td>
+            </tr>
+            <tr>
+                <td><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+                <td>מפתח אדמין (פעולות שרת)</td>
+            </tr>
+            <tr>
+                <td><code>GOOGLE_SHEET_ID</code></td>
+                <td>מזהה Google Sheet המקור</td>
+            </tr>
+            <tr>
+                <td><code>GOOGLE_API_KEY</code></td>
+                <td>מפתח API של Google</td>
+            </tr>
+            <tr>
+                <td><code>GMAIL_USER</code></td>
+                <td>חשבון Gmail להתראות</td>
+            </tr>
+            <tr>
+                <td><code>GMAIL_APP_PASSWORD</code></td>
+                <td>סיסמת אפליקציה של Gmail</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>✨ סיכום</h2>
+        
+        <div class="highlight-box">
+            <h3>פרויקט זה, שפותח על ידי שמעון חליווה, מדגים:</h3>
+            <ol>
+                <li><strong>שליטה ב-full-stack מודרני</strong>: Next.js 14, TypeScript, React, PostgreSQL</li>
+                <li><strong>ארכיטקטורה מורכבת</strong>: Server/Client Components, API REST, אימות</li>
+                <li><strong>פתרון בעיות מתקדם</strong>: התאמת תמונות, PDF בעברית, הרשאות גרנולריות</li>
+                <li><strong>אינטגרציה מרובת שירותים</strong>: Supabase, Google Sheets, Gmail, Vercel</li>
+                <li><strong>UX מקצועי</strong>: עיצוב רספונסיבי, נגישות, ביצועים</li>
+                <li><strong>אבטחה ברמה ארגונית</strong>: RBAC, אימות, וולידציית נתונים</li>
+            </ol>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">+10,000</div>
+                <div class="stat-label">שורות קוד</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">+12</div>
+                <div class="stat-label">טכנולוגיות</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">TypeScript</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">יכולת הרחבה</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p style="font-size: 22px; color: #e5a00d; margin-bottom: 15px;"><strong>🚀 STOCKFLOW B2B</strong></p>
+        <p>פלטפורמת מסחר אלקטרוני B2B עם מלאי בזמן אמת וניהול הזמנות</p>
+        <p style="color: #aaa; margin-top: 5px;">פותחה עבור Global Brands Gallery (GBG)</p>
+        <div style="margin-top: 25px; padding: 20px; background: rgba(229, 160, 13, 0.1); border-radius: 10px; display: inline-block;">
+            <p style="font-size: 18px; color: #fff; margin: 0;"><strong>מפתח: שמעון חליווה</strong></p>
+            <p style="font-size: 16px; color: #e5a00d; margin: 10px 0 0 0;">📞 058-446-9947</p>
+        </div>
+        <p style="margin-top: 25px;">© 2024 - כל הזכויות שמורות</p>
+        <p style="font-size: 12px; margin-top: 10px;">מסמך נוצר בתאריך: <script>document.write(new Date().toLocaleDateString('he-IL'))</script></p>
+    </div>
+
+</body>
+</html>
+

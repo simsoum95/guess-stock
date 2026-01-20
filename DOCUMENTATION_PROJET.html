@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockFlow B2B - Documentation Technique | Shimon Haliwa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fff;
+            padding: 40px;
+            max-width: 950px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 36px;
+            color: #1a1a1a;
+            border-bottom: 4px solid #e5a00d;
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 26px;
+            color: #1a1a1a;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f8f4e8 0%, #fff 100%);
+            border-right: 5px solid #e5a00d;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        h3 {
+            font-size: 20px;
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        h4 {
+            font-size: 17px;
+            color: #444;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .url {
+            background: #1a1a1a;
+            color: #e5a00d;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 20px 0;
+            display: inline-block;
+            font-size: 16px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 14px;
+            text-align: right;
+        }
+        
+        th {
+            background: #1a1a1a;
+            color: white;
+            font-weight: 600;
+        }
+        
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        tr:hover {
+            background: #f0f0f0;
+        }
+        
+        ul, ol {
+            margin: 15px 0;
+            padding-right: 25px;
+        }
+        
+        li {
+            margin-bottom: 10px;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
+            border: 2px solid #e5a00d;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .complexity-box {
+            background: linear-gradient(135deg, #e8f4fc 0%, #fff 100%);
+            border: 2px solid #0066cc;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .challenge-box {
+            background: linear-gradient(135deg, #fce8e8 0%, #fff 100%);
+            border: 2px solid #cc3300;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .success-box {
+            background: linear-gradient(135deg, #e8fce8 0%, #fff 100%);
+            border: 2px solid #00cc33;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #e5a00d;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #ccc;
+            margin-top: 8px;
+        }
+        
+        .tech-badge {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #e5a00d;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 4px;
+            font-weight: bold;
+        }
+        
+        .section {
+            page-break-inside: avoid;
+            margin-bottom: 40px;
+        }
+        
+        .logo-header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+            border-radius: 20px;
+            color: white;
+        }
+        
+        .logo-header h1 {
+            color: white;
+            border-bottom-color: #e5a00d;
+        }
+        
+        .logo-header .subtitle {
+            color: #ccc;
+        }
+        
+        .brands {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 25px 0;
+        }
+        
+        .brand-name {
+            background: white;
+            color: #1a1a1a;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .feature-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .feature-card h4 {
+            margin-top: 0;
+            color: #e5a00d;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #c7254e;
+        }
+        
+        .code-block {
+            background: #1a1a1a;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 20px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .code-block .keyword { color: #66d9ef; }
+        .code-block .string { color: #a6e22e; }
+        .code-block .comment { color: #75715e; }
+        
+        .timeline {
+            border-right: 3px solid #e5a00d;
+            padding-right: 30px;
+            margin: 30px 0;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            right: -39px;
+            top: 25px;
+            width: 15px;
+            height: 15px;
+            background: #e5a00d;
+            border-radius: 50%;
+        }
+        
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .icon-card {
+            text-align: center;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+        
+        .icon-card .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            margin-top: 60px;
+            padding: 30px;
+            background: #1a1a1a;
+            border-radius: 15px;
+            text-align: center;
+            color: #888;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        @media print {
+            @page {
+                size: 210mm 5000mm; /* Largeur A4, hauteur très longue */
+                margin: 15mm;
+            }
+            
+            body {
+                padding: 10px;
+                width: 100%;
+            }
+            
+            /* Supprimer tous les sauts de page */
+            .section, h2, h3, .feature-card, .highlight-box, 
+            .complexity-box, .challenge-box, .success-box, table {
+                page-break-inside: auto !important;
+                page-break-before: auto !important;
+                page-break-after: auto !important;
+            }
+            
+            .page-break {
+                page-break-after: auto !important;
+                display: none;
+            }
+            
+            /* Conserver les couleurs */
+            .logo-header, .stat-box, .footer, .tech-badge, 
+            .brand-name, .code-block, th {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo-header">
+        <h1>🚀 STOCKFLOW B2B</h1>
+        <p class="subtitle">Plateforme E-Commerce B2B avec Stock Temps Réel & Gestion des Commandes</p>
+        <p style="color: #e5a00d; font-size: 16px; margin: 15px 0;">Développé par <strong>Shimon Haliwa</strong></p>
+        <p style="color: #ccc; font-size: 14px;">📞 058-446-9947</p>
+        <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">Client : Global Brands Gallery (GBG)</p>
+        <div class="brands">
+            <span class="brand-name">GUESS</span>
+            <span class="brand-name">SAM EDELMAN</span>
+            <span class="brand-name">VILEBREQUIN</span>
+            <span class="brand-name">DKNY</span>
+            <span class="brand-name">BAYTON</span>
+        </div>
+        <div class="url">🔗 https://gb-guess-stock.vercel.app/</div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Résumé Exécutif</h2>
+        
+        <div class="highlight-box">
+            <p><strong>StockFlow B2B</strong> est une plateforme e-commerce B2B complète et sophistiquée, développée sur mesure par <strong>Shimon Haliwa</strong> pour le client <strong>Global Brands Gallery (GBG)</strong>.</p>
+            
+            <p>Cette solution tout-en-un permet :</p>
+            <ul>
+                <li>📊 <strong>Gestion de stock en temps réel</strong> synchronisé avec Google Sheets</li>
+                <li>🛒 <strong>Prise de commandes instantanée</strong> par les clients B2B</li>
+                <li>📦 <strong>Catalogue de +1100 produits</strong> répartis sur 5 marques internationales</li>
+                <li>👨‍💼 <strong>Panel d'administration complet</strong> avec gestion des utilisateurs et permissions</li>
+                <li>📧 <strong>Notifications automatiques</strong> par email à chaque commande</li>
+            </ul>
+            
+            <p>Ce projet représente <strong>plusieurs mois de développement intensif</strong>, impliquant la maîtrise de <strong>12+ technologies différentes</strong>, la résolution de <strong>dizaines de défis techniques complexes</strong>, et l'implémentation de fonctionnalités avancées habituellement réservées aux plateformes enterprise.</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">1100+</div>
+                <div class="stat-label">Produits gérés</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">10,000+</div>
+                <div class="stat-label">Lignes de code</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Fichiers source</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">15+</div>
+                <div class="stat-label">API endpoints</div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Marques intégrées</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">80+</div>
+                <div class="stat-label">Mappings couleurs</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">9</div>
+                <div class="stat-label">Permissions granulaires</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">12+</div>
+                <div class="stat-label">Technologies utilisées</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🏗️ Architecture Technique Avancée</h2>
+        
+        <p>Le projet utilise une architecture <strong>full-stack moderne</strong> basée sur les dernières technologies du marché, garantissant performance, scalabilité et maintenabilité.</p>
+
+        <h3>Stack Technologique Complet</h3>
+        
+        <div style="text-align: center; margin: 25px 0;">
+            <span class="tech-badge">Next.js 14</span>
+            <span class="tech-badge">TypeScript</span>
+            <span class="tech-badge">React 18</span>
+            <span class="tech-badge">Supabase</span>
+            <span class="tech-badge">PostgreSQL</span>
+            <span class="tech-badge">Tailwind CSS</span>
+            <span class="tech-badge">Google Sheets API</span>
+            <span class="tech-badge">Nodemailer</span>
+            <span class="tech-badge">jsPDF</span>
+            <span class="tech-badge">html2canvas</span>
+            <span class="tech-badge">XLSX.js</span>
+            <span class="tech-badge">Vercel</span>
+        </div>
+
+        <table>
+            <tr>
+                <th>Couche</th>
+                <th>Technologie</th>
+                <th>Rôle & Complexité</th>
+            </tr>
+            <tr>
+                <td><strong>Frontend</strong></td>
+                <td>Next.js 14 + React 18</td>
+                <td>App Router, Server Components, Client Components, Streaming, Suspense</td>
+            </tr>
+            <tr>
+                <td><strong>Langage</strong></td>
+                <td>TypeScript</td>
+                <td>Typage strict, interfaces complexes, génériques, union types</td>
+            </tr>
+            <tr>
+                <td><strong>Base de données</strong></td>
+                <td>PostgreSQL (Supabase)</td>
+                <td>Tables relationnelles, RLS (Row Level Security), fonctions SQL</td>
+            </tr>
+            <tr>
+                <td><strong>Stockage fichiers</strong></td>
+                <td>Supabase Storage</td>
+                <td>Bucket sécurisé, upload direct, URLs publiques signées</td>
+            </tr>
+            <tr>
+                <td><strong>Source de données</strong></td>
+                <td>Google Sheets API v4</td>
+                <td>Lecture temps réel, parsing complexe, gestion des quotas</td>
+            </tr>
+            <tr>
+                <td><strong>Authentification</strong></td>
+                <td>Supabase Auth</td>
+                <td>JWT, sessions persistantes, middleware de protection</td>
+            </tr>
+            <tr>
+                <td><strong>Emails</strong></td>
+                <td>Nodemailer + Gmail</td>
+                <td>SMTP sécurisé, templates HTML, App Passwords</td>
+            </tr>
+            <tr>
+                <td><strong>PDF</strong></td>
+                <td>jsPDF + html2canvas</td>
+                <td>Rendu canvas, support RTL/hébreu, téléchargement client</td>
+            </tr>
+            <tr>
+                <td><strong>Excel</strong></td>
+                <td>XLSX.js (SheetJS)</td>
+                <td>Génération dynamique, formatage colonnes, export client</td>
+            </tr>
+            <tr>
+                <td><strong>Styling</strong></td>
+                <td>Tailwind CSS</td>
+                <td>Utility-first, responsive design, dark mode ready</td>
+            </tr>
+            <tr>
+                <td><strong>Déploiement</strong></td>
+                <td>Vercel</td>
+                <td>Edge functions, CDN global, preview deployments, CI/CD</td>
+            </tr>
+        </table>
+
+        <div class="complexity-box">
+            <h4>🧠 Complexité architecturale</h4>
+            <p>L'architecture combine <strong>Server Components</strong> et <strong>Client Components</strong> de manière optimale :</p>
+            <ul>
+                <li><strong>Server Components</strong> : fetching des données, rendu initial SEO-friendly, réduction du JavaScript client</li>
+                <li><strong>Client Components</strong> : interactivité, état local, gestion du panier, formulaires</li>
+                <li><strong>API Routes</strong> : endpoints REST sécurisés pour les opérations CRUD</li>
+                <li><strong>Middleware</strong> : protection des routes, redirection, validation des sessions</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 Système de Synchronisation des Données</h2>
+        
+        <p>L'un des défis majeurs du projet est la <strong>synchronisation en temps réel</strong> entre Google Sheets (source de vérité pour les données produits) et l'application web.</p>
+
+        <div class="challenge-box">
+            <h4>⚠️ Défis techniques résolus</h4>
+            <ul>
+                <li><strong>Volume de données</strong> : +1100 produits à synchroniser à chaque requête</li>
+                <li><strong>Performance</strong> : temps de réponse < 2 secondes malgré le volume</li>
+                <li><strong>Matching d'images</strong> : association intelligente produit/images par référence et couleur</li>
+                <li><strong>Gestion des quotas</strong> : respect des limites API Google (100 requêtes/100 secondes)</li>
+                <li><strong>Cache intelligent</strong> : balance entre fraîcheur des données et performance</li>
+            </ul>
+        </div>
+
+        <h3>Algorithme de Matching des Images</h3>
+        
+        <p>Le système utilise un <strong>algorithme sophistiqué en plusieurs passes</strong> pour associer chaque produit à ses images :</p>
+
+        <div class="code-block">
+<span class="comment">// Algorithme de matching en 5 passes</span>
+
+<span class="comment">// Pass 1: Match exact modelRef + colorCode</span>
+key = `${modelRef}|${colorCode}`  <span class="comment">// Ex: "PD760221|BLA"</span>
+
+<span class="comment">// Pass 2: Match exact modelRef + fullColor</span>
+key = `${modelRef}|${color}`  <span class="comment">// Ex: "PD760221|BLACK 001"</span>
+
+<span class="comment">// Pass 3: Match normalisé (sans caractères spéciaux)</span>
+normalizedColor = color.replace(/[^A-Z0-9]/g, "")
+
+<span class="comment">// Pass 4: Match via COLOR_MAP (80+ correspondances)</span>
+COLOR_MAP["BLA"] → ["BLACK", "NOIR", "שחור", "BLK"]
+COLOR_MAP["COG"] → ["COGNAC", "קוניאק"]
+<span class="comment">// ... 80+ mappings</span>
+
+<span class="comment">// Pass 5: Fallback intelligent (si une seule couleur disponible)</span>
+<span class="keyword">if</span> (uniqueColors.size === 1 && colorMatches) {
+  images = modelRefImages[0].images;
+}
+        </div>
+
+        <div class="success-box">
+            <h4>✅ Résultats obtenus</h4>
+            <ul>
+                <li><strong>95%+ de produits</strong> correctement associés à leurs images</li>
+                <li><strong>Support de 80+ variations de couleurs</strong> (anglais, français, hébreu, codes)</li>
+                <li><strong>Temps de matching</strong> : < 500ms pour 1100+ produits</li>
+                <li><strong>Priorité d'images</strong> : packshots (PZ) en premier, puis faces (F)</li>
+            </ul>
+        </div>
+
+        <h3>Système de Cache Multi-Niveaux</h3>
+        
+        <table>
+            <tr>
+                <th>Niveau</th>
+                <th>Durée</th>
+                <th>Utilisation</th>
+            </tr>
+            <tr>
+                <td>Cache images (mémoire serveur)</td>
+                <td>1 minute</td>
+                <td>Évite de re-lister les 5000+ images à chaque requête</td>
+            </tr>
+            <tr>
+                <td>Cache produits (admin)</td>
+                <td>30 secondes</td>
+                <td>Données fraîches pour les modifications</td>
+            </tr>
+            <tr>
+                <td>Cache produits (public)</td>
+                <td>2 minutes</td>
+                <td>Performance optimale pour les visiteurs</td>
+            </tr>
+            <tr>
+                <td>Index d'images (base de données)</td>
+                <td>Permanent</td>
+                <td>Table `image_index` pour recherche instantanée</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🔐 Système de Permissions Avancé (RBAC)</h2>
+        
+        <p>Le projet implémente un système de <strong>Role-Based Access Control (RBAC)</strong> complet avec <strong>permissions granulaires</strong>, comparable à ce qu'on trouve dans les solutions enterprise comme Salesforce ou SAP.</p>
+
+        <div class="complexity-box">
+            <h4>🧠 Architecture des permissions</h4>
+            <p>Chaque utilisateur possède :</p>
+            <ul>
+                <li>Un <strong>rôle</strong> (super_admin, admin, viewer)</li>
+                <li>Un objet <strong>permissions</strong> (JSONB) avec 9 flags booléens</li>
+                <li>Des <strong>vérifications côté client</strong> (UI dynamique) ET <strong>côté serveur</strong> (API sécurisées)</li>
+            </ul>
+        </div>
+
+        <h3>Matrice des 9 Permissions</h3>
+        
+        <table>
+            <tr>
+                <th>Permission</th>
+                <th>Code technique</th>
+                <th>Éléments UI affectés</th>
+            </tr>
+            <tr>
+                <td>📗 Google Sheets</td>
+                <td><code>access_google_sheet</code></td>
+                <td>Bouton "Google Sheets" dans header et sidebar</td>
+            </tr>
+            <tr>
+                <td>➕ Ajouter produits</td>
+                <td><code>add_products</code></td>
+                <td>Bouton "הוסף מוצר", page /admin/products/new</td>
+            </tr>
+            <tr>
+                <td>✏️ Modifier produits</td>
+                <td><code>edit_products</code></td>
+                <td>Formulaire d'édition complet, bouton 🗑️ suppression</td>
+            </tr>
+            <tr>
+                <td>🖼️ Modifier images</td>
+                <td><code>edit_images</code></td>
+                <td>Section upload images uniquement</td>
+            </tr>
+            <tr>
+                <td>👁️ Voir commandes</td>
+                <td><code>view_orders</code></td>
+                <td>Menu "בקשות הצעת מחיר", tableau des commandes</td>
+            </tr>
+            <tr>
+                <td>✅ Traiter commandes</td>
+                <td><code>process_orders</code></td>
+                <td>Bouton "בוצע" (marquer comme traité)</td>
+            </tr>
+            <tr>
+                <td>🗑️ Supprimer commandes</td>
+                <td><code>delete_orders</code></td>
+                <td>Bouton 🗑️, restaurer, supprimer définitivement</td>
+            </tr>
+            <tr>
+                <td>📥 Exporter Excel</td>
+                <td><code>export_orders</code></td>
+                <td>Bouton "הורד" (télécharger Excel)</td>
+            </tr>
+            <tr>
+                <td>👥 Gérer utilisateurs</td>
+                <td><code>manage_users</code></td>
+                <td>Menu "ניהול משתמשים", création/suppression users</td>
+            </tr>
+        </table>
+
+        <h3>Implémentation technique</h3>
+
+        <div class="code-block">
+<span class="comment">// Hook personnalisé useCurrentAdmin</span>
+<span class="keyword">export function</span> useCurrentAdmin() {
+  <span class="comment">// Charge les permissions depuis Supabase</span>
+  <span class="keyword">const</span> [admin, setAdmin] = useState(null);
+  
+  <span class="comment">// Retourne des helpers pour chaque permission</span>
+  <span class="keyword">return</span> {
+    isSuperAdmin: admin?.role === <span class="string">"super_admin"</span>,
+    canAccessGoogleSheet: permissions?.access_google_sheet ?? false,
+    canAddProducts: permissions?.add_products ?? false,
+    canEditProducts: permissions?.edit_products ?? false,
+    canEditImages: permissions?.edit_images ?? false,
+    <span class="comment">// ... 5 autres permissions</span>
+  };
+}
+
+<span class="comment">// Utilisation dans les composants</span>
+{canEditProducts && (
+  &lt;button onClick={handleDelete}&gt;🗑️&lt;/button&gt;
+)}
+        </div>
+
+        <div class="success-box">
+            <h4>✅ Sécurité garantie</h4>
+            <ul>
+                <li><strong>Double vérification</strong> : côté client (UI) ET côté serveur (API)</li>
+                <li><strong>Boutons cachés</strong> : les utilisateurs ne voient que ce qu'ils peuvent faire</li>
+                <li><strong>Sections verrouillées</strong> : formulaires partiellement désactivés selon permissions</li>
+                <li><strong>Protection Super Admin</strong> : impossible de se supprimer soi-même</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🖼️ Système de Gestion d'Images</h2>
+        
+        <p>La gestion des images représente l'un des défis techniques les plus complexes du projet, avec <strong>+5000 images</strong> à indexer et associer correctement.</p>
+
+        <h3>Architecture de stockage</h3>
+        
+        <div class="icon-grid">
+            <div class="icon-card">
+                <div class="icon">☁️</div>
+                <div><strong>Supabase Storage</strong></div>
+                <div style="font-size: 13px; color: #666;">Bucket "guess-images"</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">📁</div>
+                <div><strong>5000+ images</strong></div>
+                <div style="font-size: 13px; color: #666;">Dossier /products/</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">⚡</div>
+                <div><strong>Table d'index</strong></div>
+                <div style="font-size: 13px; color: #666;">Recherche instantanée</div>
+            </div>
+        </div>
+
+        <h3>Convention de nommage</h3>
+        
+        <div class="code-block">
+<span class="comment">// Format standard des fichiers images</span>
+{MODEL_REF}-{COLOR}-{INDEX}-{TIMESTAMP}.{EXT}
+
+<span class="comment">// Exemples réels</span>
+PD760221-BLA-1-1705123456789.jpg      <span class="comment">// GUESS bag, black, image 1</span>
+HBSE-HAZEL-NAT-2-1705123456790.jpg    <span class="comment">// SAM EDELMAN, natural, image 2</span>
+PLTH2N00-390-F-1705123456791.jpg      <span class="comment">// VILEBREQUIN, bleu marine (390)</span>
+        </div>
+
+        <h3>Table d'index SQL</h3>
+        
+        <div class="code-block">
+<span class="keyword">CREATE TABLE</span> image_index (
+  id <span class="keyword">SERIAL PRIMARY KEY</span>,
+  model_ref <span class="keyword">VARCHAR</span>(50) <span class="keyword">NOT NULL</span>,
+  color <span class="keyword">VARCHAR</span>(50) <span class="keyword">NOT NULL</span>,
+  filename <span class="keyword">VARCHAR</span>(255) <span class="keyword">NOT NULL</span>,
+  url <span class="keyword">TEXT NOT NULL</span>,
+  created_at <span class="keyword">TIMESTAMP DEFAULT NOW</span>()
+);
+
+<span class="comment">-- Index pour recherche rapide</span>
+<span class="keyword">CREATE INDEX</span> idx_model_ref <span class="keyword">ON</span> image_index(model_ref);
+<span class="keyword">CREATE INDEX</span> idx_model_color <span class="keyword">ON</span> image_index(model_ref, color);
+        </div>
+
+        <div class="challenge-box">
+            <h4>⚠️ Défi : Correspondance des couleurs</h4>
+            <p>Les couleurs sont exprimées différemment selon les sources :</p>
+            <ul>
+                <li><strong>Google Sheets</strong> : "BLACK 001", "NATURAL COGNAC", "BLEU MARINE"</li>
+                <li><strong>Noms de fichiers</strong> : "BLA", "NAT", "390"</li>
+                <li><strong>VILEBREQUIN</strong> : Codes numériques (390, 010, 500) + noms français</li>
+            </ul>
+        </div>
+
+        <h3>Table de correspondance des couleurs (extrait)</h3>
+        
+        <div class="code-block">
+<span class="keyword">const</span> COLOR_MAP = {
+  <span class="comment">// Noir - 6 variations</span>
+  <span class="string">"BLA"</span>: [<span class="string">"BLACK"</span>, <span class="string">"NOIR"</span>, <span class="string">"שחור"</span>, <span class="string">"BLK"</span>, <span class="string">"BLO"</span>],
+  <span class="string">"BLACK"</span>: [<span class="string">"BLA"</span>, <span class="string">"BLK"</span>],
+  
+  <span class="comment">// Cognac / Marron - 5 variations</span>
+  <span class="string">"COG"</span>: [<span class="string">"COGNAC"</span>, <span class="string">"COGNAC BROWN"</span>, <span class="string">"קוניאק"</span>],
+  <span class="string">"NATURALCOGNAC"</span>: [<span class="string">"NAD"</span>, <span class="string">"NAT"</span>, <span class="string">"COG"</span>],
+  
+  <span class="comment">// VILEBREQUIN spécifique - codes numériques</span>
+  <span class="string">"SANTORIN"</span>: [<span class="string">"BLEU MARINE"</span>, <span class="string">"NAVY"</span>, <span class="string">"390"</span>],
+  <span class="string">"BALLERINE"</span>: [<span class="string">"ROSE"</span>, <span class="string">"PINK"</span>, <span class="string">"420"</span>],
+  <span class="string">"PACIFIC"</span>: [<span class="string">"TURQUOISE"</span>, <span class="string">"CYAN"</span>, <span class="string">"312"</span>],
+  
+  <span class="comment">// ... 70+ autres mappings</span>
+};
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📧 Système de Notifications Email</h2>
+        
+        <p>Chaque nouvelle commande déclenche automatiquement l'envoi d'un email de notification aux responsables.</p>
+
+        <h3>Configuration technique</h3>
+        
+        <table>
+            <tr>
+                <th>Paramètre</th>
+                <th>Valeur</th>
+            </tr>
+            <tr>
+                <td>Service</td>
+                <td>Gmail SMTP via Nodemailer</td>
+            </tr>
+            <tr>
+                <td>Authentification</td>
+                <td>App Password (2FA)</td>
+            </tr>
+            <tr>
+                <td>Format</td>
+                <td>HTML responsive (RTL)</td>
+            </tr>
+            <tr>
+                <td>Déclencheur</td>
+                <td>POST /api/cart/export</td>
+            </tr>
+        </table>
+
+        <h3>Template email HTML</h3>
+        
+        <div class="feature-card">
+            <h4>📦 בקשת הצעת מחיר חדשה #[ID]</h4>
+            <p><strong>פרטי הלקוח:</strong></p>
+            <ul>
+                <li>שם החנות: [nom de la boutique]</li>
+                <li>שם פרטי: [prénom]</li>
+                <li>טלפון: [numéro]</li>
+                <li>שם הסוכן: [vendeur]</li>
+            </ul>
+            <p><strong>פריטים בהזמנה:</strong></p>
+            <ul>
+                <li>• [Produit 1] (SKU) x[qté] - ₪[prix]</li>
+                <li>• [Produit 2] (SKU) x[qté] - ₪[prix]</li>
+            </ul>
+            <p style="background: #e5a00d; color: #000; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold;">
+                סה"כ: ₪[TOTAL]
+            </p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📄 Génération de Documents</h2>
+        
+        <h3>PDF avec support hébreu (RTL)</h3>
+        
+        <div class="challenge-box">
+            <h4>⚠️ Défi technique majeur</h4>
+            <p>Les bibliothèques PDF standard (jsPDF) ne supportent pas nativement l'hébreu et le sens d'écriture RTL. La solution implémentée utilise une <strong>approche hybride</strong> :</p>
+        </div>
+
+        <div class="code-block">
+<span class="comment">// Solution : Rendu HTML → Canvas → PDF</span>
+
+<span class="comment">// 1. Créer le contenu HTML avec styles RTL</span>
+<span class="keyword">const</span> htmlContent = `
+  &lt;div dir="rtl" style="font-family: Arial, sans-serif;"&gt;
+    &lt;h2&gt;בקשת הצעת מחיר&lt;/h2&gt;
+    &lt;table&gt;...&lt;/table&gt;
+  &lt;/div&gt;
+`;
+
+<span class="comment">// 2. Capturer en canvas avec html2canvas</span>
+<span class="keyword">const</span> canvas = <span class="keyword">await</span> html2canvas(element, {
+  scale: 2,  <span class="comment">// Haute résolution</span>
+  useCORS: true
+});
+
+<span class="comment">// 3. Insérer l'image dans le PDF</span>
+<span class="keyword">const</span> pdf = <span class="keyword">new</span> jsPDF();
+pdf.addImage(canvas.toDataURL(), <span class="string">'PNG'</span>, 10, 10);
+pdf.save(<span class="string">'order.pdf'</span>);
+        </div>
+
+        <div class="success-box">
+            <h4>✅ Résultat</h4>
+            <ul>
+                <li><strong>Hébreu parfaitement rendu</strong> (sens RTL respecté)</li>
+                <li><strong>Tableaux formatés</strong> avec bordures et alignement</li>
+                <li><strong>Téléchargement automatique</strong> côté client</li>
+                <li><strong>Compatible mobile</strong> (iOS et Android)</li>
+            </ul>
+        </div>
+
+        <h3>Export Excel dynamique</h3>
+        
+        <div class="code-block">
+<span class="comment">// Génération Excel avec XLSX.js</span>
+
+<span class="keyword">const</span> excelData = [
+  [<span class="string">"פרטי הלקוח"</span>],
+  [<span class="string">"תאריך"</span>, date],
+  [<span class="string">"שם החנות"</span>, order.shop_name],
+  [],
+  [<span class="string">"פרטי המוצרים"</span>],
+  [<span class="string">"שם מוצר"</span>, <span class="string">"קוד פריט"</span>, <span class="string">"כמות"</span>, <span class="string">"מחיר"</span>, <span class="string">"סה\"כ"</span>],
+  ...productRows,
+  [],
+  [<span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">"סה\"כ:"</span>, total]
+];
+
+<span class="keyword">const</span> wb = XLSX.utils.book_new();
+<span class="keyword">const</span> ws = XLSX.utils.aoa_to_sheet(excelData);
+ws[<span class="string">"!cols"</span>] = [{ wch: 30 }, { wch: 20 }, ...];  <span class="comment">// Largeurs colonnes</span>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="section">
+        <h2>🛍️ Fonctionnalités E-Commerce Complètes</h2>
+
+        <h3>Catalogue public</h3>
+        
+        <div class="feature-card">
+            <h4>🔍 Système de filtres avancé</h4>
+            <ul>
+                <li><strong>Par marque</strong> : 5 marques disponibles</li>
+                <li><strong>Par catégorie</strong> : תיק צד, ארנקים, סניקרס, כפכפים, נעלי עקב, מגפיים, etc.</li>
+                <li><strong>Par famille</strong> : pour les sacs (VIVIETTE, NOELLE, SESTRI, etc.)</li>
+                <li><strong>Recherche textuelle</strong> : par nom, référence, code article</li>
+            </ul>
+        </div>
+
+        <div class="feature-card">
+            <h4>📊 Tri intelligent</h4>
+            <ol>
+                <li>Produits <strong>avec images</strong> affichés en premier</li>
+                <li>Puis tri par <strong>stock décroissant</strong> (plus populaires en premier)</li>
+            </ol>
+        </div>
+
+        <div class="feature-card">
+            <h4>🛒 Panier avec Context API</h4>
+            <ul>
+                <li><strong>Ajout/suppression</strong> de produits</li>
+                <li><strong>Modification des quantités</strong> (+ / -)</li>
+                <li><strong>Calcul automatique</strong> du total</li>
+                <li><strong>Badge de notification</strong> sur l'icône panier</li>
+                <li><strong>Persistance</strong> pendant la session</li>
+            </ul>
+        </div>
+
+        <h3>Processus de commande</h3>
+        
+        <div class="timeline">
+            <div class="timeline-item">
+                <h4>1️⃣ Panier</h4>
+                <p>L'utilisateur ajoute des produits et vérifie sa sélection</p>
+            </div>
+            <div class="timeline-item">
+                <h4>2️⃣ Checkout</h4>
+                <p>Formulaire : nom boutique, prénom, téléphone, nom du סוכן</p>
+            </div>
+            <div class="timeline-item">
+                <h4>3️⃣ Envoi</h4>
+                <p>Sauvegarde en base + envoi email automatique aux responsables</p>
+            </div>
+            <div class="timeline-item">
+                <h4>4️⃣ Confirmation</h4>
+                <p>Page de succès avec option de télécharger le PDF</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>👨‍💼 Panel d'Administration Complet</h2>
+
+        <h3>Dashboard avec statistiques</h3>
+        
+        <div class="icon-grid">
+            <div class="icon-card">
+                <div class="icon">📦</div>
+                <div><strong>Total produits</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">1100+</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">🖼️</div>
+                <div><strong>Avec images</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">95%</div>
+            </div>
+            <div class="icon-card">
+                <div class="icon">📋</div>
+                <div><strong>Commandes</strong></div>
+                <div style="font-size: 24px; color: #e5a00d; font-weight: bold;">En temps réel</div>
+            </div>
+        </div>
+
+        <h3>Gestion des commandes avec 3 statuts</h3>
+        
+        <table>
+            <tr>
+                <th>Statut</th>
+                <th>Nom hébreu</th>
+                <th>Actions disponibles</th>
+            </tr>
+            <tr>
+                <td>📋 En attente</td>
+                <td>בקשות בהמתנה</td>
+                <td>Voir, Télécharger, Traiter, Corbeille</td>
+            </tr>
+            <tr>
+                <td>✅ Traité</td>
+                <td>בקשות שטופלו</td>
+                <td>Voir, Télécharger, Corbeille</td>
+            </tr>
+            <tr>
+                <td>🗑️ Corbeille</td>
+                <td>סל המחזור</td>
+                <td>Restaurer, Supprimer définitivement</td>
+            </tr>
+        </table>
+
+        <h3>Gestion des utilisateurs</h3>
+        
+        <div class="feature-card">
+            <h4>👥 Fonctionnalités</h4>
+            <ul>
+                <li><strong>Création</strong> : email + mot de passe + rôle initial</li>
+                <li><strong>Configuration</strong> : page dédiée avec 9 toggles de permissions</li>
+                <li><strong>Suppression</strong> : avec confirmation (sauf Super Admin)</li>
+                <li><strong>Audit</strong> : date de création affichée</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📱 Design Responsive & UX</h2>
+        
+        <p>L'interface est conçue avec une approche <strong>mobile-first</strong> et s'adapte parfaitement à tous les écrans.</p>
+
+        <h3>Breakpoints Tailwind CSS</h3>
+        
+        <table>
+            <tr>
+                <th>Breakpoint</th>
+                <th>Largeur</th>
+                <th>Cible</th>
+            </tr>
+            <tr>
+                <td><code>sm</code></td>
+                <td>640px</td>
+                <td>Grands smartphones, petites tablettes</td>
+            </tr>
+            <tr>
+                <td><code>md</code></td>
+                <td>768px</td>
+                <td>Tablettes</td>
+            </tr>
+            <tr>
+                <td><code>lg</code></td>
+                <td>1024px</td>
+                <td>Desktop</td>
+            </tr>
+            <tr>
+                <td><code>xl</code></td>
+                <td>1280px</td>
+                <td>Grand écran</td>
+            </tr>
+        </table>
+
+        <h3>Adaptations mobiles</h3>
+        
+        <ul>
+            <li><strong>Navigation admin</strong> : sidebar → menu hamburger</li>
+            <li><strong>Tableaux</strong> : scroll horizontal avec colonnes prioritaires</li>
+            <li><strong>Boutons</strong> : zone de tap 44px minimum (recommandation Apple)</li>
+            <li><strong>Formulaires</strong> : inputs pleine largeur, clavier adapté</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Déploiement & Infrastructure</h2>
+        
+        <h3>Vercel - Plateforme de déploiement</h3>
+        
+        <div class="feature-card">
+            <ul>
+                <li><strong>CI/CD automatique</strong> : chaque push sur main déclenche un déploiement</li>
+                <li><strong>Preview deployments</strong> : chaque branche a sa propre URL de test</li>
+                <li><strong>Edge Network</strong> : CDN global pour des temps de chargement optimaux</li>
+                <li><strong>Serverless Functions</strong> : API routes exécutées à la demande</li>
+                <li><strong>Analytics</strong> : métriques de performance intégrées</li>
+            </ul>
+        </div>
+
+        <h3>Variables d'environnement (10+)</h3>
+        
+        <table>
+            <tr>
+                <th>Variable</th>
+                <th>Usage</th>
+            </tr>
+            <tr>
+                <td><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
+                <td>URL de l'instance Supabase</td>
+            </tr>
+            <tr>
+                <td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td>
+                <td>Clé publique Supabase</td>
+            </tr>
+            <tr>
+                <td><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+                <td>Clé admin (opérations serveur)</td>
+            </tr>
+            <tr>
+                <td><code>GOOGLE_SHEET_ID</code></td>
+                <td>ID du Google Sheet source</td>
+            </tr>
+            <tr>
+                <td><code>GOOGLE_API_KEY</code></td>
+                <td>Clé API Google</td>
+            </tr>
+            <tr>
+                <td><code>GMAIL_USER</code></td>
+                <td>Compte Gmail pour les notifications</td>
+            </tr>
+            <tr>
+                <td><code>GMAIL_APP_PASSWORD</code></td>
+                <td>App Password Gmail</td>
+            </tr>
+            <tr>
+                <td><code>DATABASE_URL</code></td>
+                <td>URL de connexion PostgreSQL directe</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>✨ Conclusion</h2>
+        
+        <div class="highlight-box">
+            <h3>Ce projet, développé par Shimon Haliwa, démontre :</h3>
+            <ol>
+                <li><strong>Maîtrise du full-stack moderne</strong> : Next.js 14, TypeScript, React, PostgreSQL</li>
+                <li><strong>Architecture complexe</strong> : Server/Client Components, API REST, authentification</li>
+                <li><strong>Résolution de problèmes avancés</strong> : matching d'images, PDF hébreu, permissions granulaires</li>
+                <li><strong>Intégration multi-services</strong> : Supabase, Google Sheets, Gmail, Vercel</li>
+                <li><strong>UX professionnelle</strong> : responsive design, accessibilité, performance</li>
+                <li><strong>Sécurité enterprise</strong> : RBAC, authentification, validation des données</li>
+            </ol>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">10,000+</div>
+                <div class="stat-label">Lignes de code</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">12+</div>
+                <div class="stat-label">Technologies</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">TypeScript</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">Scalabilité</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p style="font-size: 22px; color: #e5a00d; margin-bottom: 15px;"><strong>🚀 STOCKFLOW B2B</strong></p>
+        <p>Plateforme E-Commerce B2B avec Stock Temps Réel & Gestion des Commandes</p>
+        <p style="color: #aaa; margin-top: 5px;">Développée pour Global Brands Gallery (GBG)</p>
+        <div style="margin-top: 25px; padding: 20px; background: rgba(229, 160, 13, 0.1); border-radius: 10px; display: inline-block;">
+            <p style="font-size: 18px; color: #fff; margin: 0;"><strong>Développeur : Shimon Haliwa</strong></p>
+            <p style="font-size: 16px; color: #e5a00d; margin: 10px 0 0 0;">📞 058-446-9947</p>
+        </div>
+        <p style="margin-top: 25px;">© 2024 - Tous droits réservés</p>
+        <p style="font-size: 12px; margin-top: 10px;">Document généré le : <script>document.write(new Date().toLocaleDateString('fr-FR'))</script></p>
+    </div>
+
+</body>
+</html>
