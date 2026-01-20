@@ -1,8 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
+import { supabase } from "@/lib/supabase";
 
 // Move to trash (change status to "deleted")
 export async function POST(request: NextRequest) {
@@ -16,8 +13,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { error } = await supabase
       .from("cart_exports")
@@ -55,8 +50,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const { error } = await supabase
       .from("cart_exports")
       .delete()
@@ -92,8 +85,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { error } = await supabase
       .from("cart_exports")
