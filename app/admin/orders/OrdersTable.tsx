@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
+import { createClient } from "@supabase/supabase-js";
 
 interface CartItem {
   productName: string;
@@ -28,12 +29,55 @@ interface Order {
   status?: string;
 }
 
+interface Permissions {
+  process_orders: boolean;
+  delete_orders: boolean;
+  export_orders: boolean;
+}
+
 export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; status?: string }) {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [viewedOrders, setViewedOrders] = useState<Set<string>>(new Set());
   const [processingOrder, setProcessingOrder] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<Permissions>({ process_orders: false, delete_orders: false, export_orders: false });
   const router = useRouter();
+
+  // Load user permissions
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const { data } = await supabase
+            .from("admins")
+            .select("role, permissions")
+            .eq("email", user.email)
+            .single();
+          
+          if (data) {
+            // Super admin has all permissions
+            if (data.role === "super_admin") {
+              setPermissions({ process_orders: true, delete_orders: true, export_orders: true });
+            } else if (data.permissions) {
+              setPermissions({
+                process_orders: data.permissions.process_orders ?? false,
+                delete_orders: data.permissions.delete_orders ?? false,
+                export_orders: data.permissions.export_orders ?? false,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading permissions:", err);
+      }
+    }
+    loadPermissions();
+  }, []);
 
   const handleViewDetails = async (orderId: string) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -315,14 +359,16 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                         >
                           {expandedOrder === order.id ? "הסתר" : "פרטים"}
                         </button>
-                        <button
-                          onClick={() => handleDownloadExcel(order)}
-                          className="text-purple-600 hover:text-purple-800"
-                          title="הורד קובץ Excel"
-                        >
-                          הורד
-                        </button>
-                        {isPending && (
+                        {permissions.export_orders && (
+                          <button
+                            onClick={() => handleDownloadExcel(order)}
+                            className="text-purple-600 hover:text-purple-800"
+                            title="הורד קובץ Excel"
+                          >
+                            הורד
+                          </button>
+                        )}
+                        {isPending && permissions.process_orders && (
                           <button
                             onClick={() => handleMarkDone(order.id)}
                             disabled={processingOrder === order.id}
@@ -331,34 +377,36 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                             {processingOrder === order.id ? "..." : "בוצע"}
                           </button>
                         )}
-                        {status === "deleted" ? (
-                          <>
+                        {permissions.delete_orders && (
+                          status === "deleted" ? (
+                            <>
+                              <button
+                                onClick={() => handleRestore(order.id)}
+                                disabled={deletingOrder === order.id}
+                                className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="שחזר בקשה"
+                              >
+                                {deletingOrder === order.id ? "..." : "שחזר"}
+                              </button>
+                              <button
+                                onClick={() => handlePermanentDelete(order.id, order.shop_name)}
+                                disabled={deletingOrder === order.id}
+                                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="מחק לצמיתות"
+                              >
+                                {deletingOrder === order.id ? "..." : "מחק לצמיתות"}
+                              </button>
+                            </>
+                          ) : (
                             <button
-                              onClick={() => handleRestore(order.id)}
-                              disabled={deletingOrder === order.id}
-                              className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="שחזר בקשה"
-                            >
-                              {deletingOrder === order.id ? "..." : "שחזר"}
-                            </button>
-                            <button
-                              onClick={() => handlePermanentDelete(order.id, order.shop_name)}
+                              onClick={() => handleMoveToTrash(order.id)}
                               disabled={deletingOrder === order.id}
                               className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="מחק לצמיתות"
+                              title="העבר לסל"
                             >
-                              {deletingOrder === order.id ? "..." : "מחק לצמיתות"}
+                              {deletingOrder === order.id ? "..." : "🗑️"}
                             </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleMoveToTrash(order.id)}
-                            disabled={deletingOrder === order.id}
-                            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="העבר לסל"
-                          >
-                            {deletingOrder === order.id ? "..." : "🗑️"}
-                          </button>
+                          )
                         )}
                       </div>
                     </td>
