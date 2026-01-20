@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new user in Supabase Auth
+    // Try to create new user in Supabase Auth
+    let userId: string;
+    
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -48,21 +50,32 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 });
+      // User might already exist in Auth but not in admins table
+      // Try to find the user
+      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = users?.users?.find(u => u.email === email);
+      
+      if (existingUser) {
+        userId = existingUser.id;
+        // Update password
+        await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+      } else {
+        return NextResponse.json({ error: authError.message }, { status: 400 });
+      }
+    } else {
+      userId = authData.user!.id;
     }
 
     // Add to admins table as super_admin
     const { error: insertError } = await supabaseAdmin
       .from("admins")
       .insert({
-        user_id: authData.user!.id,
+        user_id: userId,
         email: email,
         role: "super_admin",
       });
 
     if (insertError) {
-      // Cleanup auth user if insert failed
-      await supabaseAdmin.auth.admin.deleteUser(authData.user!.id);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
