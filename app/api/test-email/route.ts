@@ -17,7 +17,7 @@ export async function GET() {
     const { data, error } = await resend.emails.send({
       from: "GUESS Israel <onboarding@resend.dev>",
       to: ["shimonhaliwa@gmail.com"],
-      subject: "🧪 Test - Notification GUESS Israel",
+      subject: `🧪 Test - Notification GUESS Israel - ${new Date().toLocaleTimeString("he-IL")}`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px;">
           <h1>✅ הבדיקה הצליחה!</h1>
