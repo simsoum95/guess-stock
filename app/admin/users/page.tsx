@@ -7,8 +7,15 @@ interface Admin {
   id: string;
   user_id: string;
   email: string;
+  role: "super_admin" | "admin" | "viewer";
   created_at: string;
 }
+
+const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  super_admin: { label: "מנהל ראשי", color: "bg-purple-100 text-purple-700" },
+  admin: { label: "מנהל", color: "bg-blue-100 text-blue-700" },
+  viewer: { label: "צופה בלבד", color: "bg-gray-100 text-gray-700" },
+};
 
 export default function AdminUsersPage() {
   const [admins, setAdmins] = useState<Admin[]>([]);
@@ -19,11 +26,41 @@ export default function AdminUsersPage() {
   
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "viewer">("admin");
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
-  // Load existing admins
+  // Load existing admins and current user
   useEffect(() => {
     loadAdmins();
+    loadCurrentUser();
   }, []);
+
+  async function loadCurrentUser() {
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserEmail(user.email || null);
+        // Get role from admins table
+        const { data: adminData } = await supabase
+          .from("admins")
+          .select("role")
+          .eq("email", user.email)
+          .single();
+        
+        if (adminData) {
+          setCurrentUserRole(adminData.role);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading current user:", err);
+    }
+  }
 
   async function loadAdmins() {
     try {
@@ -56,7 +93,7 @@ export default function AdminUsersPage() {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newEmail, password: newPassword }),
+        body: JSON.stringify({ email: newEmail, password: newPassword, role: newRole }),
       });
 
       const result = await response.json();
@@ -97,6 +134,18 @@ export default function AdminUsersPage() {
     }
   }
 
+  // Only super_admin can access this page
+  if (currentUserRole !== null && currentUserRole !== "super_admin") {
+    return (
+      <div className="p-6 lg:p-8 lg:pt-6">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">🚫 אין לך הרשאה לצפות בדף זה</p>
+          <p className="text-red-500 text-sm mt-1">רק מנהל ראשי יכול לנהל משתמשים</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-8 lg:pt-6">
       <div className="mb-6">
@@ -109,7 +158,7 @@ export default function AdminUsersPage() {
         <h2 className="font-semibold text-slate-900 mb-4">הוספת מנהל חדש</h2>
         
         <form onSubmit={handleCreateAdmin} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 אימייל *
@@ -136,6 +185,19 @@ export default function AdminUsersPage() {
                 placeholder="לפחות 6 תווים"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                תפקיד *
+              </label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as "admin" | "viewer")}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                <option value="admin">מנהל - גישה מלאה</option>
+                <option value="viewer">צופה - קריאה בלבד</option>
+              </select>
             </div>
           </div>
 
@@ -173,25 +235,42 @@ export default function AdminUsersPage() {
           <div className="p-6 text-center text-slate-500">אין מנהלים</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {admins.map((admin) => (
-              <div key={admin.id} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-slate-900">{admin.email}</p>
-                  <p className="text-xs text-slate-500">
-                    נוצר: {new Date(admin.created_at).toLocaleDateString("he-IL")}
-                  </p>
+            {admins.map((admin) => {
+              const roleInfo = ROLE_LABELS[admin.role] || ROLE_LABELS.admin;
+              const isSuperAdmin = admin.role === "super_admin";
+              const canDelete = currentUserRole === "super_admin" && !isSuperAdmin;
+              
+              return (
+                <div key={admin.id} className="px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-900">{admin.email}</p>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${roleInfo.color}`}>
+                          {roleInfo.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        נוצר: {new Date(admin.created_at).toLocaleDateString("he-IL")}
+                      </p>
+                    </div>
+                  </div>
+                  {canDelete ? (
+                    <button
+                      onClick={() => handleDeleteAdmin(admin)}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="מחיקה"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  ) : isSuperAdmin ? (
+                    <span className="text-xs text-purple-600 font-medium">👑 מנהל ראשי</span>
+                  ) : null}
                 </div>
-                <button
-                  onClick={() => handleDeleteAdmin(admin)}
-                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="מחיקה"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

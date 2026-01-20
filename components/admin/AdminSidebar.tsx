@@ -3,8 +3,17 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { useCurrentAdmin } from "@/hooks/useCurrentAdmin";
 
-const navigation = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ReactNode;
+  requiresSuperAdmin?: boolean;
+  requiresAdmin?: boolean;
+};
+
+const allNavigation: NavItem[] = [
   { 
     name: "לוח בקרה", 
     href: "/admin", 
@@ -16,7 +25,8 @@ const navigation = [
   },
   { 
     name: "רשימת מוצרים", 
-    href: "/admin/products", 
+    href: "/admin/products",
+    requiresAdmin: true,
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -25,7 +35,8 @@ const navigation = [
   },
   { 
     name: "הוספת מוצר", 
-    href: "/admin/products/new", 
+    href: "/admin/products/new",
+    requiresAdmin: true,
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -34,7 +45,8 @@ const navigation = [
   },
   { 
     name: "ניהול משתמשים", 
-    href: "/admin/users", 
+    href: "/admin/users",
+    requiresSuperAdmin: true,
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -60,11 +72,19 @@ const GOOGLE_SHEET_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isSuperAdmin, isAdmin, admin } = useCurrentAdmin();
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
     return null;
   }
+
+  // Filter navigation based on role
+  const navigation = allNavigation.filter((item) => {
+    if (item.requiresSuperAdmin && !isSuperAdmin) return false;
+    if (item.requiresAdmin && !isAdmin) return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     const supabase = createClient(
@@ -131,8 +151,22 @@ export function AdminSidebar() {
           </a>
         </nav>
 
-        {/* User & Logout */}
+        {/* User Info & Logout */}
         <div className="p-3 border-t border-slate-100">
+          {admin && (
+            <div className="px-3 py-2 mb-2">
+              <p className="text-xs text-slate-500 truncate">{admin.email}</p>
+              <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                isSuperAdmin 
+                  ? "bg-purple-100 text-purple-700" 
+                  : isAdmin 
+                    ? "bg-blue-100 text-blue-700" 
+                    : "bg-gray-100 text-gray-700"
+              }`}>
+                {isSuperAdmin ? "👑 מנהל ראשי" : isAdmin ? "מנהל" : "צופה"}
+              </span>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"

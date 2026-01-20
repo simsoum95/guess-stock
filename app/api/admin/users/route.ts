@@ -26,7 +26,7 @@ function getSupabaseAdmin(): SupabaseClient {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, role = "admin" } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -38,6 +38,15 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json(
         { success: false, error: "Le mot de passe doit avoir au moins 6 caractères" },
+        { status: 400 }
+      );
+    }
+
+    // Validate role - only admin or viewer can be created via API
+    const validRoles = ["admin", "viewer"];
+    if (!validRoles.includes(role)) {
+      return NextResponse.json(
+        { success: false, error: "Rôle invalide" },
         { status: 400 }
       );
     }
@@ -66,12 +75,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Add user to admins table
+    // 2. Add user to admins table with role
     const { error: adminError } = await supabaseAdmin
       .from("admins")
       .insert({
         user_id: authData.user.id,
         email: email,
+        role: role,
       });
 
     if (adminError) {
@@ -84,11 +94,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Admin created successfully: ${email}`);
+    console.log(`[API] Admin created successfully: ${email} with role: ${role}`);
     return NextResponse.json({ 
       success: true, 
       user_id: authData.user.id,
-      email 
+      email,
+      role
     });
 
   } catch (error) {
