@@ -53,6 +53,28 @@ export default function CheckoutPage() {
       });
 
       if (response.ok) {
+        // Save order details for PDF download on success page
+        const orderDetails = {
+          shopName: formData.shopName,
+          firstName: formData.firstName,
+          phone: formData.phone,
+          salespersonName: formData.salespersonName,
+          items: items.map((item) => ({
+            name: item.product.category === "תיק" && item.product.bagName
+              ? item.product.bagName
+              : item.product.modelRef,
+            detail: item.product.category === "תיק"
+              ? (item.product.itemCode || item.product.modelRef)
+              : item.product.color,
+            quantity: item.quantity,
+            unitPrice: item.product.priceWholesale,
+            totalPrice: item.product.priceWholesale * item.quantity,
+          })),
+          totalPrice: totalPrice,
+          date: new Date().toLocaleDateString("he-IL"),
+        };
+        localStorage.setItem("lastOrder", JSON.stringify(orderDetails));
+        
         clearCart();
         router.push("/cart/success");
       } else {
