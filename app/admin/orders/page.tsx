@@ -13,18 +13,19 @@ async function getOrders() {
 
   if (error) {
     console.error("[admin/orders] Error fetching orders:", error);
-    return { pending: [], done: [] };
+    return { pending: [], done: [], deleted: [] };
   }
 
-  // Separate pending and done orders
+  // Separate pending, done, and deleted orders
   const pending = (data || []).filter(order => !order.status || order.status === "pending");
   const done = (data || []).filter(order => order.status === "done");
+  const deleted = (data || []).filter(order => order.status === "deleted");
 
-  return { pending, done };
+  return { pending, done, deleted };
 }
 
 export default async function AdminOrdersPage() {
-  const { pending, done } = await getOrders();
+  const { pending, done, deleted } = await getOrders();
 
   return (
     <div className="p-6 lg:p-8 lg:pt-8 pt-20">
@@ -42,9 +43,19 @@ export default async function AdminOrdersPage() {
 
       {/* Done Orders */}
       {done.length > 0 && (
-        <div>
+        <div className="mb-8">
           <h2 className="text-xl font-semibold text-slate-900 mb-4">בוצע</h2>
           <OrdersTable orders={done} status="done" />
+        </div>
+      )}
+
+      {/* Trash */}
+      {deleted.length > 0 && (
+        <div className="mt-12 pt-8 border-t border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-500 mb-4 flex items-center gap-2">
+            🗑️ סל המחזור ({deleted.length})
+          </h2>
+          <OrdersTable orders={deleted} status="deleted" />
         </div>
       )}
     </div>

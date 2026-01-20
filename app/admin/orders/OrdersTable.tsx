@@ -79,8 +79,52 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
     }
   };
 
-  const handleDelete = async (orderId: string, shopName: string) => {
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את הבקשה של "${shopName}"?`)) {
+  const handleMoveToTrash = async (orderId: string) => {
+    setDeletingOrder(orderId);
+    try {
+      const response = await fetch("/api/cart/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      if (response.ok) {
+        router.refresh();
+      } else {
+        alert("שגיאה בהעברה לסל");
+      }
+    } catch (error) {
+      console.error("Error moving to trash:", error);
+      alert("שגיאה בהעברה לסל");
+    } finally {
+      setDeletingOrder(null);
+    }
+  };
+
+  const handleRestore = async (orderId: string) => {
+    setDeletingOrder(orderId);
+    try {
+      const response = await fetch("/api/cart/delete", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      if (response.ok) {
+        router.refresh();
+      } else {
+        alert("שגיאה בשחזור הבקשה");
+      }
+    } catch (error) {
+      console.error("Error restoring order:", error);
+      alert("שגיאה בשחזור הבקשה");
+    } finally {
+      setDeletingOrder(null);
+    }
+  };
+
+  const handlePermanentDelete = async (orderId: string, shopName: string) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק לצמיתות את הבקשה של "${shopName}"?`)) {
       return;
     }
     
@@ -287,14 +331,35 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                             {processingOrder === order.id ? "..." : "בוצע"}
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDelete(order.id, order.shop_name)}
-                          disabled={deletingOrder === order.id}
-                          className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="מחק בקשה"
-                        >
-                          {deletingOrder === order.id ? "..." : "מחק"}
-                        </button>
+                        {status === "deleted" ? (
+                          <>
+                            <button
+                              onClick={() => handleRestore(order.id)}
+                              disabled={deletingOrder === order.id}
+                              className="text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="שחזר בקשה"
+                            >
+                              {deletingOrder === order.id ? "..." : "שחזר"}
+                            </button>
+                            <button
+                              onClick={() => handlePermanentDelete(order.id, order.shop_name)}
+                              disabled={deletingOrder === order.id}
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="מחק לצמיתות"
+                            >
+                              {deletingOrder === order.id ? "..." : "מחק לצמיתות"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleMoveToTrash(order.id)}
+                            disabled={deletingOrder === order.id}
+                            className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="העבר לסל"
+                          >
+                            {deletingOrder === order.id ? "..." : "🗑️"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
