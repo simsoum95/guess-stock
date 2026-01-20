@@ -22,6 +22,7 @@ interface Product {
 
 interface Permissions {
   edit_products: boolean;
+  edit_images: boolean;
 }
 
 export function ProductsTable({ products }: { products: Product[] }) {
@@ -31,7 +32,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [stockSort, setStockSort] = useState<"none" | "asc" | "desc">("desc");
   const [deleteModal, setDeleteModal] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [permissions, setPermissions] = useState<Permissions>({ edit_products: false });
+  const [permissions, setPermissions] = useState<Permissions>({ edit_products: false, edit_images: false });
   const router = useRouter();
 
   // Load user permissions
@@ -53,10 +54,11 @@ export function ProductsTable({ products }: { products: Product[] }) {
           if (data) {
             // Super admin has all permissions
             if (data.role === "super_admin") {
-              setPermissions({ edit_products: true });
+              setPermissions({ edit_products: true, edit_images: true });
             } else if (data.permissions) {
               setPermissions({
                 edit_products: data.permissions.edit_products ?? false,
+                edit_images: data.permissions.edit_images ?? false,
               });
             }
           }
@@ -258,7 +260,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      {permissions.edit_products && (
+                      {(permissions.edit_products || permissions.edit_images) && (
                         <Link
                           href={`/admin/products/${encodeURIComponent(product.modelRef)}?color=${encodeURIComponent(product.color)}`}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
