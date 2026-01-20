@@ -72,7 +72,7 @@ const GOOGLE_SHEET_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isSuperAdmin, isAdmin, admin, canAccessGoogleSheet, canAddProducts, canEditProducts, canViewOrders } = useCurrentAdmin();
+  const { isSuperAdmin, isAdmin, admin, canAccessGoogleSheet, canAddProducts, canEditProducts, canViewOrders, canManageUsers } = useCurrentAdmin();
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
