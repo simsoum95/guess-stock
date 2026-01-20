@@ -201,6 +201,8 @@ export default function CartPage() {
           width: "210mm", 
           backgroundColor: "white",
           visibility: "hidden",
+          pointerEvents: "none",
+          zIndex: -1,
         }} 
         dir="rtl"
       >
@@ -348,15 +350,18 @@ export default function CartPage() {
             <span className="text-xl md:text-2xl font-light text-luxury-noir">₪{totalPrice.toFixed(2)}</span>
           </div>
           
-          <div 
-            onClick={() => setShowModal(true)}
-            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none text-center relative z-20"
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowModal(true);
+            }}
+            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none text-center relative z-50"
             style={{ letterSpacing: "0.15em", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}
-            role="button"
-            tabIndex={0}
           >
             שלח בקשה
-          </div>
+          </button>
         </div>
 
         {/* Modal */}
