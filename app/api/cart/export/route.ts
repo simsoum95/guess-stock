@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send email notification (don't block the response)
-    sendNotificationEmail({
+    // Send email notification (must await on serverless)
+    await sendNotificationEmail({
       id: data.id,
       shopName,
       firstName,
