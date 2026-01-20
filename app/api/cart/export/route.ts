@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
 
-// Email addresses to notify
-const NOTIFICATION_EMAILS = [
-  "shiri@globalbg.co.il",
-  "shimon@globalbg.co.il"
-];
+// Email address to notify (Resend free tier only allows sending to account owner)
+const NOTIFICATION_EMAILS = ["shimonhaliwa@gmail.com"];
 
 export async function POST(request: NextRequest) {
   try {
