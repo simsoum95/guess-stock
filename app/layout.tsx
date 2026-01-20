@@ -15,6 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="he" dir="rtl">
+      <head>
+        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+      </head>
       <body className="bg-luxury-white text-luxury-noir font-sans antialiased min-h-screen">
         <CartProvider>
           <Header />
