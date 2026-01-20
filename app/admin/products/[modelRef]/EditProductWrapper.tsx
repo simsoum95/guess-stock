@@ -10,27 +10,25 @@ interface Permissions {
   edit_images: boolean;
 }
 
-interface Product {
-  modelRef: string;
-  productName?: string;
-  bagName?: string;
-  itemCode?: string;
-  brand?: string;
-  color: string;
-  category?: string;
-  subcategory?: string;
-  collection?: string;
-  supplier?: string;
-  gender?: string;
-  priceRetail?: number;
-  priceWholesale?: number;
-  stockQuantity?: number;
-  imageUrl?: string;
-  gallery?: string[];
-}
-
 interface EditProductWrapperProps {
-  product: Product;
+  product: {
+    modelRef: string;
+    productName?: string;
+    bagName?: string;
+    itemCode?: string;
+    brand: string;
+    color: string;
+    category?: string;
+    subcategory: string;
+    collection?: string;
+    supplier?: string;
+    gender?: string;
+    priceRetail: number;
+    priceWholesale: number;
+    stockQuantity: number;
+    imageUrl: string;
+    gallery?: string[];
+  };
 }
 
 export function EditProductWrapper({ product }: EditProductWrapperProps) {
