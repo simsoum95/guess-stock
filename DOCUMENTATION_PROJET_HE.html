@@ -487,6 +487,77 @@
             </tr>
         </table>
 
+        <h3>📁 מבנה הפרויקט</h3>
+        
+        <div class="code-block" style="font-size: 12px; line-height: 1.5; direction: ltr; text-align: left;">
+<span style="color: #e5a00d;">📁 app/</span>
+├── <span style="color: #e5a00d;">📁 admin/</span>                    <span class="comment"># פאנל ניהול מלא</span>
+│   ├── <span style="color: #66d9ef;">📁 login/</span>                <span class="comment"># דף התחברות מאובטח</span>
+│   ├── <span style="color: #66d9ef;">📁 products/</span>             <span class="comment"># ניהול 1100+ מוצרים</span>
+│   │   ├── <span style="color: #a6e22e;">📁 [modelRef]/</span>       <span class="comment"># עריכת מוצר בודד</span>
+│   │   ├── <span style="color: #a6e22e;">📁 new/</span>              <span class="comment"># יצירת מוצר חדש</span>
+│   │   ├── ProductsHeader.tsx   <span class="comment"># כותרת עם הרשאות</span>
+│   │   └── ProductsTable.tsx    <span class="comment"># טבלת מוצרים</span>
+│   ├── <span style="color: #66d9ef;">📁 orders/</span>               <span class="comment"># ניהול הזמנות</span>
+│   │   ├── OrdersTable.tsx      <span class="comment"># טבלת הזמנות</span>
+│   │   └── page.tsx             <span class="comment"># דף ראשי</span>
+│   ├── <span style="color: #66d9ef;">📁 users/</span>                <span class="comment"># ניהול משתמשים</span>
+│   │   ├── <span style="color: #a6e22e;">📁 [userId]/</span>         <span class="comment"># הגדרת הרשאות</span>
+│   │   └── page.tsx             <span class="comment"># רשימת משתמשים</span>
+│   ├── layout.tsx               <span class="comment"># Layout admin עם סרגל צד</span>
+│   └── page.tsx                 <span class="comment"># דשבורד</span>
+│
+├── <span style="color: #e5a00d;">📁 api/</span>                      <span class="comment"># 15+ נקודות קצה API REST</span>
+│   ├── <span style="color: #66d9ef;">📁 admin/</span>
+│   │   ├── <span style="color: #a6e22e;">📁 products/</span>         <span class="comment"># CRUD מוצרים</span>
+│   │   ├── <span style="color: #a6e22e;">📁 users/</span>            <span class="comment"># CRUD משתמשים</span>
+│   │   └── <span style="color: #a6e22e;">📁 setup-permissions/</span>
+│   ├── <span style="color: #66d9ef;">📁 cart/</span>
+│   │   ├── <span style="color: #a6e22e;">📁 export/</span>           <span class="comment"># שליחת הזמנה + מייל</span>
+│   │   ├── <span style="color: #a6e22e;">📁 delete/</span>           <span class="comment"># מחיקה/סל</span>
+│   │   ├── <span style="color: #a6e22e;">📁 mark-done/</span>        <span class="comment"># סימון כטופל</span>
+│   │   └── <span style="color: #a6e22e;">📁 mark-viewed/</span>      <span class="comment"># סימון כנקרא</span>
+│
+├── <span style="color: #e5a00d;">📁 cart/</span>                     <span class="comment"># תהליך רכישה</span>
+│   ├── page.tsx                 <span class="comment"># דף עגלה</span>
+│   ├── <span style="color: #66d9ef;">📁 checkout/</span>             <span class="comment"># טופס הזמנה</span>
+│   └── <span style="color: #66d9ef;">📁 success/</span>              <span class="comment"># אישור + PDF</span>
+│
+├── <span style="color: #e5a00d;">📁 products/</span>                 <span class="comment"># קטלוג ציבורי</span>
+│   ├── page.tsx                 <span class="comment"># דף קטלוג</span>
+│   └── ProductsClient.tsx       <span class="comment"># קומפוננטת לקוח אינטראקטיבית</span>
+│
+├── globals.css                  <span class="comment"># סגנונות גלובליים</span>
+├── layout.tsx                   <span class="comment"># Layout ראשי</span>
+└── page.tsx                     <span class="comment"># דף הבית</span>
+
+<span style="color: #e5a00d;">📁 components/</span>
+├── <span style="color: #66d9ef;">📁 admin/</span>
+│   ├── AdminSidebar.tsx         <span class="comment"># ניווט אדמין דינמי</span>
+│   ├── AutoLogout.tsx           <span class="comment"># התנתקות אוטומטית</span>
+│   ├── ImageUploader.tsx        <span class="comment"># העלאת תמונות drag & drop</span>
+│   ├── ProductForm.tsx          <span class="comment"># טופס מוצר מלא</span>
+│   └── ProductsTable.tsx        <span class="comment"># טבלת מוצרים אדמין</span>
+├── BrandLogo.tsx                <span class="comment"># לוגואים של מותגים</span>
+├── CartIcon.tsx                 <span class="comment"># אייקון עגלה עם תג</span>
+└── Header.tsx                   <span class="comment"># כותרת ציבורית</span>
+
+<span style="color: #e5a00d;">📁 hooks/</span>
+└── useCurrentAdmin.ts           <span class="comment"># Hook הרשאות משתמש</span>
+
+<span style="color: #e5a00d;">📁 lib/</span>
+├── auth.ts                      <span class="comment"># כלי אימות</span>
+├── fetchGoogleSheet.ts          <span class="comment"># קריאת Google Sheets</span>
+├── fetchProducts.ts             <span class="comment"># שליפת מוצרים + תמונות</span>
+├── googleSheetsWrite.ts         <span class="comment"># כתיבה ל-Google Sheets</span>
+├── supabase.ts                  <span class="comment"># לקוח Supabase</span>
+├── supabase-server.ts           <span class="comment"># לקוח Supabase שרת</span>
+└── types.ts                     <span class="comment"># טיפוסי TypeScript</span>
+
+<span style="color: #e5a00d;">📁 contexts/</span>
+└── CartContext.tsx              <span class="comment"># ניהול מצב עגלה</span>
+        </div>
+
         <div class="complexity-box">
             <h4>🧠 מורכבות ארכיטקטורית</h4>
             <p>הארכיטקטורה משלבת <strong>Server Components</strong> ו-<strong>Client Components</strong> באופן אופטימלי:</p>

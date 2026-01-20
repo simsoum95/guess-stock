@@ -516,6 +516,77 @@
             </tr>
         </table>
 
+        <h3>📁 Structure du Projet</h3>
+        
+        <div class="code-block" style="font-size: 12px; line-height: 1.5;">
+<span style="color: #e5a00d;">📁 app/</span>
+├── <span style="color: #e5a00d;">📁 admin/</span>                    <span class="comment"># Panel d'administration complet</span>
+│   ├── <span style="color: #66d9ef;">📁 login/</span>                <span class="comment"># Page de connexion sécurisée</span>
+│   ├── <span style="color: #66d9ef;">📁 products/</span>             <span class="comment"># Gestion des 1100+ produits</span>
+│   │   ├── <span style="color: #a6e22e;">📁 [modelRef]/</span>       <span class="comment"># Édition de produit individuel</span>
+│   │   ├── <span style="color: #a6e22e;">📁 new/</span>              <span class="comment"># Création de nouveau produit</span>
+│   │   ├── ProductsHeader.tsx   <span class="comment"># En-tête avec permissions</span>
+│   │   └── ProductsTable.tsx    <span class="comment"># Tableau des produits</span>
+│   ├── <span style="color: #66d9ef;">📁 orders/</span>               <span class="comment"># Gestion des commandes</span>
+│   │   ├── OrdersTable.tsx      <span class="comment"># Tableau des commandes</span>
+│   │   └── page.tsx             <span class="comment"># Page principale</span>
+│   ├── <span style="color: #66d9ef;">📁 users/</span>                <span class="comment"># Gestion des utilisateurs</span>
+│   │   ├── <span style="color: #a6e22e;">📁 [userId]/</span>         <span class="comment"># Configuration permissions</span>
+│   │   └── page.tsx             <span class="comment"># Liste des utilisateurs</span>
+│   ├── layout.tsx               <span class="comment"># Layout admin avec sidebar</span>
+│   └── page.tsx                 <span class="comment"># Dashboard</span>
+│
+├── <span style="color: #e5a00d;">📁 api/</span>                      <span class="comment"># 15+ endpoints API REST</span>
+│   ├── <span style="color: #66d9ef;">📁 admin/</span>
+│   │   ├── <span style="color: #a6e22e;">📁 products/</span>         <span class="comment"># CRUD produits</span>
+│   │   ├── <span style="color: #a6e22e;">📁 users/</span>            <span class="comment"># CRUD utilisateurs</span>
+│   │   └── <span style="color: #a6e22e;">📁 setup-permissions/</span>
+│   ├── <span style="color: #66d9ef;">📁 cart/</span>
+│   │   ├── <span style="color: #a6e22e;">📁 export/</span>           <span class="comment"># Envoi commande + email</span>
+│   │   ├── <span style="color: #a6e22e;">📁 delete/</span>           <span class="comment"># Suppression/corbeille</span>
+│   │   ├── <span style="color: #a6e22e;">📁 mark-done/</span>        <span class="comment"># Marquer traité</span>
+│   │   └── <span style="color: #a6e22e;">📁 mark-viewed/</span>      <span class="comment"># Marquer comme lu</span>
+│
+├── <span style="color: #e5a00d;">📁 cart/</span>                     <span class="comment"># Processus d'achat</span>
+│   ├── page.tsx                 <span class="comment"># Page panier</span>
+│   ├── <span style="color: #66d9ef;">📁 checkout/</span>             <span class="comment"># Formulaire de commande</span>
+│   └── <span style="color: #66d9ef;">📁 success/</span>              <span class="comment"># Confirmation + PDF</span>
+│
+├── <span style="color: #e5a00d;">📁 products/</span>                 <span class="comment"># Catalogue public</span>
+│   ├── page.tsx                 <span class="comment"># Page catalogue</span>
+│   └── ProductsClient.tsx       <span class="comment"># Composant client interactif</span>
+│
+├── globals.css                  <span class="comment"># Styles globaux</span>
+├── layout.tsx                   <span class="comment"># Layout racine</span>
+└── page.tsx                     <span class="comment"># Page d'accueil</span>
+
+<span style="color: #e5a00d;">📁 components/</span>
+├── <span style="color: #66d9ef;">📁 admin/</span>
+│   ├── AdminSidebar.tsx         <span class="comment"># Navigation admin dynamique</span>
+│   ├── AutoLogout.tsx           <span class="comment"># Déconnexion automatique</span>
+│   ├── ImageUploader.tsx        <span class="comment"># Upload images drag & drop</span>
+│   ├── ProductForm.tsx          <span class="comment"># Formulaire produit complet</span>
+│   └── ProductsTable.tsx        <span class="comment"># Tableau produits admin</span>
+├── BrandLogo.tsx                <span class="comment"># Logos des marques</span>
+├── CartIcon.tsx                 <span class="comment"># Icône panier avec badge</span>
+└── Header.tsx                   <span class="comment"># En-tête public</span>
+
+<span style="color: #e5a00d;">📁 hooks/</span>
+└── useCurrentAdmin.ts           <span class="comment"># Hook permissions utilisateur</span>
+
+<span style="color: #e5a00d;">📁 lib/</span>
+├── auth.ts                      <span class="comment"># Utilitaires authentification</span>
+├── fetchGoogleSheet.ts          <span class="comment"># Lecture Google Sheets</span>
+├── fetchProducts.ts             <span class="comment"># Récupération produits + images</span>
+├── googleSheetsWrite.ts         <span class="comment"># Écriture Google Sheets</span>
+├── supabase.ts                  <span class="comment"># Client Supabase</span>
+├── supabase-server.ts           <span class="comment"># Client Supabase serveur</span>
+└── types.ts                     <span class="comment"># Types TypeScript</span>
+
+<span style="color: #e5a00d;">📁 contexts/</span>
+└── CartContext.tsx              <span class="comment"># Gestion état panier</span>
+        </div>
+
         <div class="complexity-box">
             <h4>🧠 Complexité architecturale</h4>
             <p>L'architecture combine <strong>Server Components</strong> et <strong>Client Components</strong> de manière optimale :</p>
