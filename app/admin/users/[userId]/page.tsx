@@ -11,9 +11,21 @@ interface AdminUser {
   user_id: string;
   email: string;
   role: string;
-  permissions: Permissions;
+  permissions: Permissions | null;
   created_at: string;
 }
+
+const DEFAULT_PERMISSIONS: Permissions = {
+  access_google_sheet: false,
+  add_products: false,
+  edit_products: false,
+  edit_images: false,
+  view_orders: true,
+  process_orders: false,
+  delete_orders: false,
+  export_orders: false,
+  manage_users: false,
+};
 
 interface Permissions {
   access_google_sheet: boolean;
@@ -110,7 +122,11 @@ export default function UserDetailsPage({ params }: { params: Promise<{ userId: 
         .single();
 
       if (error) throw error;
-      setUser(data);
+      // Initialize permissions with defaults if null
+      setUser({
+        ...data,
+        permissions: data.permissions || DEFAULT_PERMISSIONS
+      });
     } catch (err) {
       console.error("Error loading user:", err);
       setError("שגיאה בטעינת המשתמש");
@@ -154,11 +170,13 @@ export default function UserDetailsPage({ params }: { params: Promise<{ userId: 
     // Don't allow changing manage_users for non-super_admin
     if (key === "manage_users" && user.role !== "super_admin") return;
     
+    const currentPermissions = user.permissions || DEFAULT_PERMISSIONS;
+    
     setUser({
       ...user,
       permissions: {
-        ...user.permissions,
-        [key]: !user.permissions[key],
+        ...currentPermissions,
+        [key]: !currentPermissions[key],
       },
     });
   }
