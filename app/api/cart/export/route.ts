@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 // Email addresses to notify
 const NOTIFICATION_EMAILS = [
   "shiri@globalbg.co.il",
@@ -56,6 +54,7 @@ export async function POST(request: NextRequest) {
     try {
       const totalItems = items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0);
       
+      const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: "GUESS Israel <notifications@resend.dev>",
         to: NOTIFICATION_EMAILS,
