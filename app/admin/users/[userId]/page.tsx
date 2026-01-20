@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useCurrentAdmin } from "@/hooks/useCurrentAdmin";
+import { supabase } from "@/lib/supabase";
 
 interface AdminUser {
   id: string;
@@ -96,9 +95,9 @@ const ROLE_OPTIONS = [
 export default function UserDetailsPage() {
   const params = useParams();
   const userId = params.userId as string;
-  const { isSuperAdmin, loading: authLoading } = useCurrentAdmin();
   
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -106,22 +105,36 @@ export default function UserDetailsPage() {
 
   useEffect(() => {
     loadUser();
+    loadCurrentUser();
   }, [userId]);
+
+  async function loadCurrentUser() {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser?.email) {
+        const { data } = await supabase
+          .from("admins")
+          .select("role")
+          .eq("email", authUser.email)
+          .single();
+        if (data) {
+          setCurrentUserRole(data.role);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading current user:", err);
+    }
+  }
 
   async function loadUser() {
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("admins")
         .select("*")
         .eq("user_id", userId)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       // Initialize permissions with defaults if null
       setUser({
         ...data,
@@ -186,17 +199,10 @@ export default function UserDetailsPage() {
     setUser({ ...user, role: newRole });
   }
 
-  // Wait for auth to load
-  if (authLoading) {
-    return (
-      <div className="p-6 lg:p-8 lg:pt-6">
-        <div className="text-center text-slate-500">טוען...</div>
-      </div>
-    );
-  }
-
   // Only super_admin can access this page
-  if (!isSuperAdmin) {
+  const isSuperAdmin = currentUserRole === "super_admin";
+  
+  if (currentUserRole !== null && !isSuperAdmin) {
     return (
       <div className="p-6 lg:p-8 lg:pt-6">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
