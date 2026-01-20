@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
 interface Product {
   modelRef: string;
@@ -19,6 +20,10 @@ interface Product {
   imageUrl: string;
 }
 
+interface Permissions {
+  edit_products: boolean;
+}
+
 export function ProductsTable({ products }: { products: Product[] }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -26,7 +31,42 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [stockSort, setStockSort] = useState<"none" | "asc" | "desc">("desc");
   const [deleteModal, setDeleteModal] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [permissions, setPermissions] = useState<Permissions>({ edit_products: false });
   const router = useRouter();
+
+  // Load user permissions
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const { data } = await supabase
+            .from("admins")
+            .select("role, permissions")
+            .eq("email", user.email)
+            .single();
+          
+          if (data) {
+            // Super admin has all permissions
+            if (data.role === "super_admin") {
+              setPermissions({ edit_products: true });
+            } else if (data.permissions) {
+              setPermissions({
+                edit_products: data.permissions.edit_products ?? false,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading permissions:", err);
+      }
+    }
+    loadPermissions();
+  }, []);
 
   const categories = useMemo(() => {
     return Array.from(new Set(products.map(p => p.subcategory).filter(Boolean)));
@@ -218,24 +258,28 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <Link
-                        href={`/admin/products/${encodeURIComponent(product.modelRef)}?color=${encodeURIComponent(product.color)}`}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="עריכה"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </Link>
-                      <button
-                        onClick={() => setDeleteModal(product)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="מחיקה"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {permissions.edit_products && (
+                        <Link
+                          href={`/admin/products/${encodeURIComponent(product.modelRef)}?color=${encodeURIComponent(product.color)}`}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="עריכה"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Link>
+                      )}
+                      {permissions.edit_products && (
+                        <button
+                          onClick={() => setDeleteModal(product)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="מחיקה"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
