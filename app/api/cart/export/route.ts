@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { shopName, firstName, phone, items, totalPrice } = body;
+    const { shopName, firstName, phone, salespersonName, items, totalPrice } = body;
 
     if (!shopName || !firstName || !items || items.length === 0) {
       return NextResponse.json(
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
         shop_name: shopName,
         first_name: firstName,
         phone: phone || null,
+        salesperson_name: salespersonName || null,
         items: items,
         total_price: totalPrice,
         ip_address: ipAddress,

@@ -19,6 +19,7 @@ interface Order {
   shop_name: string;
   first_name: string;
   phone: string | null;
+  salesperson_name: string | null;
   items: CartItem[];
   total_price: number;
   created_at: string;
@@ -95,6 +96,7 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
         ["שם החנות", order.shop_name],
         ["שם פרטי", order.first_name],
         ["טלפון", order.phone || ""],
+        ["שם הסוכן", order.salesperson_name || "לא צוין"],
         [],
         ["פרטי המוצרים"],
         ["שם מוצר", "קוד פריט", "כמות", "מחיר יחידה (₪)", "סה\"כ (₪)"],
@@ -178,6 +180,9 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                 טלפון
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
+                סוכן
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
                 פריטים
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
@@ -222,6 +227,9 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                       {order.phone || "-"}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                      {order.salesperson_name || "-"}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                       {totalItems}
                     </td>
@@ -257,7 +265,7 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                   </tr>
                   {expandedOrder === order.id && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-4 bg-slate-50">
+                      <td colSpan={8} className="px-6 py-4 bg-slate-50">
                         <div className="space-y-2">
                           <h4 className="font-medium text-slate-900 mb-3">פרטי המוצרים:</h4>
                           {order.items.map((item, index) => {

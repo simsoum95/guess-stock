@@ -13,6 +13,7 @@ export default function CartPage() {
     shopName: "",
     firstName: "",
     phone: "",
+    salespersonName: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -136,6 +137,7 @@ export default function CartPage() {
           shopName: formData.shopName,
           firstName: formData.firstName,
           phone: formData.phone || null,
+          salespersonName: formData.salespersonName || null,
           items: items.map((item) => ({
             productId: item.product.id,
             productName: item.product.category === "תיק" && item.product.bagName
@@ -155,7 +157,7 @@ export default function CartPage() {
       if (response.ok) {
         clearCart();
         setShowModal(false);
-        setFormData({ shopName: "", firstName: "", phone: "" });
+        setFormData({ shopName: "", firstName: "", phone: "", salespersonName: "" });
         alert("הבקשה נשלחה בהצלחה! היועץ שלך יחזור אליך בהקדם.");
       } else {
         console.error("Error saving cart export");
@@ -171,8 +173,8 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <main className="min-h-screen bg-luxury-white">
-        <section className="mx-auto max-w-[1200px] px-16 py-20">
-          <div className="text-center py-40">
+        <section className="mx-auto max-w-[1200px] px-4 sm:px-8 md:px-16 py-10 md:py-20">
+          <div className="text-center py-20 md:py-40">
             <h1 className="text-2xl font-light text-luxury-noir mb-4">העגלה שלך ריקה</h1>
             <Link
               href="/products"
@@ -219,6 +221,7 @@ export default function CartPage() {
             <p className="text-base mb-2"><strong>שם החנות:</strong> {formData.shopName}</p>
             <p className="text-base mb-2"><strong>שם פרטי:</strong> {formData.firstName}</p>
             {formData.phone && <p className="text-base mb-2"><strong>טלפון:</strong> {formData.phone}</p>}
+            {formData.salespersonName && <p className="text-base mb-2"><strong>שם הסוכן:</strong> {formData.salespersonName}</p>}
             <p className="text-base mb-4"><strong>תאריך:</strong> {new Date().toLocaleDateString("he-IL")}</p>
           </div>
 
@@ -270,10 +273,10 @@ export default function CartPage() {
         </div>
       </div>
 
-      <section className="mx-auto max-w-[1200px] px-16 py-20">
-        <h1 className="text-3xl font-light text-luxury-noir mb-8">העגלה שלי</h1>
+      <section className="mx-auto max-w-[1200px] px-4 sm:px-8 md:px-16 py-6 md:py-20">
+        <h1 className="text-2xl md:text-3xl font-light text-luxury-noir mb-6 md:mb-8">העגלה שלי</h1>
 
-        <div className="space-y-6 mb-8">
+        <div className="space-y-4 md:space-y-6 mb-6 md:mb-8">
           {items.map((item) => {
             const isBag = item.product.category === "תיק";
             const displayName = isBag && item.product.bagName
@@ -286,9 +289,9 @@ export default function CartPage() {
             return (
               <div
                 key={item.product.id}
-                className="bg-white border border-luxury-grey/20 rounded-lg p-6 flex items-center gap-6"
+                className="bg-white border border-luxury-grey/20 rounded-lg p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6"
               >
-                <div className="w-24 h-24 bg-neutral-50 rounded overflow-hidden flex-shrink-0">
+                <div className="w-20 h-20 md:w-24 md:h-24 bg-neutral-50 rounded overflow-hidden flex-shrink-0">
                   <img
                     src={item.product.imageUrl}
                     alt={displayName}
@@ -296,15 +299,15 @@ export default function CartPage() {
                   />
                 </div>
                 
-                <div className="flex-1">
-                  <h3 className="text-base font-bold text-luxury-noir mb-1">{displayName}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm md:text-base font-bold text-luxury-noir mb-1 truncate">{displayName}</h3>
                   {displayDetail && (
-                    <p className="text-xs text-luxury-grey">{displayDetail}</p>
+                    <p className="text-xs text-luxury-grey truncate">{displayDetail}</p>
                   )}
                   <p className="text-sm text-luxury-noir mt-2">₪{item.product.priceWholesale.toFixed(2)}</p>
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 w-full sm:w-auto">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
@@ -312,7 +315,7 @@ export default function CartPage() {
                     >
                       -
                     </button>
-                    <span className="w-12 text-center">{item.quantity}</span>
+                    <span className="w-8 md:w-12 text-center">{item.quantity}</span>
                     <button
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                       className="w-8 h-8 flex items-center justify-center border border-luxury-grey/30 hover:border-luxury-noir transition-colors"
@@ -321,13 +324,13 @@ export default function CartPage() {
                     </button>
                   </div>
                   
-                  <p className="text-base font-light text-luxury-noir w-24 text-left">
+                  <p className="text-sm md:text-base font-light text-luxury-noir flex-1 sm:flex-none sm:w-24 text-left">
                     ₪{(item.product.priceWholesale * item.quantity).toFixed(2)}
                   </p>
                   
                   <button
                     onClick={() => removeFromCart(item.product.id)}
-                    className="text-luxury-grey hover:text-luxury-noir transition-colors"
+                    className="text-luxury-grey hover:text-luxury-noir transition-colors p-2"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -339,15 +342,15 @@ export default function CartPage() {
           })}
         </div>
 
-        <div className="border-t border-luxury-grey/20 pt-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <span className="text-lg font-light text-luxury-noir">סה"כ כולל:</span>
-            <span className="text-2xl font-light text-luxury-noir">₪{totalPrice.toFixed(2)}</span>
+        <div className="border-t border-luxury-grey/20 pt-4 md:pt-6 mb-6 md:mb-8">
+          <div className="flex justify-between items-center mb-4 md:mb-6">
+            <span className="text-base md:text-lg font-light text-luxury-noir">סה"כ כולל:</span>
+            <span className="text-xl md:text-2xl font-light text-luxury-noir">₪{totalPrice.toFixed(2)}</span>
           </div>
           
           <button
             onClick={() => setShowModal(true)}
-            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300"
+            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey"
             style={{ letterSpacing: "0.15em" }}
           >
             שלח בקשה
@@ -356,11 +359,11 @@ export default function CartPage() {
 
         {/* Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full">
-              <h2 className="text-xl font-light text-luxury-noir mb-6">פרטי יצירת קשר</h2>
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-lg p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-light text-luxury-noir mb-4 sm:mb-6">פרטי יצירת קשר</h2>
               
-              <p className="text-sm text-luxury-grey mb-6">
+              <p className="text-sm text-luxury-grey mb-4 sm:mb-6">
                 הבקשה תועבר ליועץ המכירות שלך שיחזור אליך בהקדם
               </p>
               
@@ -373,7 +376,7 @@ export default function CartPage() {
                     type="text"
                     value={formData.shopName}
                     onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
-                    className="w-full px-4 py-2 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none"
+                    className="w-full px-4 py-3 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none text-base"
                     required
                   />
                 </div>
@@ -386,7 +389,7 @@ export default function CartPage() {
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-4 py-2 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none"
+                    className="w-full px-4 py-3 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none text-base"
                     required
                   />
                 </div>
@@ -399,15 +402,28 @@ export default function CartPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none"
+                    className="w-full px-4 py-3 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none text-base"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-light text-luxury-noir mb-2">
+                    אם אתם מכירים את שם הסוכן שלכם, אנא ציינו כאן
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.salespersonName}
+                    onChange={(e) => setFormData({ ...formData, salespersonName: e.target.value })}
+                    className="w-full px-4 py-3 border border-luxury-grey/30 focus:border-luxury-noir focus:outline-none text-base"
+                    placeholder="שם הסוכן (אופציונלי)"
                   />
                 </div>
               </div>
               
-              <div className="flex gap-4">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pb-4 sm:pb-0">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 px-4 border border-luxury-grey/30 text-luxury-noir hover:bg-luxury-grey/10 transition-colors"
+                  className="flex-1 py-4 sm:py-3 px-4 border border-luxury-grey/30 text-luxury-noir hover:bg-luxury-grey/10 active:bg-luxury-grey/20 transition-colors text-base"
                   disabled={isSubmitting}
                 >
                   ביטול
@@ -415,7 +431,7 @@ export default function CartPage() {
                 <button
                   onClick={handleExport}
                   disabled={isSubmitting || !formData.shopName.trim() || !formData.firstName.trim()}
-                  className="flex-1 py-3 px-4 bg-luxury-noir text-luxury-white hover:bg-luxury-grey transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-4 sm:py-3 px-4 bg-luxury-noir text-luxury-white hover:bg-luxury-grey active:bg-luxury-grey transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
                 >
                   {isSubmitting ? "שולח..." : "הורד PDF ושלח"}
                 </button>
