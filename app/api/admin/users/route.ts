@@ -51,6 +51,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Default permissions based on role
+    const defaultPermissions = role === "admin" ? {
+      access_google_sheet: true,
+      add_products: true,
+      edit_products: true,
+      edit_images: true,
+      view_orders: true,
+      process_orders: true,
+      delete_orders: true,
+      export_orders: true,
+      manage_users: false,
+    } : {
+      access_google_sheet: false,
+      add_products: false,
+      edit_products: false,
+      edit_images: false,
+      view_orders: true,
+      process_orders: false,
+      delete_orders: false,
+      export_orders: false,
+      manage_users: false,
+    };
+
     const supabaseAdmin = getSupabaseAdmin();
 
     // 1. Create user in Supabase Auth
@@ -75,13 +98,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Add user to admins table with role
+    // 2. Add user to admins table with role and default permissions
     const { error: adminError } = await supabaseAdmin
       .from("admins")
       .insert({
         user_id: authData.user.id,
         email: email,
         role: role,
+        permissions: defaultPermissions,
       });
 
     if (adminError) {

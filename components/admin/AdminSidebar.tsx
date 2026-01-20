@@ -9,8 +9,7 @@ type NavItem = {
   name: string;
   href: string;
   icon: React.ReactNode;
-  requiresSuperAdmin?: boolean;
-  requiresAdmin?: boolean;
+  permission?: string; // Permission key to check
 };
 
 const allNavigation: NavItem[] = [
@@ -26,7 +25,7 @@ const allNavigation: NavItem[] = [
   { 
     name: "רשימת מוצרים", 
     href: "/admin/products",
-    requiresAdmin: true,
+    permission: "edit_products",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -36,7 +35,7 @@ const allNavigation: NavItem[] = [
   { 
     name: "הוספת מוצר", 
     href: "/admin/products/new",
-    requiresAdmin: true,
+    permission: "add_products",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -46,7 +45,7 @@ const allNavigation: NavItem[] = [
   { 
     name: "ניהול משתמשים", 
     href: "/admin/users",
-    requiresSuperAdmin: true,
+    permission: "manage_users",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -55,7 +54,8 @@ const allNavigation: NavItem[] = [
   },
   { 
     name: "בקשות הצעת מחיר", 
-    href: "/admin/orders", 
+    href: "/admin/orders",
+    permission: "view_orders",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -72,18 +72,29 @@ const GOOGLE_SHEET_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isSuperAdmin, isAdmin, admin } = useCurrentAdmin();
+  const { isSuperAdmin, isAdmin, admin, canAccessGoogleSheet, canAddProducts, canEditProducts, canViewOrders } = useCurrentAdmin();
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
     return null;
   }
 
-  // Filter navigation based on role
+  // Permission check helper
+  const hasPermission = (permKey: string): boolean => {
+    if (isSuperAdmin) return true;
+    const permMap: Record<string, boolean> = {
+      edit_products: canEditProducts,
+      add_products: canAddProducts,
+      manage_users: canManageUsers,
+      view_orders: canViewOrders,
+    };
+    return permMap[permKey] ?? true;
+  };
+
+  // Filter navigation based on permissions
   const navigation = allNavigation.filter((item) => {
-    if (item.requiresSuperAdmin && !isSuperAdmin) return false;
-    if (item.requiresAdmin && !isAdmin) return false;
-    return true;
+    if (!item.permission) return true;
+    return hasPermission(item.permission);
   });
 
   const handleLogout = async () => {
@@ -136,19 +147,21 @@ export function AdminSidebar() {
             );
           })}
           
-          {/* Google Sheets Button */}
-          <a
-            href={GOOGLE_SHEET_URL || "https://docs.google.com/spreadsheets/d/18-jbOyUgsPAeHkn4ZQ2cioIENugZcYoGRwl_Kh9_uhw/edit"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-600 hover:bg-green-50 transition-all"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
-              <path d="M8 15h8v2H8zm0-4h8v2H8z"/>
-            </svg>
-            Google Sheets
-          </a>
+          {/* Google Sheets Button - only if has permission */}
+          {canAccessGoogleSheet && (
+            <a
+              href={GOOGLE_SHEET_URL || "https://docs.google.com/spreadsheets/d/18-jbOyUgsPAeHkn4ZQ2cioIENugZcYoGRwl_Kh9_uhw/edit"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-600 hover:bg-green-50 transition-all"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                <path d="M8 15h8v2H8zm0-4h8v2H8z"/>
+              </svg>
+              Google Sheets
+            </a>
+          )}
         </nav>
 
         {/* User Info & Logout */}
