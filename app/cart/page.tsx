@@ -349,9 +349,11 @@ export default function CartPage() {
           </div>
           
           <button
+            type="button"
             onClick={() => setShowModal(true)}
-            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey"
-            style={{ letterSpacing: "0.15em" }}
+            onTouchEnd={() => setShowModal(true)}
+            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none"
+            style={{ letterSpacing: "0.15em", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}
           >
             שלח בקשה
           </button>
