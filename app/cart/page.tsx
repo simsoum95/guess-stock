@@ -342,21 +342,21 @@ export default function CartPage() {
           })}
         </div>
 
-        <div className="border-t border-luxury-grey/20 pt-4 md:pt-6 mb-6 md:mb-8">
+        <div className="border-t border-luxury-grey/20 pt-4 md:pt-6 mb-6 md:mb-8 relative z-10">
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <span className="text-base md:text-lg font-light text-luxury-noir">סה"כ כולל:</span>
             <span className="text-xl md:text-2xl font-light text-luxury-noir">₪{totalPrice.toFixed(2)}</span>
           </div>
           
-          <button
-            type="button"
+          <div 
             onClick={() => setShowModal(true)}
-            onTouchEnd={() => setShowModal(true)}
-            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none"
+            className="w-full py-4 px-6 bg-luxury-noir text-luxury-white text-sm font-light tracking-[0.15em] uppercase hover:bg-luxury-grey transition-colors duration-300 active:bg-luxury-grey cursor-pointer select-none text-center relative z-20"
             style={{ letterSpacing: "0.15em", WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}
+            role="button"
+            tabIndex={0}
           >
             שלח בקשה
-          </button>
+          </div>
         </div>
 
         {/* Modal */}
