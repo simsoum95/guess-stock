@@ -23,13 +23,6 @@ export default function SuccessPage() {
           היועץ שלך יחזור אליך בהקדם האפשרי
         </p>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-right">
-          <p className="text-sm text-blue-800">
-            <strong>💡 שים לב:</strong> קובץ ה-PDF נשמר במכשיר שלך. 
-            באייפון הוא נפתח בחלון חדש - לחץ על כפתור השיתוף כדי לשמור אותו.
-          </p>
-        </div>
-
         <Link
           href="/products"
           className="inline-block px-8 py-4 bg-black text-white text-base font-medium rounded-lg"
