@@ -1,5 +1,5 @@
 import { fetchProducts } from "@/lib/fetchProducts";
-import { ProductForm } from "@/components/admin/ProductForm";
+import { EditProductWrapper } from "./EditProductWrapper";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -86,7 +86,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
         </div>
       </div>
 
-      <ProductForm product={product} isEdit />
+      <EditProductWrapper product={product} />
     </div>
   );
 }

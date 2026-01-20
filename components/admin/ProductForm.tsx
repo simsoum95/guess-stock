@@ -23,7 +23,14 @@ interface Product {
   gallery?: string[];
 }
 
-export function ProductForm({ product, isEdit = false }: { product?: Product; isEdit?: boolean }) {
+interface ProductFormProps {
+  product?: Product;
+  isEdit?: boolean;
+  canEditProducts?: boolean;
+  canEditImages?: boolean;
+}
+
+export function ProductForm({ product, isEdit = false, canEditProducts = true, canEditImages = true }: ProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,6 +55,9 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    // Block changes if user doesn't have edit_products permission
+    if (!canEditProducts) return;
+    
     const { name, value, type } = e.target;
     setForm(prev => ({
       ...prev,
@@ -56,15 +66,21 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
   };
 
   const handleImageChange = (imageUrl: string, gallery: string[]) => {
+    // Only allow image changes if user has edit_images permission
+    if (!canEditImages) return;
     setForm(prev => ({ ...prev, imageUrl, gallery }));
   };
 
   const adjustStock = (delta: number) => {
+    if (!canEditProducts) return;
     setForm(prev => ({
       ...prev,
       stockQuantity: Math.max(0, prev.stockQuantity + delta),
     }));
   };
+
+  // Determine if form can be submitted
+  const canSubmit = canEditProducts || canEditImages;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,8 +165,13 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
         {/* Main Form */}
         <div className="lg:col-span-2 space-y-5">
           {/* Basic Info */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900 mb-4">פרטי מוצר</h2>
+          <div className={`bg-white rounded-xl border p-5 ${!canEditProducts ? 'border-slate-300 opacity-60' : 'border-slate-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-slate-900">פרטי מוצר</h2>
+              {!canEditProducts && (
+                <span className="text-xs text-red-500">🔒 נעול</span>
+              )}
+            </div>
             
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -161,8 +182,8 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
                   value={form.modelRef}
                   onChange={handleChange}
                   required
-                  disabled={isEdit}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-slate-100"
+                  disabled={isEdit || !canEditProducts}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   placeholder="AB123456"
                 />
               </div>
@@ -352,16 +373,30 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
 
         {/* Image Upload */}
         <div>
-          <div className="bg-white rounded-xl border border-slate-200 p-5 sticky top-6">
-            <h2 className="font-semibold text-slate-900 mb-4">תמונות</h2>
-            <ImageUploader
-              currentImage={form.imageUrl}
-              gallery={form.gallery || []}
-              onImageChange={handleImageChange}
-              modelRef={form.modelRef}
-              color={form.color}
-              itemCode={form.itemCode}
-            />
+          <div className={`bg-white rounded-xl border p-5 sticky top-6 ${!canEditImages ? 'border-slate-300 opacity-60' : 'border-slate-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-slate-900">תמונות</h2>
+              {!canEditImages && (
+                <span className="text-xs text-red-500">🔒 נעול</span>
+              )}
+            </div>
+            {canEditImages ? (
+              <ImageUploader
+                currentImage={form.imageUrl}
+                gallery={form.gallery || []}
+                onImageChange={handleImageChange}
+                modelRef={form.modelRef}
+                color={form.color}
+                itemCode={form.itemCode}
+              />
+            ) : (
+              <div className="space-y-3">
+                {form.imageUrl && (
+                  <img src={form.imageUrl} alt="Product" className="w-full rounded-lg" />
+                )}
+                <p className="text-sm text-slate-500 text-center">אין לך הרשאה לערוך תמונות</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -377,8 +412,8 @@ export function ProductForm({ product, isEdit = false }: { product?: Product; is
         </button>
         <button
           type="submit"
-          disabled={loading}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all disabled:opacity-50"
+          disabled={loading || !canSubmit}
+          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "שומר..." : isEdit ? "שמירה" : "יצירת מוצר"}
         </button>
