@@ -32,6 +32,7 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [viewedOrders, setViewedOrders] = useState<Set<string>>(new Set());
   const [processingOrder, setProcessingOrder] = useState<string | null>(null);
+  const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const router = useRouter();
 
   const handleViewDetails = async (orderId: string) => {
@@ -75,6 +76,32 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
       alert("שגיאה בסימון הבקשה כבוצעה");
     } finally {
       setProcessingOrder(null);
+    }
+  };
+
+  const handleDelete = async (orderId: string, shopName: string) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את הבקשה של "${shopName}"?`)) {
+      return;
+    }
+    
+    setDeletingOrder(orderId);
+    try {
+      const response = await fetch("/api/cart/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      if (response.ok) {
+        router.refresh();
+      } else {
+        alert("שגיאה במחיקת הבקשה");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      alert("שגיאה במחיקת הבקשה");
+    } finally {
+      setDeletingOrder(null);
     }
   };
 
@@ -260,6 +287,14 @@ export function OrdersTable({ orders, status = "pending" }: { orders: Order[]; s
                             {processingOrder === order.id ? "..." : "בוצע"}
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDelete(order.id, order.shop_name)}
+                          disabled={deletingOrder === order.id}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="מחק בקשה"
+                        >
+                          {deletingOrder === order.id ? "..." : "מחק"}
+                        </button>
                       </div>
                     </td>
                   </tr>
