@@ -98,11 +98,9 @@ export async function POST(request: NextRequest) {
                 </p>
               </div>
               
-              <div style="text-align: center; margin-top: 30px;">
-                <a href="https://gb-guess-stock.vercel.app/admin/orders" 
-                   style="display: inline-block; background: #1a1a1a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                  צפה בבקשה בפאנל הניהול
-                </a>
+              <div style="text-align: center; margin-top: 30px; background: #f0f0f0; padding: 15px; border-radius: 8px;">
+                <p style="margin: 0; font-weight: bold;">לצפייה בבקשה, היכנס לפאנל הניהול:</p>
+                <p style="margin: 10px 0 0 0; color: #666;">gb-guess-stock.vercel.app/admin/orders</p>
               </div>
             </div>
             
