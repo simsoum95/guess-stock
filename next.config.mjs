@@ -2,6 +2,21 @@
 const nextConfig = {
   reactStrictMode: true,
   
+  // Force browsers to always get fresh pages
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
+  
   images: {
     // Optimize images for faster loading
     minimumCacheTTL: 86400, // Cache images for 24 hours (much faster)
