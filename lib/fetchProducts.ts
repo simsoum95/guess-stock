@@ -145,6 +145,7 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
 /**
  * Color mapping: abbreviations to full color names
  * Extended with all observed patterns from image filenames
+ * Including GUESS shoes color codes (DNA01, LNA01, MBR02, etc.)
  */
 const COLOR_MAP: Record<string, string[]> = {
   // Black variants - including short codes with numbers
@@ -159,6 +160,11 @@ const COLOR_MAP: Record<string, string[]> = {
   "DARKBROWN": ["DBR", "DARK BROWN", "BRO"],
   "DARK BROWN": ["DBR", "DARKBROWN", "BRO"],
   
+  // Medium Brown variants (GUESS shoes)
+  "MBR": ["MEDIUM BROWN", "MEDIUMBROWN", "BROWN", "BRO"],
+  "MEDIUMBROWN": ["MBR", "MEDIUM BROWN", "BRO"],
+  "MEDIUM BROWN": ["MBR", "MEDIUMBROWN", "BRO"],
+  
   // Light Brown variants
   "LBR": ["LIGHT BROWN", "LIGHTBROWN", "BROWN", "BRO", "TAN"],
   "LIGHTBROWN": ["LBR", "LIGHT BROWN", "BRO", "TAN"],
@@ -169,22 +175,37 @@ const COLOR_MAP: Record<string, string[]> = {
   "DRS": ["DRESS", "DRE"],
   
   // White variants
-  "WHI": ["WHITE", "BLANC", "לבן"],
-  "WHT": ["WHITE", "BLANC", "לבן"],
-  "WHITE": ["WHI", "WHT"],
+  "WHI": ["WHITE", "BLANC", "לבן", "WHT", "IVO", "IVORY"],
+  "WHT": ["WHITE", "BLANC", "לבן", "WHI"],
+  "WHITE": ["WHI", "WHT", "IVO"],
   
   // Off-white / Cream variants
   "OFF": ["OFFWHITE", "OFF WHITE", "OFF-WHITE", "CREAM", "IVORY", "NATURALOFFWHITE"],
   "OFFWHITE": ["OFF", "CREAM", "IVORY"],
   "CREAM": ["OFF", "OFFWHITE", "CRE"],
   
-  // Natural variants (common in bags)
-  "NAD": ["NATURAL", "NATUREL", "טבעי", "NAT"],
-  "NAT": ["NATURAL", "NATUREL", "טבעי", "NAD"],
-  "NATURAL": ["NAD", "NAT"],
+  // Natural variants (common in bags and shoes)
+  "NAD": ["NATURAL", "NATUREL", "טבעי", "NAT", "LNA", "DNA", "MNA"],
+  "NAT": ["NATURAL", "NATUREL", "טבעי", "NAD", "LNA", "DNA", "MNA"],
+  "NATURAL": ["NAD", "NAT", "LNA", "DNA", "MNA"],
   "NATURALBLACK": ["NAD", "NAT", "NATBLACK"],
-  "NATURALCOGNAC": ["NAD", "NAT", "NATCOGNAC", "COG"],
+  "NATURALCOGNAC": ["NAD", "NAT", "NATCOGNAC", "COG", "NCG"],
   "NATURALOFFWHITE": ["NAD", "NAT", "OFF", "OFFWHITE"],
+  
+  // GUESS shoes - DARK NATURAL (DNA)
+  "DNA": ["DARK NATURAL", "DARKNATURAL", "NATURAL", "NAT"],
+  "DARKNATURAL": ["DNA", "DARK NATURAL", "NAT"],
+  "DARK NATURAL": ["DNA", "DARKNATURAL", "NAT"],
+  
+  // GUESS shoes - LIGHT NATURAL (LNA)
+  "LNA": ["LIGHT NATURAL", "LIGHTNATURAL", "NATURAL", "NAT"],
+  "LIGHTNATURAL": ["LNA", "LIGHT NATURAL", "NAT"],
+  "LIGHT NATURAL": ["LNA", "LIGHTNATURAL", "NAT"],
+  
+  // GUESS shoes - MEDIUM NATURAL (MNA)
+  "MNA": ["MEDIUM NATURAL", "MEDIUMNATURAL", "NATURAL", "NAT"],
+  "MEDIUMNATURAL": ["MNA", "MEDIUM NATURAL", "NAT"],
+  "MEDIUM NATURAL": ["MNA", "MEDIUMNATURAL", "NAT"],
   
   // Brown variants
   "BRO": ["BROWN", "BRUN", "חום"],
@@ -196,12 +217,28 @@ const COLOR_MAP: Record<string, string[]> = {
   // Cognac (leather color)
   "COG": ["COGNAC", "COGNAC BROWN", "קוניאק"],
   "COGNAC": ["COG"],
+  "NCG": ["NATURAL COGNAC", "NATURALCOGNAC", "COG", "COGNAC"],
   
   // Blue variants
   "BLU": ["BLUE", "BLEU", "כחול"],
   "BLUE": ["BLU"],
   "NAV": ["NAVY", "NAVY BLUE", "כחול כהה"],
   "NAVY": ["NAV"],
+  
+  // GUESS shoes - DARK BLUE (DBL)
+  "DBL": ["DARK BLUE", "DARKBLUE", "NAVY", "BLU"],
+  "DARKBLUE": ["DBL", "DARK BLUE", "NAVY"],
+  "DARK BLUE": ["DBL", "DARKBLUE", "NAVY"],
+  
+  // GUESS shoes - LIGHT BLUE (LBL)
+  "LBL": ["LIGHT BLUE", "LIGHTBLUE", "BLU", "SKY BLUE"],
+  "LIGHTBLUE": ["LBL", "LIGHT BLUE", "BLU"],
+  "LIGHT BLUE": ["LBL", "LIGHTBLUE", "BLU"],
+  
+  // GUESS shoes - MEDIUM BLUE (MBL)
+  "MBL": ["MEDIUM BLUE", "MEDIUMBLUE", "BLU"],
+  "MEDIUMBLUE": ["MBL", "MEDIUM BLUE", "BLU"],
+  "MEDIUM BLUE": ["MBL", "MEDIUMBLUE", "BLU"],
   
   // VILEBREQUIN specific colors (French names with spaces)
   "BLANC": ["WHITE", "WHI", "WHT", "010"],
@@ -244,13 +281,22 @@ const COLOR_MAP: Record<string, string[]> = {
   
   // Green variants
   "GRE": ["GREEN", "VERT", "ירוק"],
-  "GREEN": ["GRE"],
+  "GREEN": ["GRE", "LGN"],
+  "LGN": ["LIGHT GREEN", "LIGHTGREEN", "GREEN", "GRE"],
+  "LIGHTGREEN": ["LGN", "LIGHT GREEN", "GRE"],
+  "LIGHT GREEN": ["LGN", "LIGHTGREEN", "GRE"],
   
   // Red/Pink variants
-  "RED": ["RED", "ROUGE", "אדום"],
-  "PIN": ["PINK", "ROSE", "ורוד"],
-  "PINK": ["PIN"],
-  "ROS": ["ROSE", "PINK"],
+  "RED": ["RED", "ROUGE", "אדום", "DRE"],
+  "PIN": ["PINK", "ROSE", "ורוד", "LPI"],
+  "PINK": ["PIN", "LPI", "ROS"],
+  "ROS": ["ROSE", "PINK", "PIN", "LPI"],
+  "LPI": ["LIGHT PINK", "LIGHTPINK", "PINK", "PIN", "ROS"],
+  "LIGHTPINK": ["LPI", "LIGHT PINK", "PIN"],
+  "LIGHT PINK": ["LPI", "LIGHTPINK", "PIN"],
+  "ROP": ["ROSE PETAL", "ROSEPETAL", "PINK", "ROS"],
+  "ROSEPETAL": ["ROP", "ROSE PETAL", "PINK"],
+  "ROSE PETAL": ["ROP", "ROSEPETAL", "PINK"],
   
   // Yellow/Gold variants
   "YEL": ["YELLOW", "JAUNE", "צהוב"],
@@ -277,8 +323,8 @@ const COLOR_MAP: Record<string, string[]> = {
   "ORANGE": ["ORA"],
   
   // Other common colors
-  "IVO": ["IVORY", "IVOIRE", "שנהב"],
-  "IVORY": ["IVO"],
+  "IVO": ["IVORY", "IVOIRE", "שנהב", "WHI", "WHITE"],
+  "IVORY": ["IVO", "WHI"],
   "CAM": ["CAMEL", "CHAMEAU", "גמל"],
   "CAMEL": ["CAM"],
   "LIS": ["LIGHT", "LISO"],
@@ -287,8 +333,26 @@ const COLOR_MAP: Record<string, string[]> = {
   "LUG": ["LUGGAGE", "LUGGAGE BROWN", "LIGHT TAUPE", "LIGHTTAUPE", "LIGHTTAUPELOGO", "TAUPE"],
   "LIGHTTAUPE": ["LUG", "LUGGAGE", "TAUPE"],
   "LIGHTTAUPELOGO": ["LUG", "LUGGAGE", "TAUPE", "LIGHTTAUPE"],
-  "TAUPE": ["LUG", "LIGHTTAUPE"],
+  "TAUPE": ["LUG", "LIGHTTAUPE", "TAU"],
+  "TAU": ["TAUPE", "LUG", "LIGHTTAUPE"],
   "LOGO": ["LOGO", "WITH LOGO"],
+  
+  // Special codes from image files
+  "CAR": ["CARAMEL", "CARAMEL MULTI", "CAM"],
+  "CARAMEL": ["CAR", "CAM"],
+  "CTN": ["COTTON", "CRE", "OFF"],
+  "COTTON": ["CTN", "CRE"],
+  "DKO": ["DARK", "COAL", "CHARCOAL"],
+  "COAL": ["DKO", "CHARCOAL", "GRY"],
+  "CHC": ["CHALK", "BEIGE WHITE", "BEIGEWHITE", "OFF"],
+  "CHALK": ["CHC", "OFF", "BEI"],
+  "LGW": ["LOGO WHITE", "LOGOWHITE", "WHI"],
+  "RUR": ["RUST", "RUSTIC", "BRO"],
+  
+  // Color + number patterns (strip numbers for matching)
+  "POWDERBLUE": ["LBL", "LIGHT BLUE", "BLU"],
+  "LAVENDER": ["PUR", "PURPLE", "LPI"],
+  "LAVENDERGREY": ["PUR", "GRY", "GREY"],
 };
 
 /**
@@ -1023,6 +1087,43 @@ export async function fetchProducts(): Promise<Product[]> {
         } else if (!images && modelRefImages && modelRefImages.length === 0) {
           if (isDebugProduct) {
             console.log(`[DEBUG ${productModelRef}-${productColor}] ❌ NO IMAGES AVAILABLE for this modelRef`);
+          }
+        }
+      }
+      
+      // ========== FALLBACK: Try similar ModelRef (same prefix) ==========
+      if (!images && productModelRef.length >= 6) {
+        const prefix = productModelRef.substring(0, Math.min(7, productModelRef.length - 1));
+        
+        // Find similar modelRefs with same prefix
+        for (const [indexModelRef, indexImages] of modelRefIndex.entries()) {
+          if (indexModelRef !== productModelRef && indexModelRef.startsWith(prefix)) {
+            // Found a similar modelRef! Use its images
+            // Try to match color first
+            for (const item of indexImages) {
+              if (matchesColor(item.color, productColor) || matchesColor(item.color, productColorCode)) {
+                images = item.images;
+                colorMatches++;
+                if (isDebugProduct) {
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ SIMILAR ModelRef MATCH: ${indexModelRef} (${item.color})`);
+                }
+                break;
+              }
+            }
+            
+            // If no color match but only 1 color available, use it
+            if (!images && indexImages.length > 0) {
+              const uniqueColors = new Set(indexImages.map(i => i.color));
+              if (uniqueColors.size === 1) {
+                images = indexImages[0].images;
+                modelOnlyMatches++;
+                if (isDebugProduct) {
+                  console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️ SIMILAR ModelRef: ${indexModelRef} (single color: ${indexImages[0].color})`);
+                }
+              }
+            }
+            
+            if (images) break;
           }
         }
       }
