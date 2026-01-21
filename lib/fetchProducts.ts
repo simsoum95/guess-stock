@@ -147,12 +147,26 @@ async function listStorageRecursive(folder: string = "", allFiles: { path: strin
  * Extended with all observed patterns from image filenames
  */
 const COLOR_MAP: Record<string, string[]> = {
-  // Black variants
+  // Black variants - including short codes with numbers
   "BLA": ["BLACK", "NOIR", "שחור", "BLK", "BLO"],
   "BLK": ["BLACK", "NOIR", "שחור", "BLA", "BLO"],
   "BLO": ["BLACK", "NOIR", "שחור", "BLA", "BLK", "BLACKLOGO"],
   "BLACK": ["BLA", "BLK", "BLO"],
   "BLACKLOGO": ["BLA", "BLK", "BLO", "BLACK"],
+  
+  // Dark Brown variants
+  "DBR": ["DARK BROWN", "DARKBROWN", "BROWN", "DARK", "BRO"],
+  "DARKBROWN": ["DBR", "DARK BROWN", "BRO"],
+  "DARK BROWN": ["DBR", "DARKBROWN", "BRO"],
+  
+  // Light Brown variants
+  "LBR": ["LIGHT BROWN", "LIGHTBROWN", "BROWN", "BRO", "TAN"],
+  "LIGHTBROWN": ["LBR", "LIGHT BROWN", "BRO", "TAN"],
+  "LIGHT BROWN": ["LBR", "LIGHTBROWN", "BRO", "TAN"],
+  
+  // Dress / Other color codes
+  "DRE": ["DRESS", "DRESSY", "DRS"],
+  "DRS": ["DRESS", "DRE"],
   
   // White variants
   "WHI": ["WHITE", "BLANC", "לבן"],
@@ -278,8 +292,30 @@ const COLOR_MAP: Record<string, string[]> = {
 };
 
 /**
+ * Extract base color (letters) and number from color code
+ * e.g., "BLK01" -> { base: "BLK", number: "01" }
+ * e.g., "BLACK 001" -> { base: "BLACK", number: "001" }
+ */
+function extractColorParts(color: string): { base: string; number: string } {
+  const normalized = color.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  
+  // Match letters followed by optional numbers
+  const match = normalized.match(/^([A-Z]+)(\d*)$/);
+  if (match) {
+    return { base: match[1], number: match[2] || "" };
+  }
+  
+  // If format is different, try to extract differently
+  // e.g., "200" alone, or mixed format
+  const lettersOnly = normalized.replace(/\d/g, "");
+  const numbersOnly = normalized.replace(/[A-Z]/g, "");
+  
+  return { base: lettersOnly || normalized, number: numbersOnly };
+}
+
+/**
  * Try to match image color abbreviation with product color
- * STRICT matching: only exact matches or COLOR_MAP equivalents
+ * INTELLIGENT matching: handles abbreviated codes like BLK01 -> BLACK 001
  */
 function matchesColor(imageColor: string, productColor: string): boolean {
   const imgColorUpper = imageColor.toUpperCase().trim();
@@ -300,14 +336,19 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   // Normalized exact match
   if (imgNormalized === prodNormalized) return true;
   
-  // COLOR_MAP check: check if colors are equivalent via COLOR_MAP (STRICT)
+  // Extract base color and number
+  const imgParts = extractColorParts(imgColorUpper);
+  const prodParts = extractColorParts(prodColorUpper);
+  
+  // COLOR_MAP check: check if base colors are equivalent via COLOR_MAP
   const isColorEquivalent = (color1: string, color2: string): boolean => {
+    if (color1 === color2) return true;
+    
     // Direct COLOR_MAP lookup
     const mappedColors = COLOR_MAP[color1];
     if (mappedColors) {
       for (const mapped of mappedColors) {
         const mappedNorm = cleanColor(mapped);
-        // Only exact match via COLOR_MAP (no partial matching)
         if (mappedNorm === color2) {
           return true;
         }
@@ -316,22 +357,58 @@ function matchesColor(imageColor: string, productColor: string): boolean {
     return false;
   };
   
-  // Try both directions with COLOR_MAP
+  // Try matching base colors (ignoring numbers for flexibility)
+  if (imgParts.base && prodParts.base) {
+    // Check if base colors match via COLOR_MAP
+    if (isColorEquivalent(imgParts.base, prodParts.base)) {
+      // Base colors match! Now check if numbers are compatible
+      // Numbers are compatible if:
+      // 1. Same number (01 == 001 after trimming leading zeros)
+      // 2. One has no number
+      // 3. Numbers end with same digits
+      
+      const imgNum = imgParts.number.replace(/^0+/, "") || "0";
+      const prodNum = prodParts.number.replace(/^0+/, "") || "0";
+      
+      if (imgNum === prodNum || imgParts.number === "" || prodParts.number === "") {
+        return true;
+      }
+      
+      // Numbers are different but base colors match - still a good match for most cases
+      // Because often the number is just a variant (01, 02 for different shades of same color)
+      return true;
+    }
+    
+    // Try reverse direction
+    if (isColorEquivalent(prodParts.base, imgParts.base)) {
+      return true;
+    }
+  }
+  
+  // Try both directions with full normalized colors
   if (isColorEquivalent(imgNormalized, prodNormalized)) return true;
   if (isColorEquivalent(prodNormalized, imgNormalized)) return true;
   
   // Last resort: Check if a short color code (3-4 chars) is contained in a longer color name
-  // (e.g., "OFF" in "OFFWHITE" is OK, "COG" in "COGNAC" is OK)
-  // This handles cases where image has full name "OFFWHITE" but product has abbreviation "OFF"
   if (imgNormalized.length <= 4 && prodNormalized.length > imgNormalized.length) {
-    // Image color is short abbreviation, product color is longer - check if abbreviation is in longer name
     if (prodNormalized.includes(imgNormalized)) {
       return true;
     }
   }
   if (prodNormalized.length <= 4 && imgNormalized.length > prodNormalized.length) {
-    // Product color is short abbreviation, image color is longer - check if abbreviation is in longer name
     if (imgNormalized.includes(prodNormalized)) {
+      return true;
+    }
+  }
+  
+  // Check if base of short code is in the longer color
+  if (imgParts.base.length >= 2 && imgParts.base.length <= 4) {
+    if (prodParts.base.startsWith(imgParts.base) || prodNormalized.includes(imgParts.base)) {
+      return true;
+    }
+  }
+  if (prodParts.base.length >= 2 && prodParts.base.length <= 4) {
+    if (imgParts.base.startsWith(prodParts.base) || imgNormalized.includes(prodParts.base)) {
       return true;
     }
   }
