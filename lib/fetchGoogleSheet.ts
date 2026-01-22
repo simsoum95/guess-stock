@@ -733,9 +733,16 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   }
   
   // Read product description from column D (תיאור דגם) for all products
+  // Different sheets may have different column names for the model description
   let bagName: string | undefined;
   let familyName: string | undefined;
-  const productDescription = getValue(["תיאור דגם", "תיאור", "description", "Description", "DESCRIPTION"]);
+  const productDescription = getValue([
+    "תיאור דגם", "תיאור", "דגם", "שם דגם", "שם המוצר", "שם הדגם",
+    "model", "Model", "MODEL", "modelName", "ModelName",
+    "description", "Description", "DESCRIPTION",
+    "productName", "ProductName", "PRODUCTNAME",
+    "name", "Name", "NAME"
+  ]);
   
   if (productDescription) {
     const description = productDescription.trim();
