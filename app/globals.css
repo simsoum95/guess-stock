@@ -50,12 +50,11 @@ body {
 
 /* Filter Control - Chanel Style */
 .filter-control {
-  @apply inline-flex items-center justify-center px-0 py-3 text-xs font-light tracking-[0.15em] uppercase transition-all duration-300;
+  @apply inline-flex items-center justify-center px-0 py-3 tracking-[0.1em] uppercase transition-all duration-300;
   background: transparent;
   color: var(--luxury-grey);
   border: none;
   border-bottom: 1px solid transparent;
-  letter-spacing: 0.15em;
   position: relative;
 }
 

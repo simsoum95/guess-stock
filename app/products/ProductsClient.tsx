@@ -126,13 +126,15 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 
         {/* Filter Controls */}
         <div className="mb-12 sm:mb-16 lg:mb-24 space-y-4 sm:space-y-6 lg:space-y-8 border-b border-luxury-grey/20 pb-4 sm:pb-6 lg:pb-8">
-          {/* Brand Filters - First filter */}
+          {/* Brand Filters - First filter (LARGE & BOLD) */}
           {availableBrands.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
               <FilterControl
                 label="כל המותגים"
                 active={brand === "all"}
                 onClick={() => handleBrandChange("all")}
+                size="large"
+                isAllOption
               />
               {availableBrands.map((brandName) => (
                 <FilterControl
@@ -140,12 +142,13 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                   label={brandName}
                   active={brand === brandName}
                   onClick={() => handleBrandChange(brandName)}
+                  size="large"
                 />
               ))}
             </div>
           )}
           
-          {/* Category Filters - Show all subcategories for selected brand */}
+          {/* Category Filters - Show all subcategories for selected brand (MEDIUM & SEMIBOLD) */}
           {availableCategories.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 sm:gap-5 lg:gap-10">
               <FilterControl
@@ -155,6 +158,8 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                   setSubcategory("all");
                   setFamilyName("all");
                 }}
+                size="medium"
+                isAllOption
               />
               {availableCategories.map((cat) => (
                 <FilterControl
@@ -165,18 +170,21 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                     setSubcategory(cat);
                     setFamilyName("all"); // Reset family name when category changes
                   }}
+                  size="medium"
                 />
               ))}
             </div>
           )}
           
-          {/* Family Name Filters - Only show for bag subcategories */}
+          {/* Family Name Filters - NORMAL size */}
           {availableFamilyNames.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6">
               <FilterControl
                 label="כל המשפחות"
                 active={familyName === "all"}
                 onClick={() => setFamilyName("all")}
+                size="normal"
+                isAllOption
               />
               {availableFamilyNames.map((family) => (
                 <FilterControl
@@ -184,6 +192,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                   label={family}
                   active={familyName === family}
                   onClick={() => setFamilyName(family)}
+                  size="normal"
                 />
               ))}
             </div>
@@ -231,16 +240,28 @@ export default function ProductsClient({ products }: { products: Product[] }) {
 const FilterControl = memo(function FilterControl({
   label,
   active = false,
-  onClick
+  onClick,
+  size = "normal",
+  isAllOption = false
 }: {
   label: string;
   active?: boolean;
   onClick: () => void;
+  size?: "large" | "medium" | "normal";
+  isAllOption?: boolean;
 }) {
+  const sizeClasses = {
+    large: "text-base sm:text-lg lg:text-xl font-bold",
+    medium: "text-sm sm:text-base font-semibold",
+    normal: "text-xs sm:text-sm font-normal"
+  };
+  
+  const allOptionClass = isAllOption ? "border-b-2 border-luxury-gold/50" : "";
+  
   return (
     <button
       onClick={onClick}
-      className={`filter-control ${active ? "active" : ""}`}
+      className={`filter-control ${active ? "active" : ""} ${sizeClasses[size]} ${allOptionClass}`}
       type="button"
     >
       {label}
