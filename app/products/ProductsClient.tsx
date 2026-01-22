@@ -40,16 +40,22 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     return Array.from(categories).sort();
   }, [brand, products]);
   
-  // Get available family names for bags (only those that exist in products for selected brand and subcategory)
+  // Get available family names (model names) for the selected brand and subcategory
   const availableFamilyNames = useMemo(() => {
-    // Only show family names if a bag subcategory is selected
-    const bagSubcategories = ["ארנקים", "מזוודות", "מחזיק מפתחות", "תיק גב", "תיק נסיעות", "תיק נשיאה", "תיק ערב", "תיק צד"];
-    if (subcategory === "all" || !bagSubcategories.includes(subcategory)) {
+    // Show family names when a subcategory is selected OR when a specific brand is selected
+    if (subcategory === "all" && brand === "all") {
       return [];
     }
     const familyNames = new Set<string>();
     products
-      .filter(p => (brand === "all" || p.brand === brand) && p.category === "תיק" && p.subcategory === subcategory && p.familyName)
+      .filter(p => {
+        // Filter by brand if selected
+        if (brand !== "all" && p.brand !== brand) return false;
+        // Filter by subcategory if selected
+        if (subcategory !== "all" && p.subcategory !== subcategory) return false;
+        // Must have a family name
+        return p.familyName;
+      })
       .forEach(p => familyNames.add(p.familyName!));
     return Array.from(familyNames).sort();
   }, [brand, subcategory, products]);

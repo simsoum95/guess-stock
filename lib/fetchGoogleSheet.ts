@@ -732,25 +732,26 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
     }
   }
   
-  // For bags: read bag name and family name from column D (תיאור דגם)
+  // Read product description from column D (תיאור דגם) for all products
   let bagName: string | undefined;
   let familyName: string | undefined;
-  if (isBag) {
-    const bagDescription = getValue(["תיאור דגם", "תיאור", "description", "Description", "DESCRIPTION"]);
-    if (bagDescription) {
-      bagName = bagDescription.trim();
-      // Extract first word as family name (e.g., "VIVIETTE MINI DBL ZIP" -> "VIVIETTE")
-      const firstWord = bagName.split(/\s+/)[0];
-      if (firstWord) {
-        familyName = firstWord.toUpperCase();
-      }
+  const productDescription = getValue(["תיאור דגם", "תיאור", "description", "Description", "DESCRIPTION"]);
+  
+  if (productDescription) {
+    const description = productDescription.trim();
+    bagName = description; // Works for both bags and shoes
+    
+    // Extract first word as family name (e.g., "VIVIETTE MINI DBL ZIP" -> "VIVIETTE", "ZEPHYR SLIDE" -> "ZEPHYR")
+    const firstWord = description.split(/\s+/)[0];
+    if (firstWord) {
+      familyName = firstWord.toUpperCase();
     }
   }
   
   // Determine productName based on category
   let productName: string;
-  if (isBag && bagName) {
-    productName = bagName; // Use bag name for bags
+  if (bagName) {
+    productName = bagName; // Use description for all products
   } else {
     productName = getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef;
   }
