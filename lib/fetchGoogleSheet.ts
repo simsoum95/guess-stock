@@ -52,14 +52,18 @@ async function getAllSheetNames(): Promise<string[]> {
  * "VILEBREQUIN" → "VILEBREQUIN"
  */
 function extractBrandFromSheetName(sheetName: string): string {
-  const name = sheetName.trim();
+  const name = sheetName.trim().toUpperCase();
   
-  if (name.includes("VILEBREQUIN") || name.toUpperCase().includes("VILEBREQUIN")) {
+  if (name.includes("VILEBREQUIN")) {
     return "VILEBREQUIN";
   }
   
   if (name.includes("SAM") || name.includes("EDELMAN")) {
     return "SAM EDELMAN";
+  }
+  
+  if (name.includes("BAYTON")) {
+    return "BAYTON";
   }
   
   // Default to GUESS for "תיקים" and "נעליים"
