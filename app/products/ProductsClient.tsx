@@ -559,142 +559,101 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         )}
       </div>
       
-      {/* Lightbox Modal - Rendered via Portal to avoid z-index issues */}
+      {/* Lightbox Modal - Rendered via Portal */}
       {isZoomed && isMounted && createPortal(
         <div 
-          className="fixed inset-0 z-[9999] bg-black"
-          style={{ touchAction: 'none' }}
+          className="fixed inset-0 z-[9999] flex"
+          onClick={() => setIsZoomed(false)}
         >
-          {/* Background - click to close */}
+          {/* Dark Backdrop */}
+          <div className="absolute inset-0 bg-black/95" />
+          
+          {/* Image Section */}
           <div 
-            className="absolute inset-0 cursor-pointer"
-            onClick={() => setIsZoomed(false)}
-          />
-          
-          {/* Close Button - Top Right */}
-          <button
-            onClick={() => setIsZoomed(false)}
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/70 hover:text-white transition-colors z-[10000]"
-            aria-label="סגור"
+            className="flex-1 flex items-center justify-center relative z-10"
+            onClick={(e) => e.stopPropagation()}
           >
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          
-          {/* Main Content Container */}
-          <div className="h-full flex flex-col lg:flex-row">
-            
-            {/* Image Section - Takes most of the space */}
-            <div className="flex-1 flex items-center justify-center relative p-4 sm:p-8 lg:p-12">
-              
-              {/* Navigation Arrow Left */}
-              {hasMultipleImages && (
-                <button
-                  onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
-                  className="absolute left-2 sm:left-4 lg:left-8 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-[10000]"
-                  aria-label="הקודם"
-                >
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-              )}
-              
-              {/* The Image */}
-              <img
-                src={currentImage}
-                alt={product.productName || product.modelRef}
-                className="max-w-full max-h-[60vh] sm:max-h-[70vh] lg:max-h-[85vh] w-auto h-auto object-contain select-none"
-                draggable={false}
-                onClick={(e) => e.stopPropagation()}
-              />
-              
-              {/* Navigation Arrow Right */}
-              {hasMultipleImages && (
-                <button
-                  onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
-                  className="absolute right-2 sm:right-4 lg:right-8 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-[10000]"
-                  aria-label="הבא"
-                >
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              )}
-              
-              {/* Image Dots Indicator */}
-              {hasMultipleImages && (
-                <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-[10000]">
-                  {allImages.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all ${
-                        index === currentImageIndex 
-                          ? "bg-white w-4 sm:w-5" 
-                          : "bg-white/40 hover:bg-white/60"
-                      }`}
-                      aria-label={`תמונה ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Product Info Panel - Right side on desktop, bottom on mobile */}
-            <div 
-              className="lg:w-80 xl:w-96 bg-white p-6 sm:p-8 flex flex-col justify-center"
-              onClick={(e) => e.stopPropagation()}
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsZoomed(false)}
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 w-12 h-12 flex items-center justify-center text-white/80 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-all"
             >
-              {/* Brand */}
-              <p className="text-xs tracking-[0.2em] uppercase text-gray-400 mb-2">
-                {product.brand}
-              </p>
-              
-              {/* Product Name/Code */}
-              <h2 className="text-xl sm:text-2xl font-light text-gray-900 mb-1">
-                {product.bagName || product.itemCode || product.modelRef}
-              </h2>
-              
-              {/* Item Code */}
-              {product.itemCode && product.bagName && (
-                <p className="text-sm text-gray-500 mb-2">{product.itemCode}</p>
-              )}
-              
-              {/* Color */}
-              <p className="text-sm text-gray-600 mb-6">{product.color}</p>
-              
-              {/* Divider */}
-              <div className="w-12 h-px bg-gray-200 mb-6" />
-              
-              {/* Prices */}
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs tracking-wide uppercase text-gray-400">קמעונאי</span>
-                  <span className="text-lg font-medium text-gray-900">₪{retail.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs tracking-wide uppercase text-gray-400">סיטונאי</span>
-                  <span className="text-lg font-medium text-amber-600">₪{wholesale.toFixed(2)}</span>
-                </div>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* Navigation Left */}
+            {hasMultipleImages && (
+              <button
+                type="button"
+                onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
+                className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white/60 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Main Image */}
+            <img
+              src={currentImage}
+              alt={product.productName || product.modelRef}
+              className="max-w-[90%] max-h-[80vh] lg:max-w-[70%] lg:max-h-[85vh] object-contain"
+              draggable={false}
+            />
+            
+            {/* Navigation Right */}
+            {hasMultipleImages && (
+              <button
+                type="button"
+                onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
+                className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white/60 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Dots */}
+            {hasMultipleImages && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {allImages.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentImageIndex(i)}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      i === currentImageIndex ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"
+                    }`}
+                  />
+                ))}
               </div>
-              
-              {/* Stock Status */}
-              <div className="flex items-center gap-2 mb-6">
-                <span className={`w-2 h-2 rounded-full ${out ? 'bg-red-500' : 'bg-green-500'}`} />
-                <span className="text-sm text-gray-600">
-                  {out ? 'חסר במלאי' : `${product.stockQuantity} יחידות`}
-                </span>
-              </div>
-              
-              {/* Image Counter */}
-              {hasMultipleImages && (
-                <p className="text-xs text-gray-400 text-center">
-                  {currentImageIndex + 1} מתוך {allImages.length} תמונות
-                </p>
-              )}
+            )}
+          </div>
+          
+          {/* Info Panel - Desktop only */}
+          <div 
+            className="hidden lg:flex lg:w-80 xl:w-96 bg-white flex-col justify-center p-8 relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs tracking-[0.2em] uppercase text-gray-400 mb-2">{product.brand}</p>
+            <h2 className="text-2xl font-light text-gray-900 mb-1">{product.bagName || product.itemCode || product.modelRef}</h2>
+            {product.itemCode && product.bagName && <p className="text-sm text-gray-500 mb-2">{product.itemCode}</p>}
+            <p className="text-sm text-gray-600 mb-6">{product.color}</p>
+            <div className="w-12 h-px bg-gray-200 mb-6" />
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between"><span className="text-xs uppercase text-gray-400">קמעונאי</span><span className="text-lg font-medium">₪{retail.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-xs uppercase text-gray-400">סיטונאי</span><span className="text-lg font-medium text-amber-600">₪{wholesale.toFixed(2)}</span></div>
             </div>
+            <div className="flex items-center gap-2 mb-6">
+              <span className={`w-2 h-2 rounded-full ${out ? 'bg-red-500' : 'bg-green-500'}`} />
+              <span className="text-sm text-gray-600">{out ? 'חסר במלאי' : `${product.stockQuantity} יחידות`}</span>
+            </div>
+            {hasMultipleImages && <p className="text-xs text-gray-400 text-center">{currentImageIndex + 1} / {allImages.length}</p>}
           </div>
         </div>,
         document.body
