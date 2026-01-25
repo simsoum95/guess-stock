@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, memo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { Product } from "@/lib/types";
 import Image from "next/image";
 import { useCart } from "@/contexts/CartContext";
@@ -272,10 +273,16 @@ const FilterControl = memo(function FilterControl({
 const ProductCard = memo(function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { addToCart } = useCart();
   const out = product.stockQuantity === 0;
   const retail = Number(product.priceRetail);
   const wholesale = Number(product.priceWholesale);
+
+  // Track client-side mount for portal
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Build images array: prioritize image ending with "PZ", then "F", then others (limit to 6 for speed)
   const allImages = useMemo(() => {
@@ -552,8 +559,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         )}
       </div>
       
-      {/* Lightbox Modal */}
-      {isZoomed && (
+      {/* Lightbox Modal - Rendered via Portal to avoid z-index issues */}
+      {isZoomed && isMounted && createPortal(
         <div 
           className="fixed inset-0 z-[9999] bg-black"
           style={{ touchAction: 'none' }}
@@ -689,7 +696,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </article>
   );
