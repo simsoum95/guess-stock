@@ -375,6 +375,30 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
     setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
   };
 
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (!isZoomed) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsZoomed(false);
+      } else if (e.key === 'ArrowRight' && hasMultipleImages) {
+        setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+      } else if (e.key === 'ArrowLeft' && hasMultipleImages) {
+        setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+      }
+    };
+    
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isZoomed, hasMultipleImages, allImages.length]);
+
   return (
     <article className="product-card-luxury group">
       {/* Image Container */}
@@ -395,19 +419,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
           }}
         />
         
-        {/* Overlay on Hover */}
-        <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300" />
-        
-        {/* Zoom Button */}
-        <button
-          onClick={() => setIsZoomed(true)}
-          className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md z-10"
-          aria-label="Zoom image"
-        >
-          <svg className="w-4 h-4 text-luxury-noir" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-          </svg>
-        </button>
+        {/* Overlay on Hover - indicates clickable */}
+        <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300 pointer-events-none" />
 
         {/* Navigation Arrows - Only show if multiple images */}
         {hasMultipleImages && (
@@ -539,91 +552,142 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         )}
       </div>
       
-      {/* Zoom Modal */}
+      {/* Lightbox Modal */}
       {isZoomed && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsZoomed(false);
-          }}
+          className="fixed inset-0 z-[9999] bg-black"
+          style={{ touchAction: 'none' }}
         >
-          {/* Close Button */}
+          {/* Background - click to close */}
+          <div 
+            className="absolute inset-0 cursor-pointer"
+            onClick={() => setIsZoomed(false)}
+          />
+          
+          {/* Close Button - Top Right */}
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsZoomed(false);
-            }}
-            className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
-            aria-label="Close zoom"
+            onClick={() => setIsZoomed(false)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/70 hover:text-white transition-colors z-[10000]"
+            aria-label="סגור"
           >
-            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
           
-          {/* Image Counter */}
-          {hasMultipleImages && (
-            <div className="absolute top-4 left-4 px-4 py-2 bg-white/10 rounded-full text-white text-sm font-medium z-[110]">
-              {currentImageIndex + 1} / {allImages.length}
+          {/* Main Content Container */}
+          <div className="h-full flex flex-col lg:flex-row">
+            
+            {/* Image Section - Takes most of the space */}
+            <div className="flex-1 flex items-center justify-center relative p-4 sm:p-8 lg:p-12">
+              
+              {/* Navigation Arrow Left */}
+              {hasMultipleImages && (
+                <button
+                  onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
+                  className="absolute left-2 sm:left-4 lg:left-8 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-[10000]"
+                  aria-label="הקודם"
+                >
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              
+              {/* The Image */}
+              <img
+                src={currentImage}
+                alt={product.productName || product.modelRef}
+                className="max-w-full max-h-[60vh] sm:max-h-[70vh] lg:max-h-[85vh] w-auto h-auto object-contain select-none"
+                draggable={false}
+                onClick={(e) => e.stopPropagation()}
+              />
+              
+              {/* Navigation Arrow Right */}
+              {hasMultipleImages && (
+                <button
+                  onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
+                  className="absolute right-2 sm:right-4 lg:right-8 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/50 hover:text-white transition-colors z-[10000]"
+                  aria-label="הבא"
+                >
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+              
+              {/* Image Dots Indicator */}
+              {hasMultipleImages && (
+                <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-[10000]">
+                  {allImages.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all ${
+                        index === currentImageIndex 
+                          ? "bg-white w-4 sm:w-5" 
+                          : "bg-white/40 hover:bg-white/60"
+                      }`}
+                      aria-label={`תמונה ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          
-          {/* Navigation Arrows - Outside the image container */}
-          {hasMultipleImages && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
-                }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
-                aria-label="Previous image"
-              >
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
-                aria-label="Next image"
-              >
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </>
-          )}
-          
-          {/* Main Image - Centered */}
-          <div 
-            className="flex items-center justify-center p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={currentImage}
-              alt={product.productName || ""}
-              className="max-w-[85vw] max-h-[80vh] w-auto h-auto object-contain"
-              style={{ minWidth: '300px', minHeight: '300px' }}
-            />
-          </div>
-          
-          {/* Product Info in Modal */}
-          <div 
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 rounded-lg text-center z-[110]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-white/70 text-xs tracking-widest uppercase">{product.brand}</p>
-            <p className="text-white font-semibold mt-1">{product.itemCode || product.modelRef}</p>
-            <p className="text-white/60 text-sm">{product.color}</p>
+            
+            {/* Product Info Panel - Right side on desktop, bottom on mobile */}
+            <div 
+              className="lg:w-80 xl:w-96 bg-white p-6 sm:p-8 flex flex-col justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Brand */}
+              <p className="text-xs tracking-[0.2em] uppercase text-gray-400 mb-2">
+                {product.brand}
+              </p>
+              
+              {/* Product Name/Code */}
+              <h2 className="text-xl sm:text-2xl font-light text-gray-900 mb-1">
+                {product.bagName || product.itemCode || product.modelRef}
+              </h2>
+              
+              {/* Item Code */}
+              {product.itemCode && product.bagName && (
+                <p className="text-sm text-gray-500 mb-2">{product.itemCode}</p>
+              )}
+              
+              {/* Color */}
+              <p className="text-sm text-gray-600 mb-6">{product.color}</p>
+              
+              {/* Divider */}
+              <div className="w-12 h-px bg-gray-200 mb-6" />
+              
+              {/* Prices */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs tracking-wide uppercase text-gray-400">קמעונאי</span>
+                  <span className="text-lg font-medium text-gray-900">₪{retail.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs tracking-wide uppercase text-gray-400">סיטונאי</span>
+                  <span className="text-lg font-medium text-amber-600">₪{wholesale.toFixed(2)}</span>
+                </div>
+              </div>
+              
+              {/* Stock Status */}
+              <div className="flex items-center gap-2 mb-6">
+                <span className={`w-2 h-2 rounded-full ${out ? 'bg-red-500' : 'bg-green-500'}`} />
+                <span className="text-sm text-gray-600">
+                  {out ? 'חסר במלאי' : `${product.stockQuantity} יחידות`}
+                </span>
+              </div>
+              
+              {/* Image Counter */}
+              {hasMultipleImages && (
+                <p className="text-xs text-gray-400 text-center">
+                  {currentImageIndex + 1} מתוך {allImages.length} תמונות
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
