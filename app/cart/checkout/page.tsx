@@ -60,6 +60,13 @@ export default function CheckoutPage() {
       fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:response',message:'Server response',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
       // #endregion
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Server error:", response.status, errorData);
+        alert(`שגיאה: ${errorData.details || errorData.error || response.status}`);
+        return;
+      }
+      
       if (response.ok) {
         // Save order details for PDF download on success page
         const orderDetails = {

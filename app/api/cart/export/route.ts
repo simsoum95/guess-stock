@@ -172,10 +172,15 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, id: data.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[cart/export] Error:", error);
+    // Return detailed error for debugging
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error", 
+        details: error?.message || "Unknown error",
+        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
       { status: 500 }
     );
   }
