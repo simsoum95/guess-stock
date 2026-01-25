@@ -378,14 +378,18 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   return (
     <article className="product-card-luxury group">
       {/* Image Container */}
-      <div className="relative mb-4 sm:mb-6 lg:mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50 cursor-zoom-in" onClick={() => setIsZoomed(true)}>
+      <div className="relative mb-4 sm:mb-6 lg:mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50">
         <img
           src={currentImage}
           alt={product.productName || ""}
           loading={priority ? "eager" : "lazy"}
           decoding={priority ? "sync" : "async"}
-          className={`h-full w-full ${product.category === "נעל" ? "object-contain" : "object-contain lg:group-hover:scale-105"} transition-transform duration-300`}
+          className={`h-full w-full ${product.category === "נעל" ? "object-contain" : "object-contain lg:group-hover:scale-105"} transition-transform duration-300 cursor-zoom-in`}
           style={product.category === "נעל" ? { padding: "1rem" } : product.category === "תיק" ? { padding: "0.5rem" } : undefined}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsZoomed(true);
+          }}
           onError={(e) => {
             (e.target as HTMLImageElement).src = "/images/default.png";
           }}
@@ -538,71 +542,88 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
       {/* Zoom Modal */}
       {isZoomed && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={() => setIsZoomed(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsZoomed(false);
+          }}
         >
           {/* Close Button */}
           <button
-            onClick={() => setIsZoomed(false)}
-            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors z-20"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsZoomed(false);
+            }}
+            className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
             aria-label="Close zoom"
           >
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
           
           {/* Image Counter */}
           {hasMultipleImages && (
-            <div className="absolute top-4 left-4 px-3 py-1.5 bg-white/20 rounded-full text-white text-sm font-medium">
+            <div className="absolute top-4 left-4 px-4 py-2 bg-white/10 rounded-full text-white text-sm font-medium z-[110]">
               {currentImageIndex + 1} / {allImages.length}
             </div>
           )}
           
-          {/* Main Image */}
-          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          {/* Navigation Arrows - Outside the image container */}
+          {hasMultipleImages && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
+                aria-label="Previous image"
+              >
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors z-[110]"
+                aria-label="Next image"
+              >
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </>
+          )}
+          
+          {/* Main Image - Centered */}
+          <div 
+            className="flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
               src={currentImage}
               alt={product.productName || ""}
-              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              className="max-w-[85vw] max-h-[80vh] w-auto h-auto object-contain"
+              style={{ minWidth: '300px', minHeight: '300px' }}
             />
-            
-            {/* Navigation Arrows in Modal */}
-            {hasMultipleImages && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
-                  }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-colors"
-                  aria-label="Previous image"
-                >
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
-                  }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-colors"
-                  aria-label="Next image"
-                >
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
           </div>
           
           {/* Product Info in Modal */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 backdrop-blur-sm rounded-lg text-center">
-            <p className="text-white/80 text-xs tracking-widest uppercase">{product.brand}</p>
-            <p className="text-white font-medium mt-1">{product.itemCode || product.modelRef}</p>
-            <p className="text-white/70 text-sm">{product.color}</p>
+          <div 
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 rounded-lg text-center z-[110]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-white/70 text-xs tracking-widest uppercase">{product.brand}</p>
+            <p className="text-white font-semibold mt-1">{product.itemCode || product.modelRef}</p>
+            <p className="text-white/60 text-sm">{product.color}</p>
           </div>
         </div>
       )}
