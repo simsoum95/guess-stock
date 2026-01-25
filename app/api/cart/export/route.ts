@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       // #endregion
       console.error("[cart/export] Error inserting cart export:", error);
       return NextResponse.json(
-        { error: "Failed to save cart export" },
+        { error: "Failed to save cart export", details: `Supabase: ${error.message} (${error.code})` },
         { status: 500 }
       );
     }
