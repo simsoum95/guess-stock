@@ -2,17 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import nodemailer from "nodemailer";
 
-// Configuration Gmail
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
-
 // Destinataires des notifications
 const NOTIFICATION_EMAILS = ["shiri@globalbg.co.il", "shimon@globalbg.co.il"];
+
+// Create transporter only when needed (lazy initialization)
+function getTransporter() {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.warn("[cart/export] Gmail credentials not configured");
+    return null;
+  }
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+}
 
 async function sendNotificationEmail(orderData: {
   id: number;
@@ -57,6 +63,12 @@ async function sendNotificationEmail(orderData: {
   `;
 
   try {
+    const transporter = getTransporter();
+    if (!transporter) {
+      console.log("[cart/export] Email skipped - no Gmail credentials");
+      return false;
+    }
+    
     await transporter.sendMail({
       from: `"GUESS Israel" <${process.env.GMAIL_USER}>`,
       to: NOTIFICATION_EMAILS.join(", "),
@@ -113,16 +125,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send email notification (must await on serverless)
-    await sendNotificationEmail({
-      id: data.id,
-      shopName,
-      firstName,
-      phone,
-      salespersonName,
-      items,
-      totalPrice,
-    });
+    // Send email notification (non-blocking - order is already saved)
+    try {
+      await sendNotificationEmail({
+        id: data.id,
+        shopName,
+        firstName,
+        phone,
+        salespersonName,
+        items,
+        totalPrice,
+      });
+    } catch (emailError) {
+      // Email failed but order is saved - don't fail the request
+      console.error("[cart/export] Email notification failed:", emailError);
+    }
 
     return NextResponse.json({ success: true, id: data.id });
   } catch (error) {
