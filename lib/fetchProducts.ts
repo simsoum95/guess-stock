@@ -26,7 +26,8 @@ function normalizeCategory(cat: string): Category {
   
   // נעליים (Shoes) subcategories
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים",
+    "סנדלים", "נעליים", "נעל"  // Added sandals and shoes variations
   ];
   
   // Check if it's a bag subcategory
@@ -186,7 +187,7 @@ const COLOR_MAP: Record<string, string[]> = {
   
   // Natural variants (common in bags and shoes)
   "NAD": ["NATURAL", "NATUREL", "טבעי", "NAT", "LNA", "DNA", "MNA"],
-  "NAT": ["NATURAL", "NATUREL", "טבעי", "NAD", "LNA", "DNA", "MNA"],
+  "NAT": ["NATURAL", "NATUREL", "טבעי", "NAD", "LNA", "DNA", "MNA", "NAVY"],
   "NATURAL": ["NAD", "NAT", "LNA", "DNA", "MNA"],
   "NATURALBLACK": ["NAD", "NAT", "NATBLACK"],
   "NATURALCOGNAC": ["NAD", "NAT", "NATCOGNAC", "COG", "NCG"],
@@ -222,8 +223,8 @@ const COLOR_MAP: Record<string, string[]> = {
   // Blue variants
   "BLU": ["BLUE", "BLEU", "כחול"],
   "BLUE": ["BLU"],
-  "NAV": ["NAVY", "NAVY BLUE", "כחול כהה"],
-  "NAVY": ["NAV"],
+  "NAV": ["NAVY", "NAVY BLUE", "כחול כהה", "NAT"],
+  "NAVY": ["NAV", "NAT"],
   
   // GUESS shoes - DARK BLUE (DBL)
   "DBL": ["DARK BLUE", "DARKBLUE", "NAVY", "BLU"],
@@ -279,8 +280,8 @@ const COLOR_MAP: Record<string, string[]> = {
   "TOPAZE BLEUE": ["BLUE TOPAZ", "313"],
   "BLEU HAWAI": ["HAWAII BLUE", "305"],
   
-  // Green variants
-  "GRE": ["GREEN", "VERT", "ירוק"],
+  // Green variants (GRE is also used for GREY in BAYTON images)
+  "GRE": ["GREEN", "VERT", "ירוק", "GREY", "GRAY"],
   "GREEN": ["GRE", "LGN"],
   "LGN": ["LIGHT GREEN", "LIGHTGREEN", "GREEN", "GRE"],
   "LIGHTGREEN": ["LGN", "LIGHT GREEN", "GRE"],

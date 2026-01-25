@@ -660,7 +660,8 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   
   // נעליים (Shoes) category:
   const shoesSubcategories = [
-    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים"
+    "כפכפים", "סניקרס", "נעליים שטוחו", "נעלי עקב", "מגפיים", 
+    "סנדלים", "נעליים", "נעל"  // Added sandals and shoes variations
   ];
   
   // Determine category based on subcategory
