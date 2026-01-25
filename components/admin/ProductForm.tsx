@@ -381,14 +381,14 @@ export function ProductForm({ product, isEdit = false, canEditProducts = true, c
               )}
             </div>
             {canEditImages ? (
-              <ImageUploader
-                currentImage={form.imageUrl}
-                gallery={form.gallery || []}
-                onImageChange={handleImageChange}
-                modelRef={form.modelRef}
-                color={form.color}
-                itemCode={form.itemCode}
-              />
+            <ImageUploader
+              currentImage={form.imageUrl}
+              gallery={form.gallery || []}
+              onImageChange={handleImageChange}
+              modelRef={form.modelRef}
+              color={form.color}
+              itemCode={form.itemCode}
+            />
             ) : (
               <div className="space-y-3">
                 {form.imageUrl && (

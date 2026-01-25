@@ -644,7 +644,8 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
 
   // Map according to your Google Sheet columns (Hebrew names from the sheet)
   // Column G: קוד פריט = itemCode (specific item code with format: modelRef-color-code)
-  const itemCode = getValue(["קוד פריט", "itemCode", "ItemCode"]);
+  // For BAYTON: Column G is called "קוד גם" instead of "קוד פריט"
+  const itemCode = getValue(["קוד פריט", "קוד גם", "מגז-קוד גם", "itemCode", "ItemCode"]);
   // Column H: צבע = color
   const color = getValue(["צבע", "color", "Color", "COLOR"]);
   // Column B: תת משפחה = subcategory
@@ -677,6 +678,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   // Extract modelRef from itemCode (column G) for ALL products
   // Format GUESS: "PD760221-BLO-OS" -> "PD760221"
   // Format SAM EDELMAN: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011" (3 first parts)
+  // Format BAYTON: "BA-10084" -> "BA-10084" (use full code as modelRef)
   // If itemCode doesn't exist, fall back to column D for backward compatibility
   let modelRef = "";
   if (itemCode) {
@@ -685,9 +687,11 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
     // Detect brand from sheet name to determine itemCode format
     const brand = extractBrandFromSheetName(sheetName || "");
     
-    // For SAM EDELMAN and VILEBREQUIN, modelRef is the first 3 parts (e.g., "HBSE-125-0011")
-    // For GUESS, modelRef is just the first part (e.g., "PD760221")
-    if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
+    // For BAYTON, the itemCode IS the modelRef (format: "BA-10084")
+    if (brand === "BAYTON") {
+      // BAYTON format: "BA-10084" -> use as-is (it's the complete product code)
+      modelRef = itemCode;
+    } else if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
       // Format: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011"
       if (parts.length >= 3) {
         modelRef = parts.slice(0, 3).join("-");
