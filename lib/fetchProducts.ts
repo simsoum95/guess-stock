@@ -331,8 +331,14 @@ const COLOR_MAP: Record<string, string[]> = {
   "IVORY": ["IVO", "WHI"],
   "CAM": ["CAMEL", "CHAMEAU", "גמל"],
   "CAMEL": ["CAM"],
-  "KHA": ["KHAKI", "חאקי", "OLIVE"],
-  "KHAKI": ["KHA", "OLIVE"],
+  "KHA": ["KHAKI", "KAKI", "חאקי", "OLIVE"],
+  "KHAKI": ["KHA", "KAKI", "OLIVE"],
+  "KAKI": ["KHAKI", "KHA", "OLIVE"],
+  
+  // Purple/Lilac variants
+  "LILA": ["LILAC", "PURPLE", "VIOLET", "LIL"],
+  "LILAC": ["LILA", "PURPLE", "VIOLET"],
+  "LIL": ["LILA", "LILAC", "PURPLE"],
   "CHOCOLATE": ["CHO", "BROWN", "BRO", "DARK BROWN"],
   "CHO": ["CHOCOLATE", "BROWN", "DARK BROWN"],
   "LIS": ["LIGHT", "LISO"],
