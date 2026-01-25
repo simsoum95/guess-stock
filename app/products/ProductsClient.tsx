@@ -10,13 +10,15 @@ export default function ProductsClient({ products }: { products: Product[] }) {
   const [brand, setBrand] = useState<string>("all");
   const [subcategory, setSubcategory] = useState<string>("all");
   const [familyName, setFamilyName] = useState<string>("all");
+  const [gender, setGender] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
-  // Reset subcategory and familyName when brand changes
+  // Reset filters when brand changes
   const handleBrandChange = (newBrand: string) => {
     setBrand(newBrand);
     setSubcategory("all");
     setFamilyName("all");
+    setGender("all");
   };
 
   // Get available brands from products
@@ -61,6 +63,17 @@ export default function ProductsClient({ products }: { products: Product[] }) {
     return Array.from(familyNames).sort();
   }, [brand, subcategory, products]);
 
+  // Get available genders for BAYTON only
+  const availableGenders = useMemo(() => {
+    if (brand !== "BAYTON") return [];
+    
+    const genders = new Set<string>();
+    products
+      .filter(p => p.brand === "BAYTON" && p.gender)
+      .forEach(p => genders.add(p.gender));
+    return Array.from(genders).sort();
+  }, [brand, products]);
+
   const filtered = useMemo(() => {
     const result = products.filter((product) => {
       // Filter by brand (first filter)
@@ -71,6 +84,9 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       
       // Filter by family name (for bags)
       if (familyName !== "all" && product.familyName !== familyName) return false;
+      
+      // Filter by gender (for BAYTON)
+      if (gender !== "all" && product.gender !== gender) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
@@ -99,7 +115,7 @@ export default function ProductsClient({ products }: { products: Product[] }) {
       // Règle 2 : Si même statut d'image, trier par stock décroissant
       return b.stockQuantity - a.stockQuantity;
     });
-  }, [products, brand, subcategory, familyName, searchQuery]);
+  }, [products, brand, subcategory, familyName, gender, searchQuery]);
 
   return (
     <main className="min-h-screen bg-luxury-white">
@@ -172,6 +188,28 @@ export default function ProductsClient({ products }: { products: Product[] }) {
                     setFamilyName("all"); // Reset family name when category changes
                   }}
                   size="medium"
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Gender Filters - Only for BAYTON */}
+          {availableGenders.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 lg:gap-6">
+              <FilterControl
+                label="כל המגדרים"
+                active={gender === "all"}
+                onClick={() => setGender("all")}
+                size="normal"
+                isAllOption
+              />
+              {availableGenders.map((g) => (
+                <FilterControl
+                  key={g}
+                  label={g}
+                  active={gender === g}
+                  onClick={() => setGender(g)}
+                  size="normal"
                 />
               ))}
             </div>
