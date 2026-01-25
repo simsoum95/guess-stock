@@ -271,6 +271,7 @@ const FilterControl = memo(function FilterControl({
 
 const ProductCard = memo(function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isZoomed, setIsZoomed] = useState(false);
   const { addToCart } = useCart();
   const out = product.stockQuantity === 0;
   const retail = Number(product.priceRetail);
@@ -377,7 +378,7 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
   return (
     <article className="product-card-luxury group">
       {/* Image Container */}
-      <div className="relative mb-4 sm:mb-6 lg:mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50">
+      <div className="relative mb-4 sm:mb-6 lg:mb-8 aspect-[3/4] w-full overflow-hidden bg-neutral-50 cursor-zoom-in" onClick={() => setIsZoomed(true)}>
         <img
           src={currentImage}
           alt={product.productName || ""}
@@ -392,6 +393,17 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         
         {/* Overlay on Hover */}
         <div className="absolute inset-0 bg-luxury-noir/0 group-hover:bg-luxury-noir/5 transition-colors duration-300" />
+        
+        {/* Zoom Button */}
+        <button
+          onClick={() => setIsZoomed(true)}
+          className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md z-10"
+          aria-label="Zoom image"
+        >
+          <svg className="w-4 h-4 text-luxury-noir" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+          </svg>
+        </button>
 
         {/* Navigation Arrows - Only show if multiple images */}
         {hasMultipleImages && (
@@ -522,6 +534,78 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
           </button>
         )}
       </div>
+      
+      {/* Zoom Modal */}
+      {isZoomed && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => setIsZoomed(false)}
+        >
+          {/* Close Button */}
+          <button
+            onClick={() => setIsZoomed(false)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors z-20"
+            aria-label="Close zoom"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          {/* Image Counter */}
+          {hasMultipleImages && (
+            <div className="absolute top-4 left-4 px-3 py-1.5 bg-white/20 rounded-full text-white text-sm font-medium">
+              {currentImageIndex + 1} / {allImages.length}
+            </div>
+          )}
+          
+          {/* Main Image */}
+          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={currentImage}
+              alt={product.productName || ""}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+            
+            {/* Navigation Arrows in Modal */}
+            {hasMultipleImages && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-colors"
+                  aria-label="Previous image"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-colors"
+                  aria-label="Next image"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
+          
+          {/* Product Info in Modal */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 backdrop-blur-sm rounded-lg text-center">
+            <p className="text-white/80 text-xs tracking-widest uppercase">{product.brand}</p>
+            <p className="text-white font-medium mt-1">{product.itemCode || product.modelRef}</p>
+            <p className="text-white/70 text-sm">{product.color}</p>
+          </div>
+        </div>
+      )}
     </article>
   );
 });
