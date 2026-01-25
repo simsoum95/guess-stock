@@ -27,6 +27,10 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:submit',message:'Client submit start',data:{shopName:formData.shopName,itemsCount:items.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+      
       // Send to server FIRST
       const response = await fetch("/api/cart/export", {
         method: "POST",
@@ -51,6 +55,10 @@ export default function CheckoutPage() {
           totalPrice: totalPrice,
         }),
       });
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:response',message:'Server response',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
 
       if (response.ok) {
         // Save order details for PDF download on success page
@@ -81,7 +89,10 @@ export default function CheckoutPage() {
         console.error("Error saving cart export");
         alert("שגיאה בשליחת הבקשה. נסה שוב.");
       }
-    } catch (error) {
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:error',message:'Submit error',data:{error:error?.message,stack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       console.error("Error submitting order:", error);
       alert("שגיאה בשליחת הבקשה. נסה שוב.");
     } finally {
