@@ -457,9 +457,10 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
         </p>
         
         <h3 className="text-xs sm:text-sm font-light text-luxury-noir leading-relaxed tracking-wide" style={{ letterSpacing: "0.02em" }}>
-          {product.category === "תיק" && product.bagName ? (
+          {product.category === "תיק" ? (
             <>
-              <span className="font-bold">{product.bagName}</span>
+              {/* For bags: show bagName (model description) + itemCode */}
+              <span className="font-bold">{product.bagName || product.modelRef}</span>
               {product.itemCode && (
                 <span className="block text-[10px] sm:text-xs font-light text-luxury-grey tracking-wide mt-0.5 sm:mt-1" style={{ letterSpacing: "0.03em" }}>
                   {product.itemCode}
@@ -468,7 +469,8 @@ const ProductCard = memo(function ProductCard({ product, priority = false }: { p
             </>
           ) : (
             <>
-              <span className="font-bold">{product.modelRef}</span>
+              {/* For shoes: show itemCode (product code) + color - NOT the family name */}
+              <span className="font-bold">{product.itemCode || product.modelRef}</span>
               {product.color && (
                 <span className="block text-[10px] sm:text-xs font-light text-luxury-grey tracking-wide mt-0.5 sm:mt-1" style={{ letterSpacing: "0.03em" }}>
                   {product.color}
