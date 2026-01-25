@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 import nodemailer from "nodemailer";
 
 // Destinataires des notifications
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:beforeInsert',message:'Before Supabase insert',data:{shopName,firstName,itemsCount:items.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
     // #endregion
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from("cart_exports")
       .insert({
         shop_name: shopName,
