@@ -84,30 +84,11 @@ async function sendNotificationEmail(orderData: {
 }
 
 export async function POST(request: NextRequest) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:POST',message:'API called',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
-  
   try {
-    let body;
-    try {
-      body = await request.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:body',message:'Body parsed',data:{hasBody:!!body,keys:Object.keys(body||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-    } catch (parseError: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:parseError',message:'JSON parse failed',data:{error:parseError?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-    }
-    
+    const body = await request.json();
     const { shopName, firstName, phone, salespersonName, items, totalPrice } = body;
 
     if (!shopName || !firstName || !items || items.length === 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:validation',message:'Validation failed',data:{shopName:!!shopName,firstName:!!firstName,itemsLen:items?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -120,10 +101,6 @@ export async function POST(request: NextRequest) {
                      null;
 
     // Insert into Supabase
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:beforeInsert',message:'Before Supabase insert',data:{shopName,firstName,itemsCount:items.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-    
     const { data, error } = await supabaseServer
       .from("cart_exports")
       .insert({
@@ -141,19 +118,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:supabaseError',message:'Supabase insert failed',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
       console.error("[cart/export] Error inserting cart export:", error);
       return NextResponse.json(
-        { error: "Failed to save cart export", details: `Supabase: ${error.message} (${error.code})` },
+        { error: "Failed to save cart export" },
         { status: 500 }
       );
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:insertSuccess',message:'Supabase insert OK',data:{id:data.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
 
     // Send email notification (non-blocking - order is already saved)
     try {
@@ -172,15 +142,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, id: data.id });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[cart/export] Error:", error);
-    // Return detailed error for debugging
     return NextResponse.json(
-      { 
-        error: "Internal server error", 
-        details: error?.message || "Unknown error",
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

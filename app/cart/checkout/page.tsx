@@ -27,10 +27,6 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:submit',message:'Client submit start',data:{shopName:formData.shopName,itemsCount:items.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-      
       // Send to server FIRST
       const response = await fetch("/api/cart/export", {
         method: "POST",
@@ -56,50 +52,37 @@ export default function CheckoutPage() {
         }),
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:response',message:'Server response',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
-
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Server error:", response.status, errorData);
-        alert(`שגיאה: ${errorData.details || errorData.error || response.status}`);
+        console.error("Server error:", response.status);
+        alert("שגיאה בשליחת הבקשה. נסה שוב.");
         return;
       }
+
+      // Save order details for PDF download on success page
+      const orderDetails = {
+        shopName: formData.shopName,
+        firstName: formData.firstName,
+        phone: formData.phone,
+        salespersonName: formData.salespersonName,
+        items: items.map((item) => ({
+          name: item.product.category === "תיק" && item.product.bagName
+            ? item.product.bagName
+            : item.product.modelRef,
+          detail: item.product.category === "תיק"
+            ? (item.product.itemCode || item.product.modelRef)
+            : item.product.color,
+          quantity: item.quantity,
+          unitPrice: item.product.priceWholesale,
+          totalPrice: item.product.priceWholesale * item.quantity,
+        })),
+        totalPrice: totalPrice,
+        date: new Date().toLocaleDateString("he-IL"),
+      };
+      localStorage.setItem("lastOrder", JSON.stringify(orderDetails));
       
-      if (response.ok) {
-        // Save order details for PDF download on success page
-        const orderDetails = {
-          shopName: formData.shopName,
-          firstName: formData.firstName,
-          phone: formData.phone,
-          salespersonName: formData.salespersonName,
-          items: items.map((item) => ({
-            name: item.product.category === "תיק" && item.product.bagName
-              ? item.product.bagName
-              : item.product.modelRef,
-            detail: item.product.category === "תיק"
-              ? (item.product.itemCode || item.product.modelRef)
-              : item.product.color,
-            quantity: item.quantity,
-            unitPrice: item.product.priceWholesale,
-            totalPrice: item.product.priceWholesale * item.quantity,
-          })),
-          totalPrice: totalPrice,
-          date: new Date().toLocaleDateString("he-IL"),
-        };
-        localStorage.setItem("lastOrder", JSON.stringify(orderDetails));
-        
-        clearCart();
-        router.push("/cart/success");
-      } else {
-        console.error("Error saving cart export");
-        alert("שגיאה בשליחת הבקשה. נסה שוב.");
-      }
-    } catch (error: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/abcd0fcc-8bc2-4074-8e73-2150e224011f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'checkout.tsx:error',message:'Submit error',data:{error:error?.message,stack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
+      clearCart();
+      router.push("/cart/success");
+    } catch (error) {
       console.error("Error submitting order:", error);
       alert("שגיאה בשליחת הבקשה. נסה שוב.");
     } finally {
