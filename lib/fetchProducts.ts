@@ -1136,6 +1136,21 @@ export async function fetchProducts(): Promise<Product[]> {
         }
       }
       
+      // ========== FALLBACK: Try DEFAULT color images ==========
+      if (!images && modelRefImages) {
+        // Look for images with color "DEFAULT" (common when images were uploaded without color info)
+        for (const item of modelRefImages) {
+          if (item.color === "DEFAULT" || item.color === "UNKNOWN" || item.color === "") {
+            images = item.images;
+            modelOnlyMatches++;
+            if (isDebugProduct) {
+              console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️ Using DEFAULT color image as fallback`);
+            }
+            break;
+          }
+        }
+      }
+      
       if (!images) {
         noMatches++;
       }
