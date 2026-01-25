@@ -642,12 +642,28 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
     return isNaN(num) ? 0 : num;
   };
 
+  // Detect brand from sheet name FIRST to determine column structure
+  const rowSheetName = (row as any)._sheetName || sheetName;
+  const detectedBrand = rowSheetName ? extractBrandFromSheetName(rowSheetName) : "GUESS";
+  
   // Map according to your Google Sheet columns (Hebrew names from the sheet)
-  // Column G: קוד פריט = itemCode (specific item code with format: modelRef-color-code)
-  // For BAYTON: Column G is called "קוד גם" instead of "קוד פריט"
-  const itemCode = getValue(["קוד פריט", "קוד גם", "מגז-קוד גם", "itemCode", "ItemCode"]);
-  // Column H: צבע = color
-  const color = getValue(["צבע", "color", "Color", "COLOR"]);
+  // IMPORTANT: Different sheets have different column structures!
+  // - תיקים (GUESS bags): Col G = "קוד פריט" (itemCode), Col H = "צבע" (color)
+  // - נעליים (GUESS shoes): Col D = "קוד גם" (modelRef), Col G = "צבע" (color) - NO itemCode!
+  // - BAYTON: Col D = "תיאור דגם" (family name), Col G = "קוד גם" (product code), Col H = "צבע"
+  
+  let itemCode = "";
+  let color = "";
+  
+  if (detectedBrand === "BAYTON") {
+    // BAYTON: Col G is "קוד גם" (product code like BA-10084)
+    itemCode = getValue(["קוד גם", "קוד פריט", "itemCode"]);
+    color = getValue(["צבע", "color", "Color"]);
+  } else {
+    // GUESS/others: Only use "קוד פריט" for itemCode (not "קוד גם" which is modelRef in נעליים)
+    itemCode = getValue(["קוד פריט", "itemCode", "ItemCode"]);
+    color = getValue(["צבע", "color", "Color", "COLOR"]);
+  }
   // Column B: תת משפחה = subcategory
   const subcategory = getValue(["תת משפחה", "תת קטגוריה", "subcategory", "Subcategory", "SUBCATEGORY"]);
   
@@ -676,23 +692,20 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   }
   // else: stays as "תיק" (default to bags)
   
-  // Extract modelRef from itemCode (column G) for ALL products
-  // Format GUESS: "PD760221-BLO-OS" -> "PD760221"
+  // Extract modelRef from itemCode or column D
+  // Format GUESS bags: "PD760221-BLO-OS" -> "PD760221" (from itemCode)
+  // Format GUESS shoes: use "קוד גם" column D directly (no itemCode)
   // Format SAM EDELMAN: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011" (3 first parts)
   // Format BAYTON: "BA-10084" -> "BA-10084" (use full code as modelRef)
-  // If itemCode doesn't exist, fall back to column D for backward compatibility
   let modelRef = "";
   if (itemCode) {
     const parts = itemCode.split("-");
     
-    // Detect brand from sheet name to determine itemCode format
-    const brand = extractBrandFromSheetName(sheetName || "");
-    
     // For BAYTON, the itemCode IS the modelRef (format: "BA-10084")
-    if (brand === "BAYTON") {
+    if (detectedBrand === "BAYTON") {
       // BAYTON format: "BA-10084" -> use as-is (it's the complete product code)
       modelRef = itemCode;
-    } else if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
+    } else if (detectedBrand === "SAM EDELMAN" || detectedBrand === "VILEBREQUIN") {
       // Format: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011"
       if (parts.length >= 3) {
         modelRef = parts.slice(0, 3).join("-");
@@ -705,7 +718,7 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
       modelRef = parts[0] || itemCode;
     }
   } else {
-    // Fallback: read modelRef from column D (קוד גם) - backward compatibility only (for shoes)
+    // Fallback: read modelRef from column D (קוד גם) - for GUESS shoes
     modelRef = getValue(["קוד גם", "מגז-קוד גם", "קוד דגם", "מק״ט", "modelRef", "ModelRef", "MODELREF"]);
   }
   
@@ -718,9 +731,8 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
   let colorCode = "";
   if (itemCode) {
     const parts = itemCode.split("-");
-    const brand = extractBrandFromSheetName(sheetName || "");
     
-    if (brand === "SAM EDELMAN" || brand === "VILEBREQUIN") {
+    if (detectedBrand === "SAM EDELMAN" || detectedBrand === "VILEBREQUIN") {
       // For SAM EDELMAN/VILEBREQUIN, color is in the 4th part (index 3)
       // Format: "HBSE-125-0011-BLACK-OS" -> "BLACK"
       if (parts.length >= 4) {
@@ -768,13 +780,12 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
     productName = getValue(["שם מוצר", "שם", "productName", "ProductName"]) || itemCode || modelRef;
   }
   
-  // Extract brand from sheet name (stored in row metadata) or from row data
-  const rowSheetName = (row as any)._sheetName || sheetName;
+  // Use the brand already detected at the start of the function
   let brand = getValue(["מותג", "brand", "Brand", "BRAND"]);
   
-  // Prefer brand from sheet name (more reliable)
-  if (rowSheetName) {
-    brand = extractBrandFromSheetName(rowSheetName);
+  // Prefer brand from sheet name (more reliable) - use detectedBrand
+  if (detectedBrand) {
+    brand = detectedBrand;
   } else if (!brand) {
     brand = "GUESS"; // Default fallback
   }
