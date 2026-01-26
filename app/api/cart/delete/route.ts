@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 
 // Move to trash (change status to "deleted")
 export async function POST(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from("cart_exports")
       .update({ status: "deleted" })
       .eq("id", orderId);
@@ -50,7 +50,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from("cart_exports")
       .delete()
       .eq("id", orderId);
@@ -86,7 +86,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from("cart_exports")
       .update({ status: "pending" })
       .eq("id", orderId);

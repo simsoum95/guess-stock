@@ -1,5 +1,5 @@
 import { fetchProducts } from "@/lib/fetchProducts";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 import Link from "next/link";
 
 // Cache for 2 minutes - faster navigation, data refreshed every 2 min
@@ -19,7 +19,7 @@ async function getStats() {
     });
 
     // Get unread pending cart requests count (only pending, not done)
-    const { count: unreadCount } = await supabase
+    const { count: unreadCount } = await supabaseServer
       .from("cart_exports")
       .select("*", { count: "exact", head: true })
       .eq("viewed", false)

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 
 export const revalidate = 30; // Revalidate every 30 seconds
 
 export async function GET() {
   try {
-    const { count, error } = await supabase
+    const { count, error } = await supabaseServer
       .from("cart_exports")
       .select("*", { count: "exact", head: true })
       .eq("viewed", false);

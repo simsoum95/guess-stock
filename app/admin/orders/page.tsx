@@ -1,11 +1,11 @@
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 import { OrdersTable } from "./OrdersTable";
 import { RefreshOnMount } from "./RefreshOnMount";
 
 export const revalidate = 0; // Always fetch fresh data when page is accessed
 
 async function getOrders() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from("cart_exports")
     .select("*")
     .order("created_at", { ascending: false })

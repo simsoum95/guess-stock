@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from("cart_exports")
       .update({ status: "done", viewed: true })
       .eq("id", orderId);
