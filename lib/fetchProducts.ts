@@ -686,41 +686,32 @@ async function fetchAllImagesFromSupabaseStorage(): Promise<Map<string, { imageU
 
     // Build final map with first image as imageUrl and all as gallery
     productImages.forEach((urls, key) => {
-      // Sort URLs with priority rules:
-      // 1. Images ending with "PZ" (case insensitive)
-      // 2. Images ending with "F" (if no PZ found)
-      // 3. Other images
+      // Sort URLs with priority rules for GUESS shoes views:
+      // PZ = Front view (PRIMARY - should be first!)
+      // XZ = Side angle
+      // OZ = Other angle
+      // TZ = Top view
+      // RZ = Right/Rear view
+      // BZ = Back view (LAST - least important)
+      // F = Front (alternative naming)
+      const getViewPriority = (url: string): number => {
+        const parts = url.split('/');
+        const filename = parts[parts.length - 1].toLowerCase();
+        const nameWithoutExt = filename.replace(/\.(jpg|jpeg|png|webp|gif)$/i, "");
+        
+        // Check view type suffix (after last underscore or dash)
+        if (nameWithoutExt.endsWith("_pz") || nameWithoutExt.endsWith("-pz")) return 0; // Front = highest priority
+        if (nameWithoutExt.endsWith("_f") || nameWithoutExt.endsWith("-f")) return 1;    // Front alt
+        if (nameWithoutExt.endsWith("_xz") || nameWithoutExt.endsWith("-xz")) return 2;  // Side
+        if (nameWithoutExt.endsWith("_oz") || nameWithoutExt.endsWith("-oz")) return 3;  // Other angle
+        if (nameWithoutExt.endsWith("_tz") || nameWithoutExt.endsWith("-tz")) return 4;  // Top
+        if (nameWithoutExt.endsWith("_rz") || nameWithoutExt.endsWith("-rz")) return 5;  // Right/Rear
+        if (nameWithoutExt.endsWith("_bz") || nameWithoutExt.endsWith("-bz")) return 6;  // Back = lowest
+        return 3; // Default: middle priority
+      };
+      
       const sorted = urls.sort((a, b) => {
-        // Extract filename from URL (get last part after /)
-        const getFileName = (url: string) => {
-          const parts = url.split('/');
-          return parts[parts.length - 1].toLowerCase();
-        };
-        
-        const aFile = getFileName(a);
-        const bFile = getFileName(b);
-        
-        // Check if filename ends with "PZ" (before extension)
-        const aEndsPZ = /pz\.(jpg|jpeg|png|webp|gif)$/i.test(aFile);
-        const bEndsPZ = /pz\.(jpg|jpeg|png|webp|gif)$/i.test(bFile);
-        
-        // Check if filename ends with "F" (before extension)
-        const aEndsF = /f\.(jpg|jpeg|png|webp|gif)$/i.test(aFile);
-        const bEndsF = /f\.(jpg|jpeg|png|webp|gif)$/i.test(bFile);
-        
-        // Priority 1: PZ images first
-        if (aEndsPZ && !bEndsPZ) return -1;
-        if (!aEndsPZ && bEndsPZ) return 1;
-        
-        // Priority 2: If no PZ, F images come first
-        // Only prioritize F if there's no PZ in the list
-        const hasAnyPZ = urls.some(url => /pz\.(jpg|jpeg|png|webp|gif)$/i.test(getFileName(url)));
-        if (!hasAnyPZ) {
-          if (aEndsF && !bEndsF) return -1;
-          if (!aEndsF && bEndsF) return 1;
-        }
-        
-        return 0; // Keep original order for others
+        return getViewPriority(a) - getViewPriority(b);
       });
 
       imageMap.set(key, {

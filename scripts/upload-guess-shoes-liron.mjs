@@ -33,27 +33,41 @@ function parseFilename(filename) {
 async function getExistingImages() {
   console.log("📊 Récupération des images existantes...");
   
-  const { data, error } = await supabase
-    .from("image_index")
-    .select("model_ref, color, filename");
+  // Paginate to get ALL existing images
+  let allData = [];
+  let offset = 0;
+  const pageSize = 1000;
+  let hasMore = true;
   
-  if (error) {
-    console.error("Erreur lors de la récupération des images:", error);
-    return new Set();
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("image_index")
+      .select("filename")
+      .range(offset, offset + pageSize - 1);
+    
+    if (error) {
+      console.error("Erreur lors de la récupération des images:", error);
+      break;
+    }
+    
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      allData = allData.concat(data);
+      offset += pageSize;
+      if (data.length < pageSize) hasMore = false;
+    }
   }
   
-  // Create a set of existing model_ref + color combinations
+  // Track by filename (each view is a separate entry)
   const existing = new Set();
-  data.forEach(img => {
-    const key = `${img.model_ref}_${img.color}`.toUpperCase();
-    existing.add(key);
-    // Also add the filename without extension
+  allData.forEach(img => {
     if (img.filename) {
       existing.add(img.filename.replace(/\.(jpg|jpeg|png|webp)$/i, "").toUpperCase());
     }
   });
   
-  console.log(`   ${existing.size} combinaisons model_ref+color existantes`);
+  console.log(`   ${existing.size} images existantes dans l'index`);
   return existing;
 }
 
@@ -81,25 +95,27 @@ async function uploadImage(filePath, filename) {
 }
 
 async function indexImage(modelRef, color, filename, url) {
-  // First check if already exists
+  // Use filename as unique key - each view (PZ, BZ, OZ, etc.) gets its own row
   const { data: existing } = await supabase
     .from("image_index")
     .select("id")
-    .eq("model_ref", modelRef.toUpperCase())
-    .eq("color", color.toUpperCase())
+    .eq("filename", filename)
     .single();
   
   if (existing) {
     // Update existing record
     const { error } = await supabase
       .from("image_index")
-      .update({ filename, url })
-      .eq("model_ref", modelRef.toUpperCase())
-      .eq("color", color.toUpperCase());
+      .update({ 
+        model_ref: modelRef.toUpperCase(), 
+        color: color.toUpperCase(), 
+        url 
+      })
+      .eq("filename", filename);
     
     if (error) throw error;
   } else {
-    // Insert new record
+    // Insert new record - one per view/filename
     const { error } = await supabase
       .from("image_index")
       .insert({
@@ -125,36 +141,29 @@ async function main() {
   // Get existing images
   const existingImages = await getExistingImages();
   
-  // Group images by model_ref + color (we only need one image per combination)
-  const imageGroups = new Map();
+  // Upload ALL views for each product (PZ, BZ, OZ, RZ, TZ, XZ)
+  // Skip CP (tiny thumbnail) to save space
+  const toUpload = [];
+  let skippedCount = 0;
   
   files.forEach(filename => {
     const parsed = parseFilename(filename);
     if (parsed) {
-      const key = `${parsed.modelRef}_${parsed.color}`.toUpperCase();
+      // Skip CP thumbnails (very small, not useful)
+      if (parsed.viewType === "CP") return;
       
-      // Only keep one image per model_ref + color (prefer non-CP views as CP is often a small thumbnail)
-      if (!imageGroups.has(key)) {
-        imageGroups.set(key, { filename, ...parsed });
-      } else if (parsed.viewType !== "CP" && imageGroups.get(key).viewType === "CP") {
-        // Replace CP with a better view
-        imageGroups.set(key, { filename, ...parsed });
+      // Check if this exact filename already exists
+      const filenameKey = filename.replace(/\.(jpg|jpeg|png|webp)$/i, "").toUpperCase();
+      if (!existingImages.has(filenameKey)) {
+        toUpload.push({ filename, ...parsed });
+      } else {
+        skippedCount++;
       }
     }
   });
   
-  console.log(`📦 ${imageGroups.size} combinaisons uniques model_ref+color\n`);
-  
-  // Filter out already existing images
-  const toUpload = [];
-  for (const [key, data] of imageGroups) {
-    if (!existingImages.has(key)) {
-      toUpload.push(data);
-    }
-  }
-  
   console.log(`🆕 ${toUpload.length} nouvelles images à uploader`);
-  console.log(`⏭️  ${imageGroups.size - toUpload.length} images déjà existantes (ignorées)\n`);
+  console.log(`⏭️  ${skippedCount} images déjà existantes (ignorées)\n`);
   
   if (toUpload.length === 0) {
     console.log("✅ Toutes les images sont déjà dans la base de données!");
