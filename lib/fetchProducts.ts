@@ -467,6 +467,15 @@ function matchesColor(imageColor: string, productColor: string): boolean {
   if (isColorEquivalent(imgNormalized, prodNormalized)) return true;
   if (isColorEquivalent(prodNormalized, imgNormalized)) return true;
   
+  // Check if one color contains the other (handles "BROWN MULTI" vs "BROWN", "CAFE NOIR" vs "CAFENOIR")
+  // Allow if one is a substring of the other and the shorter one is at least 4 chars
+  if (imgNormalized.length >= 4 && prodNormalized.includes(imgNormalized)) {
+    return true;
+  }
+  if (prodNormalized.length >= 4 && imgNormalized.includes(prodNormalized)) {
+    return true;
+  }
+  
   // Last resort: Check if a short color code (3-4 chars) is contained in a longer color name
   if (imgNormalized.length <= 4 && prodNormalized.length > imgNormalized.length) {
     if (prodNormalized.includes(imgNormalized)) {
@@ -1097,38 +1106,71 @@ export async function fetchProducts(): Promise<Product[]> {
       }
       
       // ========== FALLBACK: Try similar ModelRef (same prefix) ==========
+      // Try progressively shorter prefixes (7 → 5 chars) to handle cases where
+      // product code and image code share a base but differ in the color suffix
+      // e.g., SAM EDELMAN: J6428L6900 (product) vs J6428L1001 (image) → prefix J6428L matches at 6 chars
       if (!images && productModelRef.length >= 6) {
-        const prefix = productModelRef.substring(0, Math.min(7, productModelRef.length - 1));
+        const maxPrefix = Math.min(7, productModelRef.length - 1);
         
-        // Find similar modelRefs with same prefix
-        for (const [indexModelRef, indexImages] of modelRefIndex.entries()) {
-          if (indexModelRef !== productModelRef && indexModelRef.startsWith(prefix)) {
-            // Found a similar modelRef! Use its images
-            // Try to match color first
-            for (const item of indexImages) {
-              if (matchesColor(item.color, productColor) || matchesColor(item.color, productColorCode)) {
-                images = item.images;
-                colorMatches++;
-                if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ SIMILAR ModelRef MATCH: ${indexModelRef} (${item.color})`);
-                }
-                break;
+        for (let prefixLen = maxPrefix; prefixLen >= 5 && !images; prefixLen--) {
+          const prefix = productModelRef.substring(0, prefixLen);
+          
+          // Collect ALL matching images from similar modelRefs
+          const allSimilarImages: Array<{ color: string; images: { imageUrl: string; gallery: string[] } }> = [];
+          
+          for (const [indexModelRef, indexImages] of modelRefIndex.entries()) {
+            if (indexModelRef !== productModelRef && indexModelRef.startsWith(prefix)) {
+              allSimilarImages.push(...indexImages);
+            }
+          }
+          
+          if (allSimilarImages.length === 0) continue;
+          
+          // Try to match color first
+          for (const item of allSimilarImages) {
+            if (matchesColor(item.color, productColor) || matchesColor(item.color, productColorCode)) {
+              images = item.images;
+              colorMatches++;
+              matchedCount++;
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ SIMILAR prefix(${prefixLen}) MATCH: color "${item.color}"`);
+              }
+              break;
+            }
+          }
+          
+          // For SAM EDELMAN / VILEBREQUIN: use ALL images as fallback
+          if (!images && isVilebrequinOrSam && allSimilarImages.length > 0) {
+            const allUrls: string[] = [];
+            for (const item of allSimilarImages) {
+              if (item.images.gallery && item.images.gallery.length > 0) {
+                allUrls.push(...item.images.gallery);
+              } else if (item.images.imageUrl) {
+                allUrls.push(item.images.imageUrl);
               }
             }
-            
-            // If no color match but only 1 color available, use it
-            if (!images && indexImages.length > 0) {
-              const uniqueColors = new Set(indexImages.map(i => i.color));
-              if (uniqueColors.size === 1) {
-                images = indexImages[0].images;
-                modelOnlyMatches++;
-                if (isDebugProduct) {
-                  console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️ SIMILAR ModelRef: ${indexModelRef} (single color: ${indexImages[0].color})`);
-                }
+            const uniqueUrls = Array.from(new Set(allUrls));
+            if (uniqueUrls.length > 0) {
+              images = { imageUrl: uniqueUrls[0], gallery: uniqueUrls };
+              modelOnlyMatches++;
+              matchedCount++;
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️ SIMILAR prefix(${prefixLen}) ALL images fallback (${uniqueUrls.length} images)`);
               }
             }
-            
-            if (images) break;
+          }
+          
+          // For other brands: use single-color fallback
+          if (!images && !isVilebrequinOrSam && allSimilarImages.length > 0) {
+            const uniqueColors = new Set(allSimilarImages.map(i => i.color));
+            if (uniqueColors.size === 1) {
+              images = allSimilarImages[0].images;
+              modelOnlyMatches++;
+              matchedCount++;
+              if (isDebugProduct) {
+                console.log(`[DEBUG ${productModelRef}-${productColor}] ⚠️ SIMILAR prefix(${prefixLen}) single color fallback`);
+              }
+            }
           }
         }
       }
