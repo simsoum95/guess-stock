@@ -705,13 +705,34 @@ export function mapSheetRowToProduct(row: GoogleSheetRow, index: number, sheetNa
     if (detectedBrand === "BAYTON") {
       // BAYTON format: "BA-10084" -> use as-is (it's the complete product code)
       modelRef = itemCode;
-    } else if (detectedBrand === "SAM EDELMAN" || detectedBrand === "VILEBREQUIN") {
-      // Format: "HBSE-125-0011-BLACK-OS" -> "HBSE-125-0011"
+    } else if (detectedBrand === "VILEBREQUIN") {
+      // Format: "VILE-125-0011-COLOR-OS" -> "VILE-125-0011"
       if (parts.length >= 3) {
         modelRef = parts.slice(0, 3).join("-");
       } else {
-        // Fallback: use first part if not enough parts
         modelRef = parts[0] || itemCode;
+      }
+    } else if (detectedBrand === "SAM EDELMAN") {
+      // SAM EDELMAN: use MODEL NAME for image matching (codes in filenames don't match sheet codes)
+      // For HBSE bags: keep the HBSE code (images use these codes)
+      // For shoes (J/I/B/E/H codes): use the model description name (ALIE, VIENNA, etc.)
+      if (itemCode.startsWith("HBSE")) {
+        if (parts.length >= 3) {
+          modelRef = parts.slice(0, 3).join("-");
+        } else {
+          modelRef = parts[0] || itemCode;
+        }
+      } else {
+        // Non-HBSE: use the model description as modelRef for image matching
+        const modelDescription = getValue([
+          "תיאור דגם", "תיאור", "דגם", "שם דגם",
+          "model", "Model", "description", "Description"
+        ]);
+        if (modelDescription) {
+          modelRef = modelDescription.toUpperCase().trim();
+        } else {
+          modelRef = parts[0] || itemCode;
+        }
       }
     } else {
       // GUESS format: "PD760221-BLO-OS" -> "PD760221"

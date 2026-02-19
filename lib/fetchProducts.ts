@@ -339,6 +339,9 @@ const COLOR_MAP: Record<string, string[]> = {
   "LILA": ["LILAC", "PURPLE", "VIOLET", "LIL"],
   "LILAC": ["LILA", "PURPLE", "VIOLET"],
   "LIL": ["LILA", "LILAC", "PURPLE"],
+  "CAPPUCINO": ["BROWN", "BRO", "CAPPUCCINO", "CAFE", "CAFENOIR", "TAN"],
+  "CAPPUCCINO": ["BROWN", "BRO", "CAPPUCINO", "CAFE", "TAN"],
+  "CAFENOIR": ["BROWN", "CAFE NOIR", "DARK BROWN", "DBR", "CAPPUCINO"],
   "CHOCOLATE": ["CHO", "BROWN", "BRO", "DARK BROWN"],
   "CHO": ["CHOCOLATE", "BROWN", "DARK BROWN"],
   "LIS": ["LIGHT", "LISO"],
@@ -853,6 +856,9 @@ export async function fetchProducts(): Promise<Product[]> {
       const productBrand = (productData as any).brand || "";
       // Use colorCode from itemCode (e.g., "BLO" from "PD760221-BLO-OS") - more reliable for matching
       const productColorCode = (productData as any).colorCode?.toUpperCase().trim() || "";
+      // For SAM EDELMAN: also try the full itemCode as secondary modelRef
+      // (older images are indexed by item code, newer images by model name)
+      const productItemCode = (productData as any).itemCode?.toUpperCase().trim() || "";
       
       // Try exact match with colorCode first (most reliable)
       let images: { imageUrl: string; gallery: string[] } | undefined;
@@ -910,6 +916,53 @@ export async function fetchProducts(): Promise<Product[]> {
           if (isDebugProduct) {
             console.log(`[DEBUG ${productModelRef}-${productColor}] ✅ FOUND via normalized color match!`);
           }
+        }
+      }
+      
+      // SAM EDELMAN secondary lookup: try itemCode as modelRef for older scraped images
+      // (newer images use model name, older images use item code)
+      if (!images && productBrand === "SAM EDELMAN" && productItemCode && productItemCode !== productModelRef) {
+        // Try the raw itemCode
+        const itemCodeKey = `${productItemCode}|${productColor}`;
+        images = imageMap.get(itemCodeKey);
+        if (!images) {
+          // Try extracted modelRef from itemCode (e.g., HBSE-125-0011 from HBSE-125-0011-BLACK-OS)
+          const itemParts = productItemCode.split("-");
+          let altModelRef = "";
+          if (itemParts.length >= 3) {
+            altModelRef = itemParts.slice(0, 3).join("-");
+          } else {
+            altModelRef = itemParts[0];
+          }
+          if (altModelRef && altModelRef !== productModelRef) {
+            const altImages = modelRefIndex.get(altModelRef);
+            if (altImages && altImages.length > 0) {
+              for (const item of altImages) {
+                if (matchesColor(item.color, productColor) || matchesColor(item.color, productColorCode)) {
+                  images = item.images;
+                  colorMatches++;
+                  matchedCount++;
+                  break;
+                }
+              }
+              // Fallback: use all images from this modelRef
+              if (!images) {
+                const allUrls: string[] = [];
+                for (const item of altImages) {
+                  if (item.images.gallery?.length > 0) allUrls.push(...item.images.gallery);
+                  else if (item.images.imageUrl) allUrls.push(item.images.imageUrl);
+                }
+                if (allUrls.length > 0) {
+                  images = { imageUrl: allUrls[0], gallery: Array.from(new Set(allUrls)) };
+                  modelOnlyMatches++;
+                  matchedCount++;
+                }
+              }
+            }
+          }
+        }
+        if (images) {
+          // Already counted above
         }
       }
       
